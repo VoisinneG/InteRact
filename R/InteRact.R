@@ -780,9 +780,49 @@ plot_2D_stoichio <- function (x, ...) {
 
 #' @export
 plot_2D_stoichio.InteRactome <- function( res ){
-  p<- ggplot( data.frame(x=log10(res$max_stoichio), 
-                         y=log10(res$stoch_abundance)), 
-              aes(x=x,y=y) ) + geom_point()
+  
+  size_prey <- log2(res$max_fold_change)
+  size_label <- unlist(lapply(size_prey, function(x) { ifelse(x>1, min(c(x,2)), 1) }))
+  sat_max_fold_t0 <- rep(1,length(size_prey))
+    
+  df<- data.frame( X=log10(res$max_stoichio), 
+                   Y=log10(res$stoch_abundance), 
+                   label_tot=res$names,
+                   sat_max_fold_t0=sat_max_fold_t0, 
+                   size_label=size_label,
+                   size_prey=size_prey)
+  
+  df<-df[1:30,]
+  x1<- -2.75;
+  x2<- 2;
+  
+  p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
+    theme(aspect.ratio=1) +
+    scale_x_continuous(limits = c(-5, 2)) +
+    scale_y_continuous(limits = c(-3, 4)) +
+    scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
+    #annotate("segment", x = -2, xend = 1, y = 0, yend = 0, colour = rgb(0,0,0,0.5) ) +
+    #annotate("segment", x = 0, xend = 0, y = -1.5, yend = 1.5, colour = rgb(0,0,0,0.5) ) +
+    geom_polygon(data=data.frame(x=c(x1,x2,x2),y=c(x1,x1,x2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+    annotate("path",
+             x=xc+rc*cos(seq(0,2*pi,length.out=100)),
+             y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
+    annotate("segment", x = x1, xend = x2, y = x1, yend = x2, colour = rgb(0,0,0,0.5) ) +
+    annotate("segment", x = -5, xend = x2, y = x1, yend = x1, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
+    xlab("log10(Interaction Stoichiometry)") +
+    ylab("log10(Abundance Stoichiometry)") +
+    geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
+    #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
+    geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
+                    segment.size = 0.1,
+                    #segment.color = rgb(0,0,0,0.5) , 
+                    min.segment.length = unit(0.15, "lines"), 
+                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = maxiter[ibait])
+  
+  #p<- ggplot( data.frame(x=log10(res$max_stoichio), 
+  #                       y=log10(res$stoch_abundance)), 
+  #            aes(x=x,y=y) ) + geom_point()
+  
   print(p)
   output=p
 }
