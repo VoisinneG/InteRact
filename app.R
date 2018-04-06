@@ -319,7 +319,7 @@ server <- function(input, output, session) {
   })
   
   output$stoichio_2D <- renderPlot(
-    plot_2D_stoichio(res()$Interactome)
+    plot_2D_stoichio(ordered_Interactome())
   )
   
   output$plot <- renderPlot(
