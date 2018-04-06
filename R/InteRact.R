@@ -781,8 +781,8 @@ plot_2D_stoichio <- function (x, ...) {
 #' @export
 plot_2D_stoichio.InteRactome <- function( res ){
   
-  size_prey <- log2(res$max_fold_change)*1.5
-  size_label <- unlist(lapply(size_prey, function(x) { ifelse(x>1.5, min(c(x,3)), 1.5) }))
+  size_prey <- log10(res$max_fold_change)*3
+  size_label <- unlist(lapply(log10(res$max_fold_change), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))*1.5
   sat_max_fold_t0 <- rep(1,length(size_prey))
     
   df<- data.frame( X=log10(res$max_stoichio), 
@@ -799,13 +799,13 @@ plot_2D_stoichio.InteRactome <- function( res ){
   
   ylow <- -3
   
-  max_range <- max( max(df$X)-min(df$X),  max(df$Y)-ylow )
-  center_x <- ( max(df$X)+min(df$X) )/2
-  center_y <- (max(df$Y)+ylow)/2
-  xmin<-center_x - max_range*1.1
-  xmax<-center_x + max_range*1.1
-  ymin<-center_y - max_range*1.1
-  ymax<-center_y + max_range*1.1
+  max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
+  center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
+  center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
+  xmin<-center_x - max_range/1.9
+  xmax<-center_x + max_range/1.9
+  ymin<-center_y - max_range/1.9
+  ymax<-center_y + max_range/1.9
   
   p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
     theme(aspect.ratio=1) +
@@ -825,7 +825,7 @@ plot_2D_stoichio.InteRactome <- function( res ){
     geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
                     segment.size = 0.1,
                     min.segment.length = unit(0.15, "lines"), 
-                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 50000)
+                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
   
   print(p)
   output=p
