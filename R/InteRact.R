@@ -804,8 +804,6 @@ plot_2D_stoichio.InteRactome <- function( res ){
     scale_x_continuous(limits = c(-5, 2)) +
     scale_y_continuous(limits = c(-3, 4)) +
     scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
-    #annotate("segment", x = -2, xend = 1, y = 0, yend = 0, colour = rgb(0,0,0,0.5) ) +
-    #annotate("segment", x = 0, xend = 0, y = -1.5, yend = 1.5, colour = rgb(0,0,0,0.5) ) +
     geom_polygon(data=data.frame(x=c(x1,x2,x2),y=c(x1,x1,x2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
     annotate("path",
              x=xc+rc*cos(seq(0,2*pi,length.out=100)),
@@ -818,13 +816,8 @@ plot_2D_stoichio.InteRactome <- function( res ){
     #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
     geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
                     segment.size = 0.1,
-                    #segment.color = rgb(0,0,0,0.5) , 
                     min.segment.length = unit(0.15, "lines"), 
-                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = maxiter[ibait])
-  
-  #p<- ggplot( data.frame(x=log10(res$max_stoichio), 
-  #                       y=log10(res$stoch_abundance)), 
-  #            aes(x=x,y=y) ) + geom_point()
+                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 50000)
   
   print(p)
   output=p
