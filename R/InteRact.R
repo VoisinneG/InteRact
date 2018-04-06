@@ -793,27 +793,31 @@ plot_2D_stoichio.InteRactome <- function( res ){
                    size_prey=size_prey)
   
   df<-df[1:30,]
-  x1<- -2.75
-  x2<- 2
   xc <- -0.5
   yc <- 0
   rc<-1
   
-  max_range <- max( max(df$X)-min(df$X),  max(df$Y)+3 )
+  ylow <- -3
+  
+  max_range <- max( max(df$X)-min(df$X),  max(df$Y)-ylow )
   center_x <- ( max(df$X)+min(df$X) )/2
-  center_y <- (max(df$Y)-3)/2
+  center_y <- (max(df$Y)+ylow)/2
+  xmin<-center_x - max_range*1.1
+  xmax<-center_x + max_range*1.1
+  ymin<-center_y - max_range*1.1
+  ymax<-center_y + max_range*1.1
   
   p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
     theme(aspect.ratio=1) +
-    scale_x_continuous(limits = c(center_x - max_range*1.1, center_x + max_range*1.1 )) +
-    scale_y_continuous(limits = c(center_y - max_range*1.1, center_y + max_range*1.1 )) +
+    scale_x_continuous(limits = c(xmin, xmax)) +
+    scale_y_continuous(limits = c(ymin, ymax)) +
     scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
-    geom_polygon(data=data.frame(x=c(x1,x2,x2),y=c(x1,x1,x2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+    geom_polygon(data=data.frame(x=c(ylow,xmax,xmax),y=c(ylow,ylow,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
     annotate("path",
              x=xc+rc*cos(seq(0,2*pi,length.out=100)),
              y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
-    annotate("segment", x = x1, xend = x2, y = x1, yend = x2, colour = rgb(0,0,0,0.5) ) +
-    annotate("segment", x = -5, xend = x2, y = x1, yend = x1, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
+    annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5) ) +
+    annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
     xlab("log10(Interaction Stoichiometry)") +
     ylab("log10(Abundance Stoichiometry)") +
     geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
