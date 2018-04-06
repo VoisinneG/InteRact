@@ -793,8 +793,11 @@ plot_2D_stoichio.InteRactome <- function( res ){
                    size_prey=size_prey)
   
   df<-df[1:30,]
-  x1<- -2.75;
-  x2<- 2;
+  x1<- -2.75
+  x2<- 2
+  xc <- -0.5
+  yc <- 0
+  rc<-1
   
   p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
     theme(aspect.ratio=1) +
