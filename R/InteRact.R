@@ -779,56 +779,70 @@ plot_2D_stoichio <- function (x, ...) {
 }
 
 #' @export
-plot_2D_stoichio.InteRactome <- function( res ){
+plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL){
   
-  size_prey <- log10(res$max_fold_change)*3
-  size_label <- unlist(lapply(log10(res$max_fold_change), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))*1.5
-  sat_max_fold_t0 <- rep(1,length(size_prey))
+  
     
   df<- data.frame( X=log10(res$max_stoichio), 
                    Y=log10(res$stoch_abundance), 
                    label_tot=res$names,
-                   sat_max_fold_t0=sat_max_fold_t0, 
-                   size_label=size_label,
-                   size_prey=size_prey)
+                   max_fold_change= res$max_fold_change
+                   )
   
   df<-df[1:30,]
+  
   xc <- -0.5
   yc <- 0
   rc<-1
   
   ylow <- -3
   
-  max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
-  center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
-  center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
-  xmin<-center_x - max_range/1.9
-  xmax<-center_x + max_range/1.9
-  ymin<-center_y - max_range/1.9
-  ymax<-center_y + max_range/1.9
+  if(is.null(xlim) & is.null(ylim)){
+    
+    
+    max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
+    center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
+    center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
+    xmin<-center_x - max_range/1.9
+    xmax<-center_x + max_range/1.9
+    ymin<-center_y - max_range/1.9
+    ymax<-center_y + max_range/1.9
+  }else{
+    max_range <- max( xlim[2]-xlim[1],  ylim[2]-ylim[1] )
+    xmin<-xlim[1]
+    xmax<-xlim[2]
+    ymin<-ylim[1]
+    ymax<-ylim[2]
+  }
+  
+  ylow_plot <- max(ylow,ymin)
+  
+  df$size_prey <- log10(df$max_fold_change)/max_range*20
+  df$size_label <- unlist(lapply(log10(df$max_fold_change), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
+  df$sat_max_fold_t0 <- rep(1,dim(df)[1])
+  
   
   p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
     theme(aspect.ratio=1) +
-    scale_x_continuous(limits = c(xmin, xmax)) +
-    scale_y_continuous(limits = c(ymin, ymax)) +
     scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
-    geom_polygon(data=data.frame(x=c(ylow,xmax,xmax),y=c(ylow,ylow,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+    geom_polygon(data=data.frame(x=c(ylow_plot,xmax,xmax),y=c(ylow_plot,ylow_plot,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
     annotate("path",
              x=xc+rc*cos(seq(0,2*pi,length.out=100)),
              y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
-    annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5) ) +
-    annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
+    annotate("segment", x = ylow_plot, xend = xmax, y = ylow_plot, yend = xmax, colour = rgb(0,0,0,0.5) ) +
+    annotate("segment", x = xmin, xend = xmax, y = ylow_plot, yend = ylow_plot, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
     xlab("log10(Interaction Stoichiometry)") +
     ylab("log10(Abundance Stoichiometry)") +
     geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
+    coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
     #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
     geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
                     segment.size = 0.1,
                     min.segment.length = unit(0.15, "lines"), 
                     point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
-  
-  print(p)
-  output=p
+  return(p)
+  #print(p)
+  #output=p
 }
 
 #' @export

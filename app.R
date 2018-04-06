@@ -4,6 +4,7 @@ library(ggplot2)
 library(ggrepel)
 library(grid)
 library(DT)
+library(Cairo)
 
 source("./R/InteRact.R")
 
@@ -124,9 +125,16 @@ ui <- fluidPage(
 
                        ),
                        tabPanel("2D stoichio", 
-                                column(6,
+                                column(4,
                                        br(),
-                                       plotOutput("stoichio_2D",width="400",height="400") 
+                                       helpText("Brush and double-click to zoom")
+                                ),
+                                column(width=6,
+                                       plotOutput("stoichio_2D",height="450",
+                                                  dblclick = "stoichio_2D_dblclick",
+                                                  brush = brushOpts(
+                                                    id = "stoichio_2D_brush",
+                                                    resetOnNew = TRUE) )
                                 )
                                 
                        ),
@@ -318,8 +326,25 @@ server <- function(input, output, session) {
         summary_table(ordered_Interactome(),  add_columns = input$columns_displayed )
   })
   
+  ranges <- reactiveValues(x = NULL, y = NULL)
+  
+  # When a double-click happens, check if there's a brush on the plot.
+  # If so, zoom to the brush bounds; if not, reset the zoom.
+  observeEvent(input$stoichio_2D_dblclick, {
+    brush <- input$stoichio_2D_brush
+    if (!is.null(brush)) {
+      ranges$x <- c(brush$xmin, brush$xmax)
+      ranges$y <- c(brush$ymin, brush$ymax)
+      
+    } else {
+      ranges$x <- NULL
+      ranges$y <- NULL
+    }
+    print(ranges$x)
+  })
+  
   output$stoichio_2D <- renderPlot(
-    plot_2D_stoichio(ordered_Interactome())
+    plot_2D_stoichio(ordered_Interactome(), xlim = ranges$x, ylim = ranges$y )
   )
   
   output$plot <- renderPlot(
