@@ -1,6 +1,6 @@
 load("./R/sysdata.rda")
 
-#' Analysis of proteomics datas
+#' Analysis of proteomics data for real
 #'
 #' This package implements several functions to analyze Affinity Purification data.
 #' 
