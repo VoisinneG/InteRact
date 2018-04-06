@@ -781,8 +781,8 @@ plot_2D_stoichio <- function (x, ...) {
 #' @export
 plot_2D_stoichio.InteRactome <- function( res ){
   
-  size_prey <- log2(res$max_fold_change)
-  size_label <- unlist(lapply(size_prey, function(x) { ifelse(x>1, min(c(x,2)), 1) }))
+  size_prey <- log2(res$max_fold_change)*1.5
+  size_label <- unlist(lapply(size_prey, function(x) { ifelse(x>1.5, min(c(x,3)), 1.5) }))
   sat_max_fold_t0 <- rep(1,length(size_prey))
     
   df<- data.frame( X=log10(res$max_stoichio), 
@@ -799,10 +799,14 @@ plot_2D_stoichio.InteRactome <- function( res ){
   yc <- 0
   rc<-1
   
+  max_range <- max( max(df$X)-min(df$X),  max(df$Y)+3 )
+  center_x <- ( max(df$X)+min(df$X) )/2
+  center_y <- (max(df$Y)-3)/2
+  
   p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
     theme(aspect.ratio=1) +
-    scale_x_continuous(limits = c(-5, 2)) +
-    scale_y_continuous(limits = c(-3, 4)) +
+    scale_x_continuous(limits = c(center_x - max_range*1.1, center_x + max_range*1.1 )) +
+    scale_y_continuous(limits = c(center_y - max_range*1.1, center_y + max_range*1.1 )) +
     scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
     geom_polygon(data=data.frame(x=c(x1,x2,x2),y=c(x1,x1,x2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
     annotate("path",
