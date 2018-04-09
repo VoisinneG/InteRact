@@ -3,8 +3,6 @@ library(shiny)
 library(ggplot2)
 library(ggrepel)
 library(grid)
-library(DT)
-library(Cairo)
 
 source("./R/InteRact.R")
 
@@ -87,7 +85,7 @@ ui <- fluidPage(
                                 ),
                                 column(8,
                                   br(),
-                                  DT::dataTableOutput("contents")
+                                  dataTableOutput("contents")
                                 )
                        ),
                        tabPanel("Volcano plots", 
@@ -153,7 +151,7 @@ ui <- fluidPage(
                                 ),
                                 column(8,
                                        br(),
-                                       DT::dataTableOutput("summary")
+                                       dataTableOutput("summary")
                                 )
                                 
                        )
@@ -268,7 +266,7 @@ server <- function(input, output, session) {
   })
   
   
-  output$contents <- DT::renderDataTable({
+  output$contents <- renderDataTable({
     updateCheckboxGroupInput(session, "filter_bio",
                              choices = as.list(unique(cond()$bio)),
                              selected = NULL)
@@ -322,7 +320,7 @@ server <- function(input, output, session) {
   
   
   
-  output$summary <- DT::renderDataTable({
+  output$summary <- renderDataTable({
         summary_table(ordered_Interactome(),  add_columns = input$columns_displayed )
   })
   
@@ -393,35 +391,6 @@ server <- function(input, output, session) {
       plot_volcanos( res()$Interactome, conditions = input$volcano_cond, p_val_thresh = p_val_thresh, 
                      fold_change_thresh=fold_change_thresh, N_print=input$N_print )
     }
-    
-     # if(input$save_volcano){
-     #     trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
-     #     save_dir = paste("~/desktop/results_",input$bait_gene_name,"/",sep="")
-     #     dir.create(save_dir)
-     #     results=res()
-     #     save( results, file=paste(save_dir,"res.Rdata",sep="") )
-     #     save_file=paste(save_dir,"volcano_plot.pdf",sep="")
-     #     if(input$volcano_cond %in% res()$Interactome$conditions){
-     #       plot_volcanos( res()$Interactome, conditions = input$volcano_cond, save_file=save_file, p_val_thresh = p_val_thresh, 
-     #                      fold_change_thresh=fold_change_thresh, N_print=input$N_print )
-     #     }
-     #     else{
-     #       plot_volcanos(res()$Interactome, save_file=save_file, p_val_thresh = p_val_thresh, 
-     #                     fold_change_thresh=fold_change_thresh, N_print=input$N_print)
-     #     }
-     # }else{ 
-     #     trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
-     #     save_file=NULL
-     #     if(input$volcano_cond %in% res()$Interactome$conditions){
-     #       
-     #       plot_volcanos( res()$Interactome, conditions = input$volcano_cond, save_file=save_file, p_val_thresh = p_val_thresh, 
-     #                      fold_change_thresh=fold_change_thresh, N_print=input$N_print )
-     #     }
-     #     else{
-     #       plot_volcanos(res()$Interactome, save_file=save_file, p_val_thresh = p_val_thresh, 
-     #                     fold_change_thresh=fold_change_thresh, N_print=input$N_print)
-     #     }
-     # }
     
     
   )
