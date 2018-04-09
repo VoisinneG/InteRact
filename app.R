@@ -226,7 +226,9 @@ server <- function(input, output, session) {
   
   
   data <- reactive({
+    print(input$file$datapath)
     read.csv(input$file$datapath, sep="\t", fill=TRUE, na.strings="", dec=ifelse(input$dec,",",".") )
+    
   })
   
   cond <- reactive({
@@ -310,18 +312,25 @@ server <- function(input, output, session) {
   
   
   observe({
-    if(input$save_table){
-      save_dir = paste("~/desktop/results_",input$bait_gene_name,"/",sep="")
+    if (input$save_table) {
+      save_dir = paste("~/desktop/results_", input$bait_gene_name, "/", sep =
+                         "")
       dir.create(save_dir)
-      write.table( summary_table(ordered_Interactome(),  add_columns = input$columns_displayed ), 
-                   file=paste(save_dir,"results.txt",sep=""), sep="\t", dec=".", row.names = FALSE)
-    } 
+      write.table(
+        summary_table(ordered_Interactome(),  add_columns = input$columns_displayed),
+        file = paste(save_dir, "results.txt", sep = ""),
+        sep = "\t",
+        dec = ".",
+        row.names = FALSE
+      )
+      
+    }
   })
   
   
   
   output$summary <- renderDataTable({
-        summary_table(ordered_Interactome(),  add_columns = input$columns_displayed )
+    summary_table(ordered_Interactome(),  add_columns = input$columns_displayed)
   })
   
   ranges <- reactiveValues(x = NULL, y = NULL)
@@ -349,7 +358,7 @@ server <- function(input, output, session) {
     
     if(input$save_dot){
       trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
-      save_dir = paste("~/desktop/results_",input$bait_gene_name,"/",sep="")
+      save_dir = paste("./results_",input$bait_gene_name,"/",sep="")
       dir.create(save_dir)
       results=res$Interactome()
       
@@ -377,7 +386,7 @@ server <- function(input, output, session) {
   save_file<-NULL
   
   observeEvent(input$save_volcano, {
-    save_dir = paste("~/desktop/results_",input$bait_gene_name,"/",sep="")
+    save_dir = paste("./results_",input$bait_gene_name,"/",sep="")
     dir.create(save_dir)
     save_file <<- paste(save_dir,"volcano_plot.pdf",sep="")
     plot_volcanos( res()$Interactome, conditions = input$volcano_cond, save_file=save_file, p_val_thresh = p_val_thresh, 
