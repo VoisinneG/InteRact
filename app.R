@@ -359,6 +359,7 @@ server <- function(input, output, session) {
     if(input$save_dot){
       trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
       save_dir = paste("./results_",input$bait_gene_name,"/",sep="")
+      cat(save_dir)
       dir.create(save_dir)
       results=res$Interactome()
       
