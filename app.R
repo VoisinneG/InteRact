@@ -359,19 +359,11 @@ server <- function(input, output, session) {
     if(input$save_dot){
       trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
       save_dir = paste("./results_",input$bait_gene_name,"/",sep="")
-      cat(save_dir)
+      cat(paste(getwd(),save_dir,sep=""))
       dir.create(save_dir)
-      results=res$Interactome()
+      results=res()
       
       save( results, file=paste(save_dir,"res.Rdata",sep="") )
-      
-      plot_per_conditions(Interactome_order, 
-                          idx_rows = min(Nmax, order_list$Ndetect), 
-                          size_var=size_var, 
-                          size_range=size_range, 
-                          color_var="p_val", 
-                          color_breaks=p_val_breaks, 
-                          save_file=save_file )
       
       plot(res()$Interactome, p_val_thresh = p_val_thresh, 
            fold_change_thresh=fold_change_thresh, Nmax = input$Nmax,
