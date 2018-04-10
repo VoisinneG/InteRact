@@ -779,7 +779,7 @@ plot_2D_stoichio <- function (x, ...) {
 }
 
 #' @export
-plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL){
+plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL, N_display=30){
   
   
     
@@ -789,7 +789,7 @@ plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL){
                    max_fold_change= res$max_fold_change
                    )
   
-  df<-df[1:30,]
+  df<-df[1:min(N_display, dim(df)[1]), ]
   
   xc <- -0.5
   yc <- 0
@@ -986,7 +986,7 @@ plot_volcanos.InteRactome <- function( res, labels=res$names, N_print=15, condit
     dev.off()
   }
   
-  output=plist
+  return(plist)
 }
 
 #' @export

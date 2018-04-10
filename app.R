@@ -7,30 +7,15 @@ library(grid)
 source("./R/InteRact.R")
 
 
-options(shiny.maxRequestSize = 20*1024^2) #maximum file size is set to 30MB
+options(shiny.maxRequestSize = 30*1024^2) #maximum file size is set to 30MB
 
-# Source helpers ----
-#source("./helpers.R")
 
 # User interface ----
 ui <- fluidPage(
   titlePanel("InteRact : Analysis of AP-MS data"),
   
   fluidRow(
-    # column(4, 
-    #        wellPanel(
-    #           h2("Import"),
-    #           fileInput("file", h4("ProteinGroups file :"), placeholder = "Enter file here"),
-    #           checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
-    #        ),
-    #        wellPanel(
-    #          h2("Options"),
-    #          textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
-    #          textInput("bckg_bait", "Enter name of Bait background", value = "Bait"),
-    #          textInput("bckg_ctrl", "Enter name of Control background", value = "WT"),
-    #          numericInput("Nrep", "Number of replicates", value = 1)
-    #        )
-    # ),
+    
     column(12, 
            
            tabsetPanel(id = "inTabset",
@@ -97,12 +82,15 @@ ui <- fluidPage(
                                          #textInput("volcano_cond", "Select conditions", value = ""),
                                          uiOutput("my_output_UI_1"),
                                          numericInput("N_print", "# proteins displayed (maximum) ", value = 15),
-                                         actionButton("save_volcano", "Save results", value = FALSE)
+                                         downloadButton("download_volcano", "Download volcano plot"),
+                                         br(),
+                                         br(),
+                                         downloadButton("download_all_volcanos", "Download all volcano plots")
                                        )
                                 ),
                                 column(6,
                                        br(),
-                                       plotOutput("VolcanoPlot",width="400",height="400") 
+                                       plotOutput("volcano",width="400",height="400") 
                                 )
                        ),
                        tabPanel("Dot Plot", 
@@ -110,28 +98,32 @@ ui <- fluidPage(
                                        br(),
                                        wellPanel(
                                          uiOutput("my_output_UI_2"),
-                                         #numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
-                                         #numericInput("fold_change_thresh", "fold-change (minimum)", value = 1),
+                                         #numericInput("p_val_thresh", "p-value (maximum)", value = NULL),
+                                         #numericInput("fold_change_thresh", "fold-change (minimum)", value = NULL),
                                          numericInput("Nmax", "# proteins displayed (maximum) ", value = 30),
-                                         actionButton("save_dot", "Save results", value = FALSE)
+                                         downloadButton("download_dotPlot", "Download Plot", value = FALSE)
                                        )
                                 ),
                                 column(4,
                                        br(),
-                                       plotOutput("plot",width="300",height="700") 
+                                       plotOutput("dotPlot",width="300",height="700") 
                                 )
 
                        ),
                        tabPanel("2D stoichio", 
                                 column(4,
                                        br(),
-                                       helpText("Brush and double-click to zoom")
+                                       wellPanel(
+                                        helpText("Brush and double-click to zoom"),
+                                        numericInput("Nmax2D", "# proteins displayed (maximum) ", value = 30),
+                                        downloadButton("download_Stoichio2D", "Download Plot", value = FALSE)
+                                       )
                                 ),
                                 column(width=6,
-                                       plotOutput("stoichio_2D",height="450",
-                                                  dblclick = "stoichio_2D_dblclick",
+                                       plotOutput("Stoichio2D",height="400",
+                                                  dblclick = "Stoichio2D_dblclick",
                                                   brush = brushOpts(
-                                                    id = "stoichio_2D_brush",
+                                                    id = "Stoichio2D_brush",
                                                     resetOnNew = TRUE) )
                                 )
                                 
@@ -146,12 +138,13 @@ ui <- fluidPage(
                                                             choices = c("names", "max_stoichio", "max_fold_change", "min_p_val"), 
                                                             selected = c("names", "max_stoichio", "max_fold_change", "min_p_val")
                                                             ),
-                                         actionButton("save_table", "Save summary table", value = FALSE)
+                                         downloadButton("download_summaryTable", "Download summary table", value = FALSE)
+                                         
                                        )
                                 ),
                                 column(8,
                                        br(),
-                                       dataTableOutput("summary")
+                                       dataTableOutput("summaryTable")
                                 )
                                 
                        )
@@ -159,33 +152,14 @@ ui <- fluidPage(
     )
   )
               
-  # sidebarLayout(
-  #   sidebarPanel(
-  #     
-  #     h2("Import"),
-  #     
-  #     fileInput("file", h4("ProteinGroups file :"), placeholder = "Enter file here"),
-  #   
-  #     checkboxInput("dec", "Use comma as decimal separator", value = FALSE),
-  #     
-  #     h2("Options"),
-  #     
-  #     textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
-  #     textInput("bckg_bait", "Enter name of Bait background", value = "Bait"),
-  #     textInput("bckg_ctrl", "Enter name of Control background", value = "WT"),
-  #     numericInput("Nrep", "Number of replicates", value = 1) 
-  #     
-  #     ),
-  #   
-  #   mainPanel( 
-  #     h4("Description of conditions used :"),
-  #     DT::dataTableOutput("contents") 
-  #   )
-  # )
 )
 
 # Server logic
 server <- function(input, output, session) {
+  
+  # initial values
+  p_val_thresh <- 0.01
+  fold_change_thresh <- 2
   
   # return a list of UI elements
   output$my_output_UI_1 <- renderUI({
@@ -201,10 +175,6 @@ server <- function(input, output, session) {
       numericInput("fold_change_thresh_2", "fold-change (minimum)", value = fold_change_thresh)
     )
   })
-  
-  # initial values
-  p_val_thresh <- 0.01
-  fold_change_thresh <- 1
   
   observeEvent(input$p_val_thresh_1,{
     p_val_thresh <<- input$p_val_thresh_1
@@ -226,9 +196,7 @@ server <- function(input, output, session) {
   
   
   data <- reactive({
-    print(input$file$datapath)
     read.csv(input$file$datapath, sep="\t", fill=TRUE, na.strings="", dec=ifelse(input$dec,",",".") )
-    
   })
   
   cond <- reactive({
@@ -311,34 +279,42 @@ server <- function(input, output, session) {
   })
   
   
-  observe({
-    if (input$save_table) {
-      save_dir = paste("~/desktop/results_", input$bait_gene_name, "/", sep =
-                         "")
-      dir.create(save_dir)
-      write.table(
-        summary_table(ordered_Interactome(),  add_columns = input$columns_displayed),
-        file = paste(save_dir, "results.txt", sep = ""),
-        sep = "\t",
-        dec = ".",
-        row.names = FALSE
-      )
-      
-    }
-  })
+  # observe({
+  #   if (input$save_table) {
+  #     save_dir = paste("~/desktop/results_", input$bait_gene_name, "/", sep =
+  #                        "")
+  #     dir.create(save_dir)
+  #     write.table(
+  #       summary_table(ordered_Interactome(),  add_columns = input$columns_displayed),
+  #       file = paste(save_dir, "results.txt", sep = ""),
+  #       sep = "\t",
+  #       dec = ".",
+  #       row.names = FALSE
+  #     )
+  #     
+  #   }
+  # })
   
   
-  
-  output$summary <- renderDataTable({
+  summaryTable <- reactive({
     summary_table(ordered_Interactome(),  add_columns = input$columns_displayed)
   })
+    
+  output$summaryTable <- renderDataTable({summaryTable() })
+  
+  output$download_summaryTable <- downloadHandler(
+    filename = "summary_table.txt",
+    content = function(file) {
+      write.table(summaryTable(), file, sep = "\t", dec = ".", row.names = FALSE)
+    }
+  )
   
   ranges <- reactiveValues(x = NULL, y = NULL)
   
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
-  observeEvent(input$stoichio_2D_dblclick, {
-    brush <- input$stoichio_2D_brush
+  observeEvent(input$Stoichio2D_dblclick, {
+    brush <- input$Stoichio2D_brush
     if (!is.null(brush)) {
       ranges$x <- c(brush$xmin, brush$xmax)
       ranges$y <- c(brush$ymin, brush$ymax)
@@ -350,56 +326,91 @@ server <- function(input, output, session) {
     print(ranges$x)
   })
   
-  output$stoichio_2D <- renderPlot(
-    plot_2D_stoichio(ordered_Interactome(), xlim = ranges$x, ylim = ranges$y )
-  )
   
-  output$plot <- renderPlot(
-    
-    if(input$save_dot){
-      trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
-      save_dir = paste("~/results_",input$bait_gene_name,"/",sep="")
-      cat(paste(getwd(),save_dir,sep=""))
-      dir.create(save_dir)
-      results=res()
-      
-      save( results, file=paste(save_dir,"res.Rdata",sep="") )
-      
-      plot(res()$Interactome, p_val_thresh = p_val_thresh, 
-           fold_change_thresh=fold_change_thresh, Nmax = input$Nmax,
-           save_file=paste(save_dir,"dot_plot.pdf",sep=""))
-    }else{
-      trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
-      plot(res()$Interactome, p_val_thresh = p_val_thresh, 
-           fold_change_thresh=fold_change_thresh, Nmax = input$Nmax)
-    }
-    
-  )
-  
-  save_file<-NULL
-  
-  observeEvent(input$save_volcano, {
-    save_dir = paste("~/results_",input$bait_gene_name,"/",sep="")
-    dir.create(save_dir)
-    save_file <<- paste(save_dir,"volcano_plot.pdf",sep="")
-    plot_volcanos( res()$Interactome, conditions = input$volcano_cond, save_file=save_file, p_val_thresh = p_val_thresh, 
-                   fold_change_thresh=fold_change_thresh, N_print=input$N_print )
+  Stoichio2D <- reactive({
+    plot_2D_stoichio(ordered_Interactome(),xlim = ranges$x,ylim = ranges$y, N_display=input$Nmax2D )
   })
   
-  output$VolcanoPlot <- renderPlot(
-    
-    if(length(res())>0){
-      trigger<-c(input$p_val_thresh_1, input$p_val_thresh_2, input$fold_change_thresh_1, input$fold_change_thresh_2)
-      plot_volcanos( res()$Interactome, conditions = input$volcano_cond, p_val_thresh = p_val_thresh, 
-                     fold_change_thresh=fold_change_thresh, N_print=input$N_print )
+  output$Stoichio2D <- renderPlot( Stoichio2D() )
+  
+  output$download_Stoichio2D <- downloadHandler(
+    filename = "Stoichio2D_plot.pdf",
+    content = function(file) {
+      pdf(file,5, 5)
+      print(Stoichio2D())
+      dev.off()
     }
-    
-    
   )
   
   
-   
+  dotPlot <- reactive({
+    trigger<-c(input$p_val_thresh_1, 
+               input$p_val_thresh_2, 
+               input$fold_change_thresh_1, 
+               input$fold_change_thresh_2)
+    plot(res()$Interactome, 
+         p_val_thresh = p_val_thresh, 
+         fold_change_thresh=fold_change_thresh, 
+         Nmax = input$Nmax)
+  })
   
+  output$dotPlot <- renderPlot( dotPlot() )
+  
+  output$download_dotPlot <- downloadHandler(
+    filename = "dot_plot.pdf",
+    content = function(file) {
+      plot_width=3.4
+      plot_height=input$Nmax/(plot_width+1) + 1 
+      pdf(file,plot_width,plot_height)
+      print(dotPlot())
+      dev.off()
+    }
+  )
+  
+  
+  volcano <- reactive({
+      trigger<-c(input$p_val_thresh_1, 
+                 input$p_val_thresh_2, 
+                 input$fold_change_thresh_1, 
+                 input$fold_change_thresh_2)
+      plot_volcanos( res()$Interactome, 
+                     conditions = input$volcano_cond,
+                     p_val_thresh = p_val_thresh, 
+                     fold_change_thresh=fold_change_thresh, 
+                     N_print=input$N_print )
+  })
+  
+  all_volcanos <- reactive({
+    trigger<-c(input$p_val_thresh_1, 
+               input$p_val_thresh_2, 
+               input$fold_change_thresh_1, 
+               input$fold_change_thresh_2)
+    plot_volcanos( res()$Interactome,
+                   p_val_thresh = p_val_thresh, 
+                   fold_change_thresh=fold_change_thresh, 
+                   N_print=input$N_print )
+  })
+  
+  output$volcano <- renderPlot( volcano() )
+  
+  output$download_volcano <- downloadHandler(
+    filename = "volcano_plot.pdf",
+    content = function(file) {
+      pdf(file,5,5)
+      print(volcano())
+      dev.off()
+    }
+  )
+  
+  output$download_all_volcanos <- downloadHandler(
+    filename = "all_volcanos_plot.pdf",
+    content = function(file) {
+      pdf(file,5, 5)
+      print(all_volcanos())
+      dev.off()
+    }
+  )
+
 }
 
 # Run the app
