@@ -90,7 +90,7 @@ ui <- fluidPage(
                                 ),
                                 column(6,
                                        br(),
-                                       plotOutput("volcano",width="400",height="400") 
+                                       plotOutput("volcano", width="400",height="400") 
                                 )
                        ),
                        tabPanel("Dot Plot", 
@@ -111,22 +111,29 @@ ui <- fluidPage(
 
                        ),
                        tabPanel("2D stoichio", 
-                                column(4,
+                                column(3,
                                        br(),
                                        wellPanel(
                                          uiOutput("my_output_UI_3"),
-                                        numericInput("Nmax2D", "# proteins displayed (maximum) ", value = 30),
-                                        downloadButton("download_Stoichio2D", "Download Plot", value = FALSE)
+                                        numericInput("Nmax2D", "# proteins displayed (maximum) ", value = 30)
+                                        
                                        )
                                 ),
-                                column(width=6,
+                                column(width=4,
                                        br(),
-                                       helpText("Brush and double-click to zoom"),
-                                       plotOutput("Stoichio2D",height="400",
-                                                  dblclick = "Stoichio2D_dblclick",
+                                       helpText("Brush to select zoom area"),
+                                       plotOutput("Stoichio2D", width="300",height="300",
+                                                  #dblclick = "Stoichio2D_dblclick",
                                                   brush = brushOpts(
                                                     id = "Stoichio2D_brush",
-                                                    resetOnNew = TRUE) )
+                                                    resetOnNew = TRUE) ),
+                                       downloadButton("download_Stoichio2D", "Download Plot", value = FALSE)
+                                ),
+                                column(width=4,
+                                       br(),
+                                       helpText("zoom on selected area"),
+                                       plotOutput("Stoichio2D_zoom", width="300",height="300"),
+                                       downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE)
                                 )
                                 
                        ),
@@ -302,11 +309,11 @@ server <- function(input, output, session) {
     }
   )
   
-  ranges <- reactiveValues(x = NULL, y = NULL)
+  ranges <- reactiveValues(x = c(-1.5,0.5), y = c(-1,1))
   
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
-  observeEvent(input$Stoichio2D_dblclick, {
+  observeEvent(input$Stoichio2D_brush, {
     brush <- input$Stoichio2D_brush
     if (!is.null(brush)) {
       ranges$x <- c(brush$xmin, brush$xmax)
@@ -320,13 +327,19 @@ server <- function(input, output, session) {
   
   
   Stoichio2D <- reactive({
-    plot_2D_stoichio(ordered_Interactome(), 
-                     xlim = ranges$x, 
-                     ylim = ranges$y, 
+    plot_2D_stoichio(ordered_Interactome(),
+                     N_display=min(order_list()$Ndetect, input$Nmax2D) )
+  })
+  
+  Stoichio2D_zoom <- reactive({
+    plot_2D_stoichio(ordered_Interactome(),
+                     xlim = ranges$x,
+                     ylim = ranges$y,
                      N_display=min(order_list()$Ndetect, input$Nmax2D) )
   })
   
   output$Stoichio2D <- renderPlot( Stoichio2D() )
+  output$Stoichio2D_zoom <- renderPlot( Stoichio2D_zoom() )
   
   output$download_Stoichio2D <- downloadHandler(
     filename = "Stoichio2D_plot.pdf",
@@ -337,6 +350,14 @@ server <- function(input, output, session) {
     }
   )
   
+  output$download_Stoichio2D_zoom <- downloadHandler(
+    filename = "Stoichio2D_zoom_plot.pdf",
+    content = function(file) {
+      pdf(file, 5, 5)
+      print(Stoichio2D_zoom())
+      dev.off()
+    }
+  )
   
   dotPlot <- reactive({
     plot_per_conditions(ordered_Interactome(), 
@@ -366,7 +387,7 @@ server <- function(input, output, session) {
   })
   
   all_volcanos <- reactive({
-    plot_volcanos( res()$Interactome,
+    plot_volcanos( ordered_Interactome(),
                    p_val_thresh = params$p_val_thresh, 
                    fold_change_thresh = params$fold_change_thresh, 
                    N_print=input$N_print )
