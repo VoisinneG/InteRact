@@ -924,7 +924,7 @@ plot_volcanos <- function (x, ...) {
 }
 
 #' @export
-plot_volcanos.InteRactome <- function( res, labels=res$names, N_print=15, conditions=res$conditions, p_val_thresh=NULL, fold_change_thresh=NULL, save_file=NULL, show_plot=TRUE){
+plot_volcanos.InteRactome <- function( res, labels=res$names, N_print=15, conditions=res$conditions, p_val_thresh=NULL, fold_change_thresh=NULL, save_file=NULL, show_plot=FALSE){
 
   plist <- vector("list",length(conditions));
   

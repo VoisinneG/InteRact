@@ -77,7 +77,7 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         selectInput("volcano_cond", h3("Select conditions"), 
+                                         selectInput("volcano_cond", "Select conditions", 
                                                      choices = list(), selected = NULL),
                                          #textInput("volcano_cond", "Select conditions", value = ""),
                                          uiOutput("my_output_UI_1"),
@@ -88,9 +88,14 @@ ui <- fluidPage(
                                          downloadButton("download_all_volcanos", "Download all volcano plots")
                                        )
                                 ),
-                                column(6,
+                                column(5,
                                        br(),
-                                       plotOutput("volcano", width="400",height="400") 
+                                       helpText("Hover mouse over point to display extra info"),
+                                       plotOutput("volcano", width="400",height="400", hover = hoverOpts(id ="volcano_hover"),
+                                                  brush = brushOpts(
+                                                  id = "volcano_brush",
+                                                  resetOnNew = TRUE) ),
+                                       verbatimTextOutput("info_volcano_hover") 
                                 )
                        ),
                        tabPanel("Dot Plot", 
@@ -383,7 +388,7 @@ server <- function(input, output, session) {
                      conditions = input$volcano_cond,
                      p_val_thresh = params$p_val_thresh, 
                      fold_change_thresh = params$fold_change_thresh, 
-                     N_print=input$N_print )
+                     N_print=input$N_print )[[1]]
   })
   
   all_volcanos <- reactive({
@@ -412,7 +417,25 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-
+  
+  output$info_volcano_hover <- renderPrint({
+    
+    if(!is.null(input$volcano_hover)){
+      hover=input$volcano_hover
+      dist=sqrt((hover$x-log10(res()$Interactome$fold_change[[input$volcano_cond]]) )^2+(hover$y+log10(res()$Interactome$p_val[[input$volcano_cond]]) )^2)
+      if(min(dist) < 0.25){
+        #print( res()$Interactome$names[which.min(dist)] )
+        s1<-paste("name: ", res()$Interactome$names[which.min(dist)],sep="")
+        s2<-paste("p_val: ", res()$Interactome$p_val[[input$volcano_cond]][which.min(dist)],sep="")
+        s3<-paste("fold_change: ", res()$Interactome$fold_change[[input$volcano_cond]][which.min(dist)],sep="")
+        cat(s1,s2,s3,sep="\n")
+        
+        #print(list(a=1, b=2))
+        #input$volcano_hover$x
+      }
+    }
+  })
+  
 }
 
 # Run the app
