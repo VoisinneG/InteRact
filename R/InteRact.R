@@ -796,22 +796,18 @@ plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL, N_display=3
   ylow <- -3
   
   if(is.null(xlim) & is.null(ylim)){
-    
-    
     max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
     center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
     center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
-    xmin<-center_x - max_range/1.9
-    xmax<-center_x + max_range/1.9
-    ymin<-center_y - max_range/1.9
-    ymax<-center_y + max_range/1.9
   }else{
-    max_range <- max( xlim[2]-xlim[1],  ylim[2]-ylim[1] )
-    xmin<-xlim[1]
-    xmax<-xlim[2]
-    ymin<-ylim[1]
-    ymax<-ylim[2]
+    max_range <- max( xlim[2] - xlim[1],  ylim[2] - ylim[1] )
+    center_x <- ( xlim[2] + xlim[1] )/2
+    center_y <- ( ylim[2] + ylim[1] )/2
   }
+  xmin<-center_x - max_range/1.9
+  xmax<-center_x + max_range/1.9
+  ymin<-center_y - max_range/1.9
+  ymax<-center_y + max_range/1.9
   
   ylow_plot <- max(ylow,ymin)
   
@@ -819,6 +815,8 @@ plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL, N_display=3
   df$size_label <- unlist(lapply(log10(df$max_fold_change), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
   df$sat_max_fold_t0 <- rep(1,dim(df)[1])
   
+  idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
+  df <- df[idx_plot, ]
   
   p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
     theme(aspect.ratio=1) +
@@ -858,7 +856,7 @@ get_order_discrete.InteRactome <- function( res , p_val_breaks=c(1,0.1,0.05,0.01
     min_p_val_discrete[res$max_fold_change>fold_change_thresh & res$min_p_val <= p_val_breaks_order[i] ]<-p_val_breaks_order[i];
   }
   
-  Ndetect<-length(which( res$min_p_val<=p_val_thresh & res$max_fold_change>fold_change_thresh) )
+  Ndetect<-length(which( res$min_p_val<=p_val_thresh & res$max_fold_change>=fold_change_thresh) )
   idx_order<-order( min_p_val_discrete, 1/res$max_stoichio, decreasing =FALSE)
   
   output = list(idx_order=idx_order, Ndetect= Ndetect, min_p_val_discrete = min_p_val_discrete)

@@ -358,7 +358,7 @@ server <- function(input, output, session) {
   
   
   volcano <- reactive({
-      plot_volcanos( res()$Interactome, 
+      plot_volcanos( ordered_Interactome(), 
                      conditions = input$volcano_cond,
                      p_val_thresh = params$p_val_thresh, 
                      fold_change_thresh = params$fold_change_thresh, 
