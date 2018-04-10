@@ -781,8 +781,6 @@ plot_2D_stoichio <- function (x, ...) {
 #' @export
 plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL, N_display=30){
   
-  
-    
   df<- data.frame( X=log10(res$max_stoichio), 
                    Y=log10(res$stoch_abundance), 
                    label_tot=res$names,
@@ -860,10 +858,11 @@ get_order_discrete.InteRactome <- function( res , p_val_breaks=c(1,0.1,0.05,0.01
     min_p_val_discrete[res$max_fold_change>fold_change_thresh & res$min_p_val <= p_val_breaks_order[i] ]<-p_val_breaks_order[i];
   }
   
-  Ndetect<-length(which( res$min_p_val<=p_val_thresh ))
+  Ndetect<-length(which( res$min_p_val<=p_val_thresh & res$max_fold_change>fold_change_thresh) )
   idx_order<-order( min_p_val_discrete, 1/res$max_stoichio, decreasing =FALSE)
   
   output = list(idx_order=idx_order, Ndetect= Ndetect, min_p_val_discrete = min_p_val_discrete)
+  return(output)
 }
 
 #' @export
@@ -1067,7 +1066,8 @@ plot_per_conditions.InteRactome <- function( res,
     print(p)
     dev.off()
   }
-  output=p
+  
+  return(p)
   
 }
 

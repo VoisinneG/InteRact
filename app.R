@@ -114,12 +114,14 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                        helpText("Brush and double-click to zoom"),
+                                         uiOutput("my_output_UI_3"),
                                         numericInput("Nmax2D", "# proteins displayed (maximum) ", value = 30),
                                         downloadButton("download_Stoichio2D", "Download Plot", value = FALSE)
                                        )
                                 ),
                                 column(width=6,
+                                       br(),
+                                       helpText("Brush and double-click to zoom"),
                                        plotOutput("Stoichio2D",height="400",
                                                   dblclick = "Stoichio2D_dblclick",
                                                   brush = brushOpts(
@@ -158,40 +160,41 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   # initial values
-  p_val_thresh <- 0.01
-  fold_change_thresh <- 2
+  params<-reactiveValues(p_val_thresh = 0.01, fold_change_thresh = 2)
+  
   
   # return a list of UI elements
   output$my_output_UI_1 <- renderUI({
     list(
-      numericInput("p_val_thresh_1", "p-value (maximum)", value = p_val_thresh),
-      numericInput("fold_change_thresh_1", "fold-change (minimum)", value = fold_change_thresh)
+      numericInput("p_val_thresh_1", "p-value (maximum)", value = params$p_val_thresh),
+      numericInput("fold_change_thresh_1", "fold-change (minimum)", value = params$fold_change_thresh)
     )
   })
   
   output$my_output_UI_2 <- renderUI({
     list(
-      numericInput("p_val_thresh_2", "p-value (maximum)", value = p_val_thresh),
-      numericInput("fold_change_thresh_2", "fold-change (minimum)", value = fold_change_thresh)
+      numericInput("p_val_thresh_2", "p-value (maximum)", value = params$p_val_thresh),
+      numericInput("fold_change_thresh_2", "fold-change (minimum)", value = params$fold_change_thresh)
     )
   })
   
-  observeEvent(input$p_val_thresh_1,{
-    p_val_thresh <<- input$p_val_thresh_1
-    updateNumericInput(session, "p_val_thresh_2", value=p_val_thresh)})
-  observeEvent(input$p_val_thresh_2,{
-    p_val_thresh <<- input$p_val_thresh_2
-    updateNumericInput(session,"p_val_thresh_1", value=p_val_thresh)})
-  observeEvent(input$fold_change_thresh_1,{
-    fold_change_thresh <<- input$fold_change_thresh_1
-    updateNumericInput(session,"fold_change_thresh_2", value=fold_change_thresh)})
-  observeEvent(input$fold_change_thresh_2,{
-    fold_change_thresh <<- input$fold_change_thresh_2
-    updateNumericInput(session,"fold_change_thresh_1", value=fold_change_thresh)})
+  output$my_output_UI_3 <- renderUI({
+    list(
+      numericInput("p_val_thresh_3", "p-value (maximum)", value = params$p_val_thresh),
+      numericInput("fold_change_thresh_3", "fold-change (minimum)", value = params$fold_change_thresh)
+    )
+  })
+  
+  observeEvent(input$p_val_thresh_1, {params$p_val_thresh <- input$p_val_thresh_1})
+  observeEvent(input$p_val_thresh_2, {params$p_val_thresh <- input$p_val_thresh_2})
+  observeEvent(input$p_val_thresh_3, {params$p_val_thresh <- input$p_val_thresh_3})
+  observeEvent(input$fold_change_thresh_1, {params$fold_change_thresh <- input$fold_change_thresh_1})
+  observeEvent(input$fold_change_thresh_2, {params$fold_change_thresh <- input$fold_change_thresh_2})
+  observeEvent(input$fold_change_thresh_3, {params$fold_change_thresh <- input$fold_change_thresh_3})
   
   observe({
-    c_num <- input$bait_gene_name
-    updateTextInput(session, "bckg_bait", value =  c_num)
+    b_name <- input$bait_gene_name
+    updateTextInput(session, "bckg_bait", value =  b_name)
   })
   
   
@@ -255,20 +258,28 @@ server <- function(input, output, session) {
     append_annotations(res()$Interactome)
   })
   
+  
+  order_list <- reactive({
+    get_order_discrete(res()$Interactome, 
+                       p_val_thresh = params$p_val_thresh, 
+                       fold_change_thresh = params$fold_change_thresh )
+  })
+  
   ordered_Interactome <- reactive({
     if(input$append_annotations){
       
-      order_list <- get_order_discrete(annotated_Interactome(), p_val_thresh, fold_change_thresh )
-      results <- order_interactome(annotated_Interactome(), order_list$idx_order)
+      results <- order_interactome(annotated_Interactome(), order_list()$idx_order)
+      cat(order_list()$Ndetect)
+      cat(params$p_val_thresh)
       names_excluded <- c("names","bait", "groups","conditions")
       updateCheckboxGroupInput(session, "columns_displayed",
                                choices = as.list( setdiff(names(results), names_excluded),selected=c("names", "max_stoichio", "max_fold_change", "min_p_val")) )
       results
       
     }else{
-      order_list <- get_order_discrete(res()$Interactome, p_val_thresh, fold_change_thresh )
-      results <- order_interactome(res()$Interactome, order_list$idx_order)
-      
+      results <- order_interactome(res()$Interactome, order_list()$idx_order)
+      cat(order_list()$Ndetect)
+      cat(params$p_val_thresh)
       names_excluded <- c("names","bait", "groups","conditions")
       updateCheckboxGroupInput(session, "columns_displayed",
                                choices = as.list( setdiff(names(results), names_excluded),selected=c("names", "max_stoichio", "max_fold_change", "min_p_val")))
@@ -277,24 +288,6 @@ server <- function(input, output, session) {
     }
     
   })
-  
-  
-  # observe({
-  #   if (input$save_table) {
-  #     save_dir = paste("~/desktop/results_", input$bait_gene_name, "/", sep =
-  #                        "")
-  #     dir.create(save_dir)
-  #     write.table(
-  #       summary_table(ordered_Interactome(),  add_columns = input$columns_displayed),
-  #       file = paste(save_dir, "results.txt", sep = ""),
-  #       sep = "\t",
-  #       dec = ".",
-  #       row.names = FALSE
-  #     )
-  #     
-  #   }
-  # })
-  
   
   summaryTable <- reactive({
     summary_table(ordered_Interactome(),  add_columns = input$columns_displayed)
@@ -323,12 +316,14 @@ server <- function(input, output, session) {
       ranges$x <- NULL
       ranges$y <- NULL
     }
-    print(ranges$x)
   })
   
   
   Stoichio2D <- reactive({
-    plot_2D_stoichio(ordered_Interactome(),xlim = ranges$x,ylim = ranges$y, N_display=input$Nmax2D )
+    plot_2D_stoichio(ordered_Interactome(), 
+                     xlim = ranges$x, 
+                     ylim = ranges$y, 
+                     N_display=min(order_list()$Ndetect, input$Nmax2D) )
   })
   
   output$Stoichio2D <- renderPlot( Stoichio2D() )
@@ -336,7 +331,7 @@ server <- function(input, output, session) {
   output$download_Stoichio2D <- downloadHandler(
     filename = "Stoichio2D_plot.pdf",
     content = function(file) {
-      pdf(file,5, 5)
+      pdf(file, 5, 5)
       print(Stoichio2D())
       dev.off()
     }
@@ -344,14 +339,8 @@ server <- function(input, output, session) {
   
   
   dotPlot <- reactive({
-    trigger<-c(input$p_val_thresh_1, 
-               input$p_val_thresh_2, 
-               input$fold_change_thresh_1, 
-               input$fold_change_thresh_2)
-    plot(res()$Interactome, 
-         p_val_thresh = p_val_thresh, 
-         fold_change_thresh=fold_change_thresh, 
-         Nmax = input$Nmax)
+    plot_per_conditions(ordered_Interactome(), 
+                        idx_rows = min(input$Nmax, order_list()$Ndetect))
   })
   
   output$dotPlot <- renderPlot( dotPlot() )
@@ -359,8 +348,8 @@ server <- function(input, output, session) {
   output$download_dotPlot <- downloadHandler(
     filename = "dot_plot.pdf",
     content = function(file) {
-      plot_width=3.4
-      plot_height=input$Nmax/(plot_width+1) + 1 
+      plot_width = 3.4
+      plot_height = input$Nmax/(plot_width+1) + 1 
       pdf(file,plot_width,plot_height)
       print(dotPlot())
       dev.off()
@@ -369,25 +358,17 @@ server <- function(input, output, session) {
   
   
   volcano <- reactive({
-      trigger<-c(input$p_val_thresh_1, 
-                 input$p_val_thresh_2, 
-                 input$fold_change_thresh_1, 
-                 input$fold_change_thresh_2)
       plot_volcanos( res()$Interactome, 
                      conditions = input$volcano_cond,
-                     p_val_thresh = p_val_thresh, 
-                     fold_change_thresh=fold_change_thresh, 
+                     p_val_thresh = params$p_val_thresh, 
+                     fold_change_thresh = params$fold_change_thresh, 
                      N_print=input$N_print )
   })
   
   all_volcanos <- reactive({
-    trigger<-c(input$p_val_thresh_1, 
-               input$p_val_thresh_2, 
-               input$fold_change_thresh_1, 
-               input$fold_change_thresh_2)
     plot_volcanos( res()$Interactome,
-                   p_val_thresh = p_val_thresh, 
-                   fold_change_thresh=fold_change_thresh, 
+                   p_val_thresh = params$p_val_thresh, 
+                   fold_change_thresh = params$fold_change_thresh, 
                    N_print=input$N_print )
   })
   
@@ -396,7 +377,7 @@ server <- function(input, output, session) {
   output$download_volcano <- downloadHandler(
     filename = "volcano_plot.pdf",
     content = function(file) {
-      pdf(file,5,5)
+      pdf(file, 5, 5)
       print(volcano())
       dev.off()
     }
@@ -405,7 +386,7 @@ server <- function(input, output, session) {
   output$download_all_volcanos <- downloadHandler(
     filename = "all_volcanos_plot.pdf",
     content = function(file) {
-      pdf(file,5, 5)
+      pdf(file, 5, 5)
       print(all_volcanos())
       dev.off()
     }
