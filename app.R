@@ -117,20 +117,25 @@ ui <- fluidPage(
                                          uiOutput("my_output_UI_2"),
                                          #numericInput("p_val_thresh", "p-value (maximum)", value = NULL),
                                          #numericInput("fold_change_thresh", "fold-change (minimum)", value = NULL),
-                                         numericInput("Nmax", "# proteins displayed (maximum) ", value = 30),
-                                         downloadButton("download_dotPlot", "Download Plot", value = FALSE)
+                                         numericInput("Nmax", "# proteins displayed (maximum) ", value = 30)
                                        )
                                 ),
                                 column(4,
                                        br(),
+                                       downloadButton("download_dotPlot", "Download Plot", value = FALSE),
                                        plotOutput("dotPlot",width="250",height="500",
                                                   hover = hoverOpts(id ="dotPlot_hover"),
                                                   dblclick = "dotPlot_dblclick",
                                                   brush = brushOpts(
                                                     id = "dotPlot_brush",
-                                                    resetOnNew = TRUE) ) 
+                                                    resetOnNew = TRUE) )
                                 ),
                                 column(4,
+                                       br(),
+                                       wellPanel(
+                                         helpText("Hover mouse over point to display extra info"),
+                                         helpText("Brush and double-click to zoom")
+                                       ),
                                        br(),
                                        verbatimTextOutput("info_dotPlot_hover") 
                                 )
@@ -140,15 +145,16 @@ ui <- fluidPage(
                                 column(3,
                                        br(),
                                        wellPanel(
+                                         selectInput("Stoichio2D_cond", "Select condition", 
+                                                     choices = list(), selected = NULL),
                                          uiOutput("my_output_UI_3"),
-                                        numericInput("Nmax2D", "# proteins displayed (maximum) ", value = 30)
-                                        
+                                         numericInput("Nmax2D", "# proteins displayed (maximum) ", value = 30)
                                        )
                                 ),
                                 column(width=4,
                                        br(),
-                                       downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
                                        helpText("Brush to select zoom area"),
+                                       downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
                                        plotOutput("Stoichio2D", width="300",height="300",
                                                   hover = hoverOpts(id ="Stoichio2D_hover"),
                                                   #dblclick = "Stoichio2D_dblclick",
@@ -160,8 +166,8 @@ ui <- fluidPage(
                                 ),
                                 column(width=4,
                                        br(),
-                                       downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE),
                                        helpText("zoom on selected area"),
+                                       downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE),
                                        plotOutput("Stoichio2D_zoom", width="300",height="300",
                                                   hover = hoverOpts(id ="Stoichio2D_zoom_hover")),
                                        br(),
@@ -180,12 +186,13 @@ ui <- fluidPage(
                                                             "Columns displayed", 
                                                             choices = c("names", "max_stoichio", "max_fold_change", "min_p_val"), 
                                                             selected = c("names", "max_stoichio", "max_fold_change", "min_p_val")
-                                                            ),
-                                         downloadButton("download_summaryTable", "Download summary table", value = FALSE)
-                                         
+                                                            )
                                        )
                                 ),
                                 column(8,
+                                       br(),
+                                       downloadButton("download_summaryTable", "Download summary table", value = FALSE),
+                                       br(),
                                        br(),
                                        dataTableOutput("summaryTable")
                                 )
@@ -256,6 +263,10 @@ server <- function(input, output, session) {
     
     updateSelectInput(session, "volcano_cond", 
                       choices = as.list(setdiff(unique(cond()$time), input$filter_time) ), 
+                      selected = NULL)
+    
+    updateSelectInput(session, "Stoichio2D_cond", 
+                      choices = as.list(setdiff( c("max", unique(cond()$time)), input$filter_time)), 
                       selected = NULL)
     
     cond()
@@ -396,11 +407,13 @@ server <- function(input, output, session) {
   
   Stoichio2D <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
+                     condition = input$Stoichio2D_cond,
                      N_display=min(order_list()$Ndetect, input$Nmax2D) )
   })
   
   Stoichio2D_zoom <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
+                     condition = input$Stoichio2D_cond,
                      xlim = ranges$x,
                      ylim = ranges$y,
                      N_display=min(order_list()$Ndetect, input$Nmax2D) )

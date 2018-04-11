@@ -779,13 +779,21 @@ plot_2D_stoichio <- function (x, ...) {
 }
 
 #' @export
-plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL, N_display=30){
+plot_2D_stoichio.InteRactome <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_display=30){
   
-  df<- data.frame( X=log10(res$max_stoichio), 
-                   Y=log10(res$stoch_abundance), 
-                   label_tot=res$names,
-                   max_fold_change= res$max_fold_change
+  df<- data.frame( Y=log10(res$stoch_abundance), 
+                   label_tot=res$names
                    )
+  if(condition=="max"){
+    df$X <- log10(res$max_stoichio)
+    df$size <- res$max_fold_change
+  }else if(condition %in% res$conditions){
+    df$X <- log10(res$stoichio[[condition]])
+    df$size <- res$fold_change[[condition]]
+  }else{
+    stop("Condition is not defined")
+  }
+  
   
   df<-df[1:min(N_display, dim(df)[1]), ]
   
@@ -811,8 +819,8 @@ plot_2D_stoichio.InteRactome <- function( res, xlim=NULL, ylim=NULL, N_display=3
   
   ylow_plot <- max(ylow,ymin)
   
-  df$size_prey <- log10(df$max_fold_change)/max_range*20
-  df$size_label <- unlist(lapply(log10(df$max_fold_change), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
+  df$size_prey <- log10(df$size)/max_range*20
+  df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
   df$sat_max_fold_t0 <- rep(1,dim(df)[1])
   
   idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
