@@ -91,7 +91,9 @@ ui <- fluidPage(
                                 column(5,
                                        br(),
                                        helpText("Hover mouse over point to display extra info"),
-                                       plotOutput("volcano", width="400",height="400", hover = hoverOpts(id ="volcano_hover"),
+                                       plotOutput("volcano", width="400",height="400", 
+                                                  hover = hoverOpts(id ="volcano_hover"),
+                                                  dblclick = "volcano_dblclick",
                                                   brush = brushOpts(
                                                   id = "volcano_brush",
                                                   resetOnNew = TRUE) ),
@@ -111,7 +113,7 @@ ui <- fluidPage(
                                 ),
                                 column(4,
                                        br(),
-                                       plotOutput("dotPlot",width="300",height="700") 
+                                       plotOutput("dotPlot",width="250",height="500") 
                                 )
 
                        ),
@@ -330,6 +332,21 @@ server <- function(input, output, session) {
     }
   })
   
+  ranges_volcano <- reactiveValues(x = NULL, y = NULL)
+  
+  # When a double-click happens, check if there's a brush on the plot.
+  # If so, zoom to the brush bounds; if not, reset the zoom.
+  observeEvent(input$volcano_dblclick, {
+    brush_volcano <- input$volcano_brush
+    if (!is.null(brush_volcano)) {
+      ranges_volcano$x <- c(brush_volcano$xmin, brush_volcano$xmax)
+      ranges_volcano$y <- c(brush_volcano$ymin, brush_volcano$ymax)
+      
+    } else {
+      ranges_volcano$x <- NULL
+      ranges_volcano$y <- NULL
+    }
+  })
   
   Stoichio2D <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
@@ -384,11 +401,12 @@ server <- function(input, output, session) {
   
   
   volcano <- reactive({
-      plot_volcanos( ordered_Interactome(), 
+      plot_volcanos( ordered_Interactome(),
                      conditions = input$volcano_cond,
                      p_val_thresh = params$p_val_thresh, 
                      fold_change_thresh = params$fold_change_thresh, 
-                     N_print=input$N_print )[[1]]
+                     N_print=input$N_print)[[1]]+
+      coord_cartesian(xlim = ranges_volcano$x, ylim = ranges_volcano$y, expand = FALSE)
   })
   
   all_volcanos <- reactive({

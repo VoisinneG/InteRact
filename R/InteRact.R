@@ -924,7 +924,14 @@ plot_volcanos <- function (x, ...) {
 }
 
 #' @export
-plot_volcanos.InteRactome <- function( res, labels=res$names, N_print=15, conditions=res$conditions, p_val_thresh=NULL, fold_change_thresh=NULL, save_file=NULL, show_plot=FALSE){
+plot_volcanos.InteRactome <- function( res, 
+                                       labels=res$names, 
+                                       N_print=15, 
+                                       conditions=res$conditions, 
+                                       p_val_thresh=NULL, 
+                                       fold_change_thresh=NULL, 
+                                       save_file=NULL, 
+                                       show_plot=FALSE){
 
   plist <- vector("list",length(conditions));
   
@@ -935,6 +942,7 @@ plot_volcanos.InteRactome <- function( res, labels=res$names, N_print=15, condit
   x2 <- xmax
   y1 <- -log10(p_val_thresh)
   y2 <- ymax
+  
   
   for( i in seq_along(conditions) ){
     
@@ -958,7 +966,7 @@ plot_volcanos.InteRactome <- function( res, labels=res$names, N_print=15, condit
       
     
     if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
-      plist[[i]] <- plist[[i]] + 
+      plist[[i]] <- plist[[i]] +
         geom_polygon(data=data.frame(x=c(x1,x2,x2,x1),y=c(y1,y1,y2,y2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
         annotate("segment", x = -x2, xend = x2, y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
         annotate("segment", x = -x1, xend = -x1, y = 0, yend = y2, colour = rgb(1,0,0,0.5) ) +
