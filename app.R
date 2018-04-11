@@ -137,19 +137,27 @@ ui <- fluidPage(
                                 ),
                                 column(width=4,
                                        br(),
+                                       downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
                                        helpText("Brush to select zoom area"),
                                        plotOutput("Stoichio2D", width="300",height="300",
+                                                  hover = hoverOpts(id ="Stoichio2D_hover")
                                                   #dblclick = "Stoichio2D_dblclick",
                                                   brush = brushOpts(
                                                     id = "Stoichio2D_brush",
                                                     resetOnNew = TRUE) ),
-                                       downloadButton("download_Stoichio2D", "Download Plot", value = FALSE)
+                                       verbatimTextOutput("info_Stoichio2D_hover")
+                                       
                                 ),
                                 column(width=4,
                                        br(),
+                                       downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE),
                                        helpText("zoom on selected area"),
-                                       plotOutput("Stoichio2D_zoom", width="300",height="300"),
-                                       downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE)
+                                       plotOutput("Stoichio2D_zoom", width="300",height="300",
+                                                  hover = hoverOpts(id ="Stoichio2D_zoom_hover")),
+                                       br(),
+                                       verbatimTextOutput("info_Stoichio2D_zoom_hover")
+                                       
+                                       
                                 )
                                 
                        ),
@@ -479,6 +487,42 @@ server <- function(input, output, session) {
         
         #print(list(a=1, b=2))
         #input$volcano_hover$x
+      }
+    }
+  })
+  
+  output$info_Stoichio2D_zoom_hover <- renderPrint({
+    
+    if(!is.null(input$Stoichio2D_zoom_hover)){
+      hover=input$Stoichio2D_zoom_hover
+      dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:input$Nmax2D]) )^2 +
+                  (hover$y-log10(ordered_Interactome()$stoch_abundance[1:input$Nmax2D]) )^2)
+      min_dist1 <- min(dist1, na.rm=TRUE)
+      i_min <- which.min(dist1)
+      
+      if(min_dist1 < 0.25){
+        s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
+        s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ i_min ],sep="")
+        s3<-paste("max_fold_change: ", ordered_Interactome()$max_fold_change[ i_min ],sep="")
+        cat(s1,s2,s3,sep="\n")
+      }
+    }
+  })
+  
+  output$info_Stoichio2D_hover <- renderPrint({
+    
+    if(!is.null(input$Stoichio2D_hover)){
+      hover=input$Stoichio2D_hover
+      dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:input$Nmax2D]) )^2 +
+                    (hover$y-log10(ordered_Interactome()$stoch_abundance[1:input$Nmax2D]) )^2)
+      min_dist1 <- min(dist1, na.rm=TRUE)
+      i_min <- which.min(dist1)
+      
+      if(min_dist1 < 0.25){
+        s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
+        s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ i_min ],sep="")
+        s3<-paste("max_fold_change: ", ordered_Interactome()$max_fold_change[ i_min ],sep="")
+        cat(s1,s2,s3,sep="\n")
       }
     }
   })
