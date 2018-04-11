@@ -74,23 +74,26 @@ ui <- fluidPage(
                                 )
                        ),
                        tabPanel("Volcano plots", 
-                                column(4,
+                                column(3,
                                        br(),
                                        wellPanel(
                                          selectInput("volcano_cond", "Select conditions", 
                                                      choices = list(), selected = NULL),
                                          #textInput("volcano_cond", "Select conditions", value = ""),
                                          uiOutput("my_output_UI_1"),
-                                         numericInput("N_print", "# proteins displayed (maximum) ", value = 15),
-                                         downloadButton("download_volcano", "Download volcano plot"),
-                                         br(),
-                                         br(),
-                                         downloadButton("download_all_volcanos", "Download all volcano plots")
+                                         numericInput("N_print", "# proteins displayed (maximum) ", value = 15)
+                                         
                                        )
                                 ),
-                                column(5,
+                                column(6,
                                        br(),
-                                       helpText("Hover mouse over point to display extra info"),
+                                       fluidRow(
+                                        downloadButton("download_volcano", "Download plot"),
+                                        downloadButton("download_all_volcanos", "Download all volcanos")
+                                       ),
+                                       br(),
+                                       #helpText("Hover mouse over point to display extra info"),
+                                       #helpText("Brush and double-click to zoom"),
                                        plotOutput("volcano", width="400",height="400", 
                                                   hover = hoverOpts(id ="volcano_hover"),
                                                   dblclick = "volcano_dblclick",
@@ -98,6 +101,13 @@ ui <- fluidPage(
                                                   id = "volcano_brush",
                                                   resetOnNew = TRUE) ),
                                        verbatimTextOutput("info_volcano_hover") 
+                                ),
+                                column(3,
+                                       br(),
+                                       wellPanel(
+                                         helpText("Hover mouse over point to display extra info"),
+                                         helpText("Brush and double-click to zoom")
+                                       )
                                 )
                        ),
                        tabPanel("Dot Plot", 
@@ -140,7 +150,7 @@ ui <- fluidPage(
                                        downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
                                        helpText("Brush to select zoom area"),
                                        plotOutput("Stoichio2D", width="300",height="300",
-                                                  hover = hoverOpts(id ="Stoichio2D_hover")
+                                                  hover = hoverOpts(id ="Stoichio2D_hover"),
                                                   #dblclick = "Stoichio2D_dblclick",
                                                   brush = brushOpts(
                                                     id = "Stoichio2D_brush",
@@ -478,12 +488,13 @@ server <- function(input, output, session) {
     if(!is.null(input$volcano_hover)){
       hover=input$volcano_hover
       dist=sqrt((hover$x-log10(res()$Interactome$fold_change[[input$volcano_cond]]) )^2+(hover$y+log10(res()$Interactome$p_val[[input$volcano_cond]]) )^2)
-      if(min(dist) < 0.25){
+      if(min(dist,na.rm=TRUE) < 0.25){
         #print( res()$Interactome$names[which.min(dist)] )
         s1<-paste("name: ", res()$Interactome$names[which.min(dist)],sep="")
         s2<-paste("p_val: ", res()$Interactome$p_val[[input$volcano_cond]][which.min(dist)],sep="")
         s3<-paste("fold_change: ", res()$Interactome$fold_change[[input$volcano_cond]][which.min(dist)],sep="")
-        cat(s1,s2,s3,sep="\n")
+        s4<-paste("stoichio: ", res()$Interactome$stoichio[[input$volcano_cond]][which.min(dist)],sep="")
+        cat(s1,s2,s3,s4,sep="\n")
         
         #print(list(a=1, b=2))
         #input$volcano_hover$x
