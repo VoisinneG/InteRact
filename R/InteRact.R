@@ -1081,7 +1081,7 @@ plot_per_conditions.InteRactome <- function( res,
 dot_plot <- function(Dot_Size, 
                      Dot_Color=NULL, 
                      title="Dot Plot", 
-                     size_range=range(Dot_size) , 
+                     size_range=range(Dot_Size) , 
                      size_var ="size", 
                      color_var="color"){
   
@@ -1111,7 +1111,8 @@ dot_plot <- function(Dot_Size,
     }
   }
   
-  pos <- 1+dim(M)[1] - ( 1:dim(M)[1] )
+  #pos <- 1+dim(M)[1] - ( 1:dim(M)[1] )
+  pos <-  - ( 1:dim(M)[1] )
   
   for( k in 1:dim(M)[2] ){
     xpos[[k]] <- rep(k, dim(M)[1] )
@@ -1146,14 +1147,15 @@ dot_plot <- function(Dot_Size,
     xlab("") +
     ylab("") +
     scale_x_continuous(breaks=1:dim(M)[2],
-                       limits=c(0.75, dim(M)[2]+0.25),
+                       limits=c(0.5, dim(M)[2]+0.5),
                        labels=xlabels) +
     scale_y_continuous(breaks=pos,
-                       limits=c(0.5, dim(M)[1]+0.5),
+                       #limits= -c(0.25, dim(M)[1]+0.75),
+                       limits= -c(dim(M)[1]+0.75, 0.25 ),
                        labels=ylabels) +
     geom_point(alpha=0.5, show.legend = TRUE)
   
-  output=p
+  return(p)
   
 }
 

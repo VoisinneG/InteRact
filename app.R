@@ -113,7 +113,16 @@ ui <- fluidPage(
                                 ),
                                 column(4,
                                        br(),
-                                       plotOutput("dotPlot",width="250",height="500") 
+                                       plotOutput("dotPlot",width="250",height="500",
+                                                  hover = hoverOpts(id ="dotPlot_hover"),
+                                                  dblclick = "dotPlot_dblclick",
+                                                  brush = brushOpts(
+                                                    id = "dotPlot_brush",
+                                                    resetOnNew = TRUE) ) 
+                                ),
+                                column(4,
+                                       br(),
+                                       verbatimTextOutput("info_dotPlot_hover") 
                                 )
 
                        ),
@@ -230,6 +239,8 @@ server <- function(input, output, session) {
     updateSelectInput(session, "volcano_cond", 
                       choices = as.list(setdiff(unique(cond()$time), input$filter_time) ), 
                       selected = NULL)
+    
+    cond()
     
     res_int<-InteRact(data(), 
            bait_gene_name = input$bait_gene_name, 
@@ -348,6 +359,23 @@ server <- function(input, output, session) {
     }
   })
   
+  ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
+  
+  # When a double-click happens, check if there's a brush on the plot.
+  # If so, zoom to the brush bounds; if not, reset the zoom.
+  observeEvent(input$dotPlot_dblclick, {
+    brush_dotPlot <- input$dotPlot_brush
+    if (!is.null(brush_dotPlot)) {
+      ranges_dotPlot$x <- c(brush_dotPlot$xmin, brush_dotPlot$xmax)
+      ranges_dotPlot$y <- c(brush_dotPlot$ymin, brush_dotPlot$ymax)
+      
+    } else {
+      ranges_dotPlot$x <- NULL
+      ranges_dotPlot$y <- NULL
+    }
+  })
+  
+  
   Stoichio2D <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
                      N_display=min(order_list()$Ndetect, input$Nmax2D) )
@@ -383,7 +411,8 @@ server <- function(input, output, session) {
   
   dotPlot <- reactive({
     plot_per_conditions(ordered_Interactome(), 
-                        idx_rows = min(input$Nmax, order_list()$Ndetect))
+                        idx_rows = min(input$Nmax, order_list()$Ndetect))+
+    coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
   })
   
   output$dotPlot <- renderPlot( dotPlot() )
@@ -452,6 +481,22 @@ server <- function(input, output, session) {
         #input$volcano_hover$x
       }
     }
+  })
+  
+  output$info_dotPlot_hover <- renderPrint({
+    
+    if(!is.null(input$dotPlot_hover)){
+      i_prot = round(-input$dotPlot_hover$y)
+      i_cond = round(input$dotPlot_hover$x)
+      s1 <- paste("Name: ", ordered_Interactome()$names[ i_prot ], sep="")
+      s2 <- paste("Condition: ", ordered_Interactome()$conditions[ i_cond ], sep="")
+      s3 <- paste("p-value: ", ordered_Interactome()$p_val[[ i_cond ]][ i_prot ], sep="")
+      s4 <- paste("fold-change: ", ordered_Interactome()$fold_change[[ i_cond ]][ i_prot ], sep="")
+      s5 <- paste("stoichio: ", ordered_Interactome()$stoichio[[ i_cond ]][ i_prot ], sep="")
+      s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ i_cond ]][ i_prot ], sep="")
+      cat(s1, s2, s3, s4, s5, s6,sep="\n")
+    }
+    
   })
   
 }
