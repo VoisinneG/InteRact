@@ -52,17 +52,17 @@ ui <- fluidPage(
                                 column(4,
                                     br(),
                                     wellPanel(
-                                        h2("Filter"),
+                                        helpText("check boxes to filter out samples"),
                                         checkboxGroupInput("filter_bio", 
-                                                           "filter_bio", 
+                                                           "Biological replicates (bio)", 
                                                            choices = list(),
                                                            selected = NULL),
                                         checkboxGroupInput("filter_tech", 
-                                                           "filter_tech", 
+                                                           "Technical replicates (tech)", 
                                                            choices = list(),
                                                            selected = NULL),
                                         checkboxGroupInput("filter_time", 
-                                                           "filter_time", 
+                                                           "Experimental conditions (time)", 
                                                            choices = list(),
                                                            selected = NULL)
                                         
@@ -77,11 +77,11 @@ ui <- fluidPage(
                                 column(3,
                                        br(),
                                        wellPanel(
-                                         selectInput("volcano_cond", "Select conditions", 
+                                         selectInput("volcano_cond", "Select condition", 
                                                      choices = list(), selected = NULL),
                                          #textInput("volcano_cond", "Select conditions", value = ""),
                                          uiOutput("my_output_UI_1"),
-                                         numericInput("N_print", "# proteins displayed (maximum) ", value = 15)
+                                         numericInput("N_print", "# labels displayed (maximum) ", value = 15)
                                          
                                        )
                                 ),
@@ -500,13 +500,16 @@ server <- function(input, output, session) {
     
     if(!is.null(input$volcano_hover)){
       hover=input$volcano_hover
-      dist=sqrt((hover$x-log10(res()$Interactome$fold_change[[input$volcano_cond]]) )^2+(hover$y+log10(res()$Interactome$p_val[[input$volcano_cond]]) )^2)
-      if(min(dist,na.rm=TRUE) < 0.25){
+      dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 + 
+                  (hover$y+log10(ordered_Interactome()$p_val[[input$volcano_cond]]) )^2)
+      min_dist1 <- min(dist1, na.rm=TRUE)
+      i_min <- which.min(dist1)
+      if( min_dist1 < 0.25){
         #print( res()$Interactome$names[which.min(dist)] )
-        s1<-paste("name: ", res()$Interactome$names[which.min(dist)],sep="")
-        s2<-paste("p_val: ", res()$Interactome$p_val[[input$volcano_cond]][which.min(dist)],sep="")
-        s3<-paste("fold_change: ", res()$Interactome$fold_change[[input$volcano_cond]][which.min(dist)],sep="")
-        s4<-paste("stoichio: ", res()$Interactome$stoichio[[input$volcano_cond]][which.min(dist)],sep="")
+        s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
+        s2<-paste("p_val: ", ordered_Interactome()$p_val[[input$volcano_cond]][ i_min ],sep="")
+        s3<-paste("fold_change: ", ordered_Interactome()$fold_change[[input$volcano_cond]][ i_min ],sep="")
+        s4<-paste("stoichio: ", ordered_Interactome()$stoichio[[input$volcano_cond]][ i_min ],sep="")
         cat(s1,s2,s3,s4,sep="\n")
         
         #print(list(a=1, b=2))
@@ -519,8 +522,13 @@ server <- function(input, output, session) {
     
     if(!is.null(input$Stoichio2D_zoom_hover)){
       hover=input$Stoichio2D_zoom_hover
-      dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:input$Nmax2D]) )^2 +
-                  (hover$y-log10(ordered_Interactome()$stoch_abundance[1:input$Nmax2D]) )^2)
+      if(input$Stoichio2D_cond == "max"){
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+      }else{
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+      }
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
       
@@ -537,8 +545,14 @@ server <- function(input, output, session) {
     
     if(!is.null(input$Stoichio2D_hover)){
       hover=input$Stoichio2D_hover
-      dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:input$Nmax2D]) )^2 +
-                    (hover$y-log10(ordered_Interactome()$stoch_abundance[1:input$Nmax2D]) )^2)
+      if(input$Stoichio2D_cond == "max"){
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+      }else{
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+      }
+      
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
       
