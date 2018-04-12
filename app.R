@@ -177,6 +177,29 @@ ui <- fluidPage(
                                 )
                                 
                        ),
+                       tabPanel("Annotation", 
+                                column(4,
+                                       br(),
+                                       wellPanel(
+                                         h3("Interactome"),
+                                         uiOutput("my_output_UI_4")
+                                         
+                                       ),
+                                       wellPanel(
+                                         h3("Annotations"),
+                                         numericInput("p_val_max_annot", "p-value (maximum)", value = 0.05),
+                                         numericInput("fold_change_min_annot", "fold-change (minimum)", value = 2),
+                                         numericInput("N_annot_min", "Number of annotated proteins (minimum)", value = 2)
+                                       )
+                                ),
+                                column(4,
+                                       br(),
+                                       downloadButton("download_annotPlot", "Download Plot", value = FALSE),
+                                       plotOutput("annotPlot")
+                                )
+                                
+                                
+                       ),
                        tabPanel("Summary Table", 
                                 column(4,
                                        br(),
@@ -233,12 +256,21 @@ server <- function(input, output, session) {
     )
   })
   
+  output$my_output_UI_4 <- renderUI({
+    list(
+      numericInput("p_val_thresh_4", "p-value (maximum)", value = params$p_val_thresh),
+      numericInput("fold_change_thresh_4", "fold-change (minimum)", value = params$fold_change_thresh)
+    )
+  })
+  
   observeEvent(input$p_val_thresh_1, {params$p_val_thresh <- input$p_val_thresh_1})
   observeEvent(input$p_val_thresh_2, {params$p_val_thresh <- input$p_val_thresh_2})
   observeEvent(input$p_val_thresh_3, {params$p_val_thresh <- input$p_val_thresh_3})
+  observeEvent(input$p_val_thresh_4, {params$p_val_thresh <- input$p_val_thresh_4})
   observeEvent(input$fold_change_thresh_1, {params$fold_change_thresh <- input$fold_change_thresh_1})
   observeEvent(input$fold_change_thresh_2, {params$fold_change_thresh <- input$fold_change_thresh_2})
   observeEvent(input$fold_change_thresh_3, {params$fold_change_thresh <- input$fold_change_thresh_3})
+  observeEvent(input$fold_change_thresh_4, {params$fold_change_thresh <- input$fold_change_thresh_4})
   
   observe({
     b_name <- input$bait_gene_name
@@ -582,6 +614,17 @@ server <- function(input, output, session) {
     }
     
   })
+  
+  
+  #df_annotation <- reactive({
+  #  order_interactome( annotated_Interactome() )
+  #  annotation_enrichment_analysis( annotated_Interactome(), )
+  #})
+    
+  
+  #annotPlot <- reactive({
+  #  annotated_Interactome()
+  #})
   
 }
 

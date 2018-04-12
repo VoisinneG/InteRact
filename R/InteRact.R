@@ -620,6 +620,120 @@ global_analysis.InteRactome <- function( res ){
   
 }
 
+annotation_enrichment_analysis <- function(res, idx_detect){
+  # idx_detect : indices of the proteins for which the enrichment analysis is performed
+  
+  #list annotation terms found in the dataset ------------------------------------------------
+  pfs <- paste(unique(res$Protein_families), collapse="; ");
+  unique_pfs <- unique(strsplit(pfs, split="; ")[[1]]);
+  
+  keys <- paste(unique(res$keywords),collapse="; ");
+  unique_keys <- unique(strsplit(keys, split="; ")[[1]]);
+  
+  annot_terms <-  setdiff(c(unique_pfs, unique_keys), "");
+  
+  # Compute Background -----------------------------------------------------------------------
+  
+  nodes_tot <- as.character(res$gene_name_reviewed);
+  u_nodes_tot <- unique(nodes_tot);
+  
+  u_annot_nodes_collapse <- rep("", length(u_nodes_tot));
+  idx_tot <- rep(0, length(u_nodes_tot));
+  
+  for ( i in 1:length(u_nodes_tot) ){
+    idx_tot[i] <- which(res$gene_name_reviewed == u_nodes_tot[i])[1];
+    u_annot_nodes_collapse[i] <- paste( c(as.character(res$keywords[ idx_tot[i] ]), 
+                                              as.character(res$Protein_families[ idx_tot[i] ]) ), 
+                                            collapse="; ");
+  }
+  
+  N_background = length(u_nodes_tot);
+  
+  N_annot_background <- rep(0,length(annot_terms));
+  freq_annot_background <- rep(0,length(annot_terms));
+  
+  for ( k in 1:length(annot_terms) ){
+    idx_annot <- grep(annot_terms[k], u_annot_nodes_collapse, fixed=TRUE)
+    N_annot_background[k] = length(idx_annot);
+    freq_annot_background[k] = N_annot_background[k]/N_background;
+  }
+  
+  N_annotation_test <- length(which(N_annot_background>0))
+  
+  # Perform enrichment test for each annotation ----------------------------------------------
+  
+  N_annot <- rep(0,length(annot_terms));
+  freq_annot <- rep(0,length(annot_terms));
+  nodes_annot <- rep("",length(annot_terms));
+  p_value <- rep(0,length(annot_terms));
+  fold_change <- rep(0,length(annot_terms));
+  p_value_adjust <- rep(0,length(annot_terms));
+  
+  
+  for(k in 1:length(annot_terms) ){
+    
+    idx_annot <- idx_detect[ grep(annot_terms[k], u_annot_nodes_collapse[idx_detect],fixed=TRUE) ]
+    N_annot[k]=length(idx_annot);
+    N_sample = length(idx_detect);
+    
+    freq_annot[k] = N_annot[k]/N_sample;
+    nodes_annot[k]=paste(nodes_tot[idx_annot], collapse=";")
+    
+    p_value[k] = 1-phyper(N_annot[k]-1, 
+                          N_annot_background[k],  
+                          N_background-N_annot_background[k],  
+                          N_sample);
+    
+    fold_change[k] = freq_annot[k]/freq_annot_background[k];
+    
+  }
+  
+  idx_annot_exist <-  which(N_annot>0);
+  p_value_adjust_fdr <- rep( 1,length(p_value) );
+  p_value_adjust_bonferroni <- rep( 1,length(p_value) );
+  p_value_adjust_bonferroni[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "bonferroni");
+  p_value_adjust_fdr[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "fdr");
+  
+  df.annot<-data.frame(bait=rep(res$bait, length(annot_terms) ), 
+                       annot_terms,
+                       N_annot,
+                       freq_annot, 
+                       N_annot_background, 
+                       freq_annot_background, 
+                       nodes_annot, 
+                       p_value, 
+                       fold_change, 
+                       p_value_adjust_fdr,
+                       p_value_adjust_bonferroni)
+  
+  idx_return <-  which(df.annot$p_value_adjust_fdr <= 0.05 & 
+                       df.annot$fold_change >= 2 & 
+                       df.annot$N_annot >= 2)
+  
+  return(df.annot)
+}
+
+
+plot_annotation_results <- function(df, p_val_max=0.05, fold_change_min =2, N_annot_min=2){
+  idx_filter <-  which(df$p_value_adjust_fdr <= p_val_max & 
+                       df$fold_change >= fold_change_min & 
+                       df$N_annot >= N_annot_min)
+  df_filter <- df[ idx_filter, ]
+  df_filter <- df_filter[ order(df_filter$p_value_adjust_fdr, decreasing = TRUE), ]
+  df_filter$order <- 1:dim(df_filter)[1]
+  
+  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjust_fdr) )) + 
+    theme(
+      axis.text.x = element_text(angle = 90, hjust = 1,vjust=0.5) 
+    ) +
+    scale_x_continuous(name=NULL, breaks=df_filter$order, labels=df_filter$annot_terms) +
+    geom_col()+
+    coord_flip()
+  
+  return(p)
+  
+}
+
 #' @export
 append_annotations <- function (x, ...) {
   UseMethod("append_annotations", x)
