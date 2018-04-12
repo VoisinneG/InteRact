@@ -933,14 +933,18 @@ plot_volcanos <- function (x, ...) {
 
 #' @export
 plot_volcanos.InteRactome <- function( res, 
-                                       labels=res$names, 
+                                       labels=NULL, 
                                        N_print=15, 
-                                       conditions=res$conditions, 
+                                       conditions=NULL, 
                                        p_val_thresh=NULL, 
                                        fold_change_thresh=NULL, 
-                                       save_file=NULL, 
+                                       save_file=NULL,
+                                       xlim=NULL,
+                                       ylim=NULL,
                                        show_plot=FALSE){
-
+  if (is.null(labels)) labels=res$names
+  if (is.null(conditions)) conditions=res$conditions
+    
   plist <- vector("list",length(conditions));
   
   ymax <- -log10(min(do.call(cbind,res$p_val)))
@@ -951,25 +955,52 @@ plot_volcanos.InteRactome <- function( res,
   y1 <- -log10(p_val_thresh)
   y2 <- ymax
   
+  if(!is.null(xlim) & !is.null(ylim)){
+    xrange <- xlim
+    yrange <- ylim
+  }else{
+    xrange <- c(-xmax,xmax)
+    yrange <- c(0,ymax)
+  }
+  
   
   for( i in seq_along(conditions) ){
     
     df <- data.frame(p_val=res$p_val[[conditions[i]]], 
                      fold_change= res$fold_change[[conditions[i]]], 
                      names=labels)
+    df$X <- log10(df$fold_change)
+    df$Y <- -log10(df$p_val)
+    score_print <- rep(0, dim(df)[1])
     
     if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
       is_above_thresh <- rep(0, dim(df)[1])
-      is_above_thresh[which(df$p_val <= p_val_thresh & df$fold_change >= fold_change_thresh)]<-1
-      idx_print <- order(is_above_thresh, df$fold_change, decreasing = TRUE)[1:min(N_print, sum(is_above_thresh))]
+      is_in_frame <- rep(0, dim(df)[1])
+      is_above_thresh[ which(df$p_val <= p_val_thresh & df$fold_change >= fold_change_thresh ) ] <- 1
+      is_in_frame[ which(df$X >= xrange[1] & df$X <= xrange[2] & df$Y >= yrange[1] & df$Y <= yrange[2]) ] <- 1
+      score_print<- is_above_thresh + is_in_frame
+      score_print[is_in_frame==0]<-0
+      N_show <- min(N_print, sum(score_print>0))
+      if( N_show>0 ){
+        idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
+      }else{
+        idx_print <- NULL
+      }
     }else{
-      idx_print <- order(df$fold_change, decreasing = TRUE)[1:N_print]
+      if( N_print>0 ){
+        idx_print <- order(df$fold_change, decreasing = TRUE)[ 1:N_print ]
+      }else{
+        idx_print <- NULL
+      }
     }
     
+    df$label_color <- as.factor(score_print)
+    
       
-    plist[[i]] <- ggplot( df , aes(x=log10(fold_change), y=-log10(p_val) ) ) +
-      scale_y_continuous(limits=c(0,ymax)) +
-      scale_x_continuous(limits=c(-xmax,xmax)) +
+    plist[[i]] <- ggplot( df , aes(x=X, y=Y ) ) +
+      coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
+      #scale_y_continuous(limits=c(0,ymax)) +
+      #scale_x_continuous(limits=c(-xmax,xmax)) +
       ggtitle(conditions[i])
       
     
@@ -982,9 +1013,11 @@ plot_volcanos.InteRactome <- function( res,
     }
     
     plist[[i]] <- plist[[i]] + 
-      geom_point(alpha=0.2)+
+      geom_point(alpha=0.2) +
       geom_text_repel(data=df[idx_print, ],
-                      aes(label = names), col="red", size=5)
+                      aes(label = names, colour=label_color), size=5) +
+      scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
+      theme(legend.position="none")
     
   }
   

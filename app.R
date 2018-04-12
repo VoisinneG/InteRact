@@ -464,9 +464,11 @@ server <- function(input, output, session) {
       plot_volcanos( ordered_Interactome(),
                      conditions = input$volcano_cond,
                      p_val_thresh = params$p_val_thresh, 
-                     fold_change_thresh = params$fold_change_thresh, 
-                     N_print=input$N_print)[[1]]+
-      coord_cartesian(xlim = ranges_volcano$x, ylim = ranges_volcano$y, expand = FALSE)
+                     fold_change_thresh = params$fold_change_thresh,
+                     xlim = ranges_volcano$x,
+                     ylim = ranges_volcano$y,
+                     N_print=input$N_print)[[1]]
+      #coord_cartesian(xlim = ranges_volcano$x, ylim = ranges_volcano$y, expand = FALSE)
   })
   
   all_volcanos <- reactive({
