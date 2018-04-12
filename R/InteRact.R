@@ -623,7 +623,12 @@ global_analysis.InteRactome <- function( res ){
 annotation_enrichment_analysis <- function(res, idx_detect){
   # idx_detect : indices of the proteins for which the enrichment analysis is performed
   
+  if( ! "keywords" %in% names(res) ){
+    stop("Annotations not available. Import annotations first.")
+  }
+  
   #list annotation terms found in the dataset ------------------------------------------------
+  
   pfs <- paste(unique(res$Protein_families), collapse="; ");
   unique_pfs <- unique(strsplit(pfs, split="; ")[[1]]);
   
@@ -697,18 +702,16 @@ annotation_enrichment_analysis <- function(res, idx_detect){
   df.annot<-data.frame(bait=rep(res$bait, length(annot_terms) ), 
                        annot_terms,
                        N_annot,
-                       freq_annot, 
-                       N_annot_background, 
-                       freq_annot_background, 
-                       nodes_annot, 
-                       p_value, 
+                       freq_annot,
                        fold_change, 
+                       p_value, 
                        p_value_adjust_fdr,
-                       p_value_adjust_bonferroni)
+                       nodes_annot,
+                       p_value_adjust_bonferroni,
+                       N_annot_background, 
+                       freq_annot_background)
   
-  idx_return <-  which(df.annot$p_value_adjust_fdr <= 0.05 & 
-                       df.annot$fold_change >= 2 & 
-                       df.annot$N_annot >= 2)
+  df.annot <- df.annot[ order(df.annot$p_value, decreasing = FALSE), ]
   
   return(df.annot)
 }
@@ -719,12 +722,14 @@ plot_annotation_results <- function(df, p_val_max=0.05, fold_change_min =2, N_an
                        df$fold_change >= fold_change_min & 
                        df$N_annot >= N_annot_min)
   df_filter <- df[ idx_filter, ]
-  df_filter <- df_filter[ order(df_filter$p_value_adjust_fdr, decreasing = TRUE), ]
+  df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
   df_filter$order <- 1:dim(df_filter)[1]
   
   p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjust_fdr) )) + 
     theme(
-      axis.text.x = element_text(angle = 90, hjust = 1,vjust=0.5) 
+      axis.text.y = element_text(size=14),
+      axis.text.x = element_text(size=14, angle = 90, hjust = 1,vjust=0.5),
+      axis.title.x = element_text(size=14)
     ) +
     scale_x_continuous(name=NULL, breaks=df_filter$order, labels=df_filter$annot_terms) +
     geom_col()+
@@ -1348,7 +1353,7 @@ summary_table.InteRactome <- function(res, add_columns = NULL){
   names(df)<-names_df
   df<-df[,order(idx)]
   
-  output = df
+  return(df)
   
 }
 

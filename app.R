@@ -15,27 +15,33 @@ ui <- fluidPage(
   titlePanel("InteRact : Analysis of AP-MS data"),
   
   fluidRow(
-    
-    column(12, 
-           
+    column(3,
+          br(),
+          wellPanel(
+              h3("Import"),
+              fileInput("file", h4("ProteinGroups file :"), placeholder = "Enter file here"),
+              checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
+           ),
+           br(),
+           wellPanel(
+             h3("Parameters"),
+             textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
+             numericInput("p_val_thresh_1", "p-value (maximum)", value = 0.05),
+             numericInput("fold_change_thresh_1", "fold-change (minimum)", value = 2),
+             numericInput("Nrep", "# iterations", value = 1)
+           )
+    ),
+    column(9, 
+           br(),
            tabsetPanel(id = "inTabset",
-                       tabPanel("Options",
-                                column(4,
-                                  br(),
-                                  wellPanel(
-                                    h2("Import"),
-                                    fileInput("file", h4("ProteinGroups file :"), placeholder = "Enter file here"),
-                                    checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
-                                  )
-                                ),
+                       tabPanel("Group",
+                                
                                 column(4,
                                        br(),
                                        wellPanel(
                                          h2("General"),
-                                         textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
                                          textInput("bckg_bait", "Name of Bait background", value = "Bait"),
-                                         textInput("bckg_ctrl", "Name of Control background", value = "WT"),
-                                         numericInput("Nrep", "Number of iterations (replacement of missing values)", value = 1)
+                                         textInput("bckg_ctrl", "Name of Control background", value = "WT")
                                        )
                                 ),
                                 column(4,
@@ -73,16 +79,21 @@ ui <- fluidPage(
                                   dataTableOutput("contents")
                                 )
                        ),
-                       tabPanel("Volcano plots", 
+                       tabPanel("Volcano", 
                                 column(3,
                                        br(),
                                        wellPanel(
                                          selectInput("volcano_cond", "Select condition", 
                                                      choices = list(), selected = NULL),
                                          #textInput("volcano_cond", "Select conditions", value = ""),
-                                         uiOutput("my_output_UI_1"),
+                                         #uiOutput("my_output_UI_1"),
                                          numericInput("N_print", "# labels displayed (maximum) ", value = 15)
                                          
+                                       ),
+                                       br(),
+                                       wellPanel(
+                                         helpText("Hover mouse over point to display extra info"),
+                                         helpText("Brush and double-click to zoom")
                                        )
                                 ),
                                 column(6,
@@ -101,110 +112,113 @@ ui <- fluidPage(
                                                   id = "volcano_brush",
                                                   resetOnNew = TRUE) ),
                                        verbatimTextOutput("info_volcano_hover") 
-                                ),
+                                )
+                       ),
+                       tabPanel("Dot Plot", 
                                 column(3,
+                                       br(),
+                                       wellPanel(
+                                         #uiOutput("my_output_UI_2"),
+                                         #numericInput("p_val_thresh", "p-value (maximum)", value = NULL),
+                                         #numericInput("fold_change_thresh", "fold-change (minimum)", value = NULL),
+                                         numericInput("Nmax", "N display ", value = 30)
+                                       ),
                                        br(),
                                        wellPanel(
                                          helpText("Hover mouse over point to display extra info"),
                                          helpText("Brush and double-click to zoom")
-                                       )
-                                )
-                       ),
-                       tabPanel("Dot Plot", 
-                                column(4,
-                                       br(),
-                                       wellPanel(
-                                         uiOutput("my_output_UI_2"),
-                                         #numericInput("p_val_thresh", "p-value (maximum)", value = NULL),
-                                         #numericInput("fold_change_thresh", "fold-change (minimum)", value = NULL),
-                                         numericInput("Nmax", "# proteins displayed (maximum) ", value = 30)
                                        )
                                 ),
                                 column(4,
                                        br(),
                                        downloadButton("download_dotPlot", "Download Plot", value = FALSE),
+                                       br(),
                                        plotOutput("dotPlot",width="250",height="500",
                                                   hover = hoverOpts(id ="dotPlot_hover"),
                                                   dblclick = "dotPlot_dblclick",
                                                   brush = brushOpts(
                                                     id = "dotPlot_brush",
-                                                    resetOnNew = TRUE) )
-                                ),
-                                column(4,
+                                                    resetOnNew = TRUE) ),
                                        br(),
-                                       wellPanel(
-                                         helpText("Hover mouse over point to display extra info"),
-                                         helpText("Brush and double-click to zoom")
-                                       ),
+                                       verbatimTextOutput("info_dotPlot_hover") 
+                                ),
+                                column(3,
                                        br(),
                                        verbatimTextOutput("info_dotPlot_hover") 
                                 )
 
                        ),
-                       tabPanel("2D stoichio", 
-                                column(3,
-                                       br(),
-                                       wellPanel(
-                                         selectInput("Stoichio2D_cond", "Select condition", 
-                                                     choices = list(), selected = NULL),
-                                         uiOutput("my_output_UI_3"),
-                                         numericInput("Nmax2D", "# proteins displayed (maximum) ", value = 30)
-                                       )
+                       tabPanel("2D Stoichio", 
+                                br(),
+                                fluidRow(
+                                  column(width=4,
+                                    wellPanel(
+                                      selectInput("Stoichio2D_cond", "Select condition", 
+                                                  choices = list(), selected = NULL)
+                                    )
+                                  ),
+                                  column(width=4,
+                                    wellPanel(
+                                      numericInput("Nmax2D", "# displayed (max) ", value = 30)
+                                    )
+                                  )
                                 ),
-                                column(width=4,
-                                       br(),
-                                       helpText("Brush to select zoom area"),
-                                       downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
-                                       plotOutput("Stoichio2D", width="300",height="300",
-                                                  hover = hoverOpts(id ="Stoichio2D_hover"),
-                                                  #dblclick = "Stoichio2D_dblclick",
-                                                  brush = brushOpts(
-                                                    id = "Stoichio2D_brush",
-                                                    resetOnNew = TRUE) ),
-                                       verbatimTextOutput("info_Stoichio2D_hover")
-                                       
-                                ),
-                                column(width=4,
-                                       br(),
-                                       helpText("zoom on selected area"),
-                                       downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE),
-                                       plotOutput("Stoichio2D_zoom", width="300",height="300",
-                                                  hover = hoverOpts(id ="Stoichio2D_zoom_hover")),
-                                       br(),
-                                       verbatimTextOutput("info_Stoichio2D_zoom_hover")
-                                       
-                                       
+                                fluidRow(
+                                  column(width=5,
+                                         br(),
+                                         helpText("Brush to select zoom area"),
+                                         downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
+                                         plotOutput("Stoichio2D", width="300",height="300",
+                                                    hover = hoverOpts(id ="Stoichio2D_hover"),
+                                                    #dblclick = "Stoichio2D_dblclick",
+                                                    brush = brushOpts(
+                                                      id = "Stoichio2D_brush",
+                                                      resetOnNew = TRUE) ),
+                                         verbatimTextOutput("info_Stoichio2D_hover")
+                                         
+                                  ),
+                                  column(width=5,
+                                         br(),
+                                         helpText("zoom on selected area"),
+                                         downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE),
+                                         plotOutput("Stoichio2D_zoom", width="300",height="300",
+                                                    hover = hoverOpts(id ="Stoichio2D_zoom_hover")),
+                                         br(),
+                                         verbatimTextOutput("info_Stoichio2D_zoom_hover")    
+                                 )
                                 )
                                 
+                                
                        ),
-                       tabPanel("Annotation", 
+                       tabPanel("Annotations",
+                                br(),
                                 column(4,
-                                       br(),
-                                       wellPanel(
-                                         h3("Interactome"),
-                                         uiOutput("my_output_UI_4")
-                                         
-                                       ),
                                        wellPanel(
                                          h3("Annotations"),
-                                         numericInput("p_val_max_annot", "p-value (maximum)", value = 0.05),
-                                         numericInput("fold_change_min_annot", "fold-change (minimum)", value = 2),
+                                         actionButton("append_annot","Import Annotations "),
+                                         helpText("warning: Importing annotations can take a while"),
+                                         numericInput("p_val_max", "p-value (maximum)", value = 0.05),
+                                         numericInput("fold_change_min", "fold-change (minimum)", value = 2),
                                          numericInput("N_annot_min", "Number of annotated proteins (minimum)", value = 2)
                                        )
                                 ),
-                                column(4,
+                                column(8,
                                        br(),
                                        downloadButton("download_annotPlot", "Download Plot", value = FALSE),
-                                       plotOutput("annotPlot")
+                                       plotOutput("annotPlot"),
+                                       br(),
+                                       downloadButton("download_annotTable", "Download Table", value = FALSE),
+                                       br(),
+                                       br(),
+                                       dataTableOutput("annotTable")
                                 )
                                 
                                 
                        ),
-                       tabPanel("Summary Table", 
+                       tabPanel("Summary", 
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         checkboxInput("append_annotations", "Append annotations (This can take a few minutes)", value = FALSE),
                                          checkboxGroupInput("columns_displayed", 
                                                             "Columns displayed", 
                                                             choices = c("names", "max_stoichio", "max_fold_change", "min_p_val"), 
@@ -341,9 +355,12 @@ server <- function(input, output, session) {
   })
   
   annotated_Interactome <- reactive({
-    append_annotations(res()$Interactome)
+    if(input$append_annot){
+      append_annotations(res()$Interactome)
+    }else{
+      res()$Interactome
+    }
   })
-  
   
   order_list <- reactive({
     get_order_discrete(res()$Interactome, 
@@ -352,34 +369,18 @@ server <- function(input, output, session) {
   })
   
   ordered_Interactome <- reactive({
-    if(input$append_annotations){
-      
       results <- order_interactome(annotated_Interactome(), order_list()$idx_order)
-      cat(order_list()$Ndetect)
-      cat(params$p_val_thresh)
       names_excluded <- c("names","bait", "groups","conditions")
       updateCheckboxGroupInput(session, "columns_displayed",
                                choices = as.list( setdiff(names(results), names_excluded),selected=c("names", "max_stoichio", "max_fold_change", "min_p_val")) )
       results
-      
-    }else{
-      results <- order_interactome(res()$Interactome, order_list()$idx_order)
-      cat(order_list()$Ndetect)
-      cat(params$p_val_thresh)
-      names_excluded <- c("names","bait", "groups","conditions")
-      updateCheckboxGroupInput(session, "columns_displayed",
-                               choices = as.list( setdiff(names(results), names_excluded),selected=c("names", "max_stoichio", "max_fold_change", "min_p_val")))
-      results
-      
-    }
-    
   })
   
   summaryTable <- reactive({
     summary_table(ordered_Interactome(),  add_columns = input$columns_displayed)
   })
     
-  output$summaryTable <- renderDataTable({summaryTable() })
+  output$summaryTable <- renderDataTable({summaryTable()[1:order_list()$Ndetect, ] })
   
   output$download_summaryTable <- downloadHandler(
     filename = "summary_table.txt",
@@ -616,15 +617,38 @@ server <- function(input, output, session) {
   })
   
   
-  #df_annotation <- reactive({
-  #  order_interactome( annotated_Interactome() )
-  #  annotation_enrichment_analysis( annotated_Interactome(), )
-  #})
+  annotTable <- reactive({
+    annotation_enrichment_analysis( ordered_Interactome(), 1:order_list()$Ndetect)
+  })
     
+  annotPlot <- reactive({
+    plot_annotation_results(annotTable(), 
+                            p_val_max = input$p_val_max, 
+                            fold_change_min = input$fold_change_min, 
+                            N_annot_min = input$N_annot_min)
+  })
   
-  #annotPlot <- reactive({
-  #  annotated_Interactome()
-  #})
+  output$annotPlot <- renderPlot(annotPlot())
+  
+  output$annotTable <- renderDataTable({
+    annotTable()
+  })
+  
+  output$download_annotPlot <- downloadHandler(
+    filename = "annotations.pdf",
+    content = function(file) {
+      pdf(file, 5, 5)
+      print(annotPlot())
+      dev.off()
+    }
+  )
+  
+  output$download_annotTable <- downloadHandler(
+    filename = "annotations.txt",
+    content = function(file) {
+      write.table(annotTable(), file,  sep = "\t", dec = ".", row.names = FALSE)
+    }
+  )
   
 }
 
