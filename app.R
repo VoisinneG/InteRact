@@ -26,8 +26,8 @@ ui <- fluidPage(
            wellPanel(
              h3("Parameters"),
              textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
-             numericInput("p_val_thresh_1", "p-value (maximum)", value = 0.05),
-             numericInput("fold_change_thresh_1", "fold-change (minimum)", value = 2),
+             numericInput("p_val_thresh", "p-value (maximum)", value = 0.05),
+             numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
              numericInput("Nrep", "# iterations", value = 1)
            )
     ),
@@ -244,48 +244,6 @@ ui <- fluidPage(
 # Server logic
 server <- function(input, output, session) {
   
-  # initial values
-  params<-reactiveValues(p_val_thresh = 0.01, fold_change_thresh = 2)
-  
-  
-  # return a list of UI elements
-  output$my_output_UI_1 <- renderUI({
-    list(
-      numericInput("p_val_thresh_1", "p-value (maximum)", value = params$p_val_thresh),
-      numericInput("fold_change_thresh_1", "fold-change (minimum)", value = params$fold_change_thresh)
-    )
-  })
-  
-  output$my_output_UI_2 <- renderUI({
-    list(
-      numericInput("p_val_thresh_2", "p-value (maximum)", value = params$p_val_thresh),
-      numericInput("fold_change_thresh_2", "fold-change (minimum)", value = params$fold_change_thresh)
-    )
-  })
-  
-  output$my_output_UI_3 <- renderUI({
-    list(
-      numericInput("p_val_thresh_3", "p-value (maximum)", value = params$p_val_thresh),
-      numericInput("fold_change_thresh_3", "fold-change (minimum)", value = params$fold_change_thresh)
-    )
-  })
-  
-  output$my_output_UI_4 <- renderUI({
-    list(
-      numericInput("p_val_thresh_4", "p-value (maximum)", value = params$p_val_thresh),
-      numericInput("fold_change_thresh_4", "fold-change (minimum)", value = params$fold_change_thresh)
-    )
-  })
-  
-  observeEvent(input$p_val_thresh_1, {params$p_val_thresh <- input$p_val_thresh_1})
-  observeEvent(input$p_val_thresh_2, {params$p_val_thresh <- input$p_val_thresh_2})
-  observeEvent(input$p_val_thresh_3, {params$p_val_thresh <- input$p_val_thresh_3})
-  observeEvent(input$p_val_thresh_4, {params$p_val_thresh <- input$p_val_thresh_4})
-  observeEvent(input$fold_change_thresh_1, {params$fold_change_thresh <- input$fold_change_thresh_1})
-  observeEvent(input$fold_change_thresh_2, {params$fold_change_thresh <- input$fold_change_thresh_2})
-  observeEvent(input$fold_change_thresh_3, {params$fold_change_thresh <- input$fold_change_thresh_3})
-  observeEvent(input$fold_change_thresh_4, {params$fold_change_thresh <- input$fold_change_thresh_4})
-  
   observe({
     b_name <- input$bait_gene_name
     updateTextInput(session, "bckg_bait", value =  b_name)
@@ -306,17 +264,13 @@ server <- function(input, output, session) {
   })
   
   res<- reactive({
-    
     updateSelectInput(session, "volcano_cond", 
                       choices = as.list(setdiff(unique(cond()$time), input$filter_time) ), 
                       selected = NULL)
-    
     updateSelectInput(session, "Stoichio2D_cond", 
                       choices = as.list(setdiff( c("max", unique(cond()$time)), input$filter_time)), 
                       selected = NULL)
-    
     cond()
-    
     res_int<-InteRact(data(), 
            bait_gene_name = input$bait_gene_name, 
            N_rep=input$Nrep, 
@@ -335,7 +289,6 @@ server <- function(input, output, session) {
            )
     res_int$Interactome <- merge_proteome(res_int$Interactome)
     res_int
-    
   })
   
   
@@ -349,9 +302,7 @@ server <- function(input, output, session) {
     updateCheckboxGroupInput(session, "filter_time",
                              choices = as.list(unique(cond()$time)),
                              selected = NULL)
-    
     cond()
-    #res()$conditions
   })
   
   annotated_Interactome <- reactive({
@@ -364,7 +315,7 @@ server <- function(input, output, session) {
   
   order_list <- reactive({
     get_order_discrete(res()$Interactome, 
-                       p_val_thresh = params$p_val_thresh, 
+                       p_val_thresh =input$p_val_thresh, 
                        fold_change_thresh = params$fold_change_thresh )
   })
   
@@ -496,18 +447,17 @@ server <- function(input, output, session) {
   volcano <- reactive({
       plot_volcanos( ordered_Interactome(),
                      conditions = input$volcano_cond,
-                     p_val_thresh = params$p_val_thresh, 
-                     fold_change_thresh = params$fold_change_thresh,
+                     p_val_thresh = input$p_val_thresh, 
+                     fold_change_thresh = input$fold_change_thresh,
                      xlim = ranges_volcano$x,
                      ylim = ranges_volcano$y,
                      N_print=input$N_print)[[1]]
-      #coord_cartesian(xlim = ranges_volcano$x, ylim = ranges_volcano$y, expand = FALSE)
   })
   
   all_volcanos <- reactive({
     plot_volcanos( ordered_Interactome(),
-                   p_val_thresh = params$p_val_thresh, 
-                   fold_change_thresh = params$fold_change_thresh, 
+                   p_val_thresh = input$p_val_thresh, 
+                   fold_change_thresh = input$fold_change_thresh, 
                    N_print=input$N_print )
   })
   
