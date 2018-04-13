@@ -28,7 +28,8 @@ ui <- fluidPage(
              textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
-             numericInput("Nrep", "# iterations", value = 3)
+             numericInput("Nrep", "# iterations", value = 3),
+             verbatimTextOutput("annot_imported")
            )
     ),
     column(9,
@@ -185,7 +186,7 @@ ui <- fluidPage(
                                        wellPanel(
                                          h3("Annotations"),
                                          checkboxInput("append_annot","Import Annotations ", value=FALSE),
-                                         helpText("warning: Importing annotations can take a while"),
+                                         helpText("warning: Loading annotations for the first time can take a while"),
                                          numericInput("p_val_max", "p-value (maximum)", value = 0.05),
                                          numericInput("fold_change_min", "fold-change (minimum)", value = 2),
                                          numericInput("N_annot_min", "Number of annotated proteins (minimum)", value = 2)
@@ -238,10 +239,22 @@ server <- function(input, output, session) {
   ranges <- reactiveValues(x = c(-1.5,0.5), y = c(-1,1))
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
+  annot <- reactiveValues(imported=FALSE)
+  saved_annot <- reactiveValues(Protein.IDs=NULL,
+                                status_reviewed=NULL,
+                                protein_ID_reviewed=NULL, 
+                                entry_name_reviewed=NULL, 
+                                gene_name_reviewed=NULL, 
+                                gene_name=NULL,          
+                                keywords=NULL,
+                                GO_IDs=NULL,
+                                Protein_families=NULL)
+  Ninteractors <- reactiveValues(x=0)
   
   #Main reactive functions -------------------------------------------------------------------------
   
   data <- reactive({
+    annot$imported <- FALSE
     read.csv(input$file$datapath, 
              sep="\t", fill=TRUE, 
              na.strings="", 
@@ -299,22 +312,40 @@ server <- function(input, output, session) {
     res_int
   })
 
+  
   annotations <- reactive({
+    output = NULL
     if(input$append_annot){
-      output=get_annotations(data())
-    }else{
-      output=NULL
+      if(!annot$imported){
+        df <- get_annotations(data())
+        
+        saved_annot$Protein.IDs <- df$Protein.IDs
+        saved_annot$status_reviewed <- df$status_reviewed
+        saved_annot$protein_ID_reviewed <- df$protein_ID_reviewed
+        saved_annot$entry_name_reviewed <- df$ntry_name_reviewed
+        saved_annot$gene_name_reviewed <- df$gene_name_reviewed
+        saved_annot$gene_name <- df$gene_name      
+        saved_annot$keywords <- df$keywords
+        saved_annot$GO_IDs <- df$GO_IDs
+        saved_annot$Protein_families <- df$Protein_families
+        
+        annot$imported <- TRUE
+      }
+      output <- saved_annot
     }
+    output
   })
-    
+
   annotated_Interactome <- reactive({
-    append_annotations(res()$Interactome, annotations())
+      append_annotations(res()$Interactome, annotations() )
   })
 
   order_list <- reactive({
-    get_order_discrete(res()$Interactome,
+    order_list_int <- get_order_discrete(res()$Interactome,
                        p_val_thresh =input$p_val_thresh,
                        fold_change_thresh = input$fold_change_thresh )
+    Ninteractors$x <- order_list_int$Ndetect
+    order_list_int
   })
 
   ordered_Interactome <- reactive({
@@ -521,6 +552,11 @@ server <- function(input, output, session) {
   )
   
   #Output Info functions -------------------------------------------------------------------------
+  
+  output$annot_imported<- renderPrint({
+    s1 <- paste("# interactors : ", Ninteractors$x, sep="")
+    cat(s1)
+  })
   
   output$info_volcano_hover <- renderPrint({
     if(!is.null(input$volcano_hover)){
