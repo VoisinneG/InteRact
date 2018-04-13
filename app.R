@@ -42,9 +42,7 @@ ui <- fluidPage(
                                          h2("General"),
                                          textInput("bckg_bait", "Name of Bait background", value = "Bait"),
                                          textInput("bckg_ctrl", "Name of Control background", value = "WT")
-                                       )
-                                ),
-                                column(4,
+                                       ),
                                        br(),
                                        wellPanel(
                                          h2("Preffix:"),
@@ -52,6 +50,10 @@ ui <- fluidPage(
                                          textInput("preffix_tech", "For technical replicates", value = "R"),
                                          textInput("preffix_time", "For experimental conditions", value = "")
                                        )
+                                ),
+                                column(8,
+                                       br(),
+                                       dataTableOutput("condTable")
                                 )
                        ),
                        tabPanel("Conditions",
@@ -76,7 +78,7 @@ ui <- fluidPage(
                                 ),
                                 column(8,
                                   br(),
-                                  dataTableOutput("contents")
+                                  dataTableOutput("condTable_bis")
                                 )
                        ),
                        tabPanel("Volcano",
@@ -231,23 +233,42 @@ ui <- fluidPage(
 # Server logic
 server <- function(input, output, session) {
   
-  observe({
-    b_name <- input$bait_gene_name
-    updateTextInput(session, "bckg_bait", value =  b_name)
-  })
+  #Reactive values ---------------------------------------------------------------------------------
   
+  ranges <- reactiveValues(x = c(-1.5,0.5), y = c(-1,1))
+  ranges_volcano <- reactiveValues(x = NULL, y = NULL)
+  ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
+  
+  #Main reactive functions -------------------------------------------------------------------------
   
   data <- reactive({
-    read.csv(input$file$datapath, sep="\t", fill=TRUE, na.strings="", dec=ifelse(input$dec,",",".") )
+    read.csv(input$file$datapath, 
+             sep="\t", fill=TRUE, 
+             na.strings="", 
+             dec=ifelse(input$dec,",",".") )
   })
   
   cond <- reactive({
-    identify_conditions(data(),
+    
+    cond_int<-identify_conditions(data(),
                         bckg_bait = input$bckg_bait,
                         bckg_ctrl = input$bckg_ctrl,
                         preffix_time = input$preffix_time,
                         preffix_bio = input$preffix_bio, 
                         preffix_tech = input$preffix_tech )
+    
+    updateCheckboxGroupInput(session, "filter_bio",
+                             choices = as.list(unique(cond_int$bio)),
+                             selected = NULL) 
+    
+    updateCheckboxGroupInput(session, "filter_tech",
+                             choices = as.list(unique(cond_int$tech)),
+                             selected = NULL) 
+    
+    updateCheckboxGroupInput(session, "filter_time",
+                             choices = as.list(unique(cond_int$time)),
+                             selected = NULL)
+    cond_int
   })
   
   res<- reactive({
@@ -278,20 +299,6 @@ server <- function(input, output, session) {
     res_int
   })
 
-
-  output$contents <- renderDataTable({
-    updateCheckboxGroupInput(session, "filter_bio",
-                             choices = as.list(unique(cond()$bio)),
-                             selected = NULL)
-    updateCheckboxGroupInput(session, "filter_tech",
-                             choices = as.list(unique(cond()$tech)),
-                             selected = NULL)
-    updateCheckboxGroupInput(session, "filter_time",
-                             choices = as.list(unique(cond()$time)),
-                             selected = NULL)
-    cond()
-  })
-
   annotated_Interactome <- reactive({
     if(input$append_annot){
       append_annotations(res()$Interactome)
@@ -310,25 +317,18 @@ server <- function(input, output, session) {
       results <- order_interactome(annotated_Interactome(), order_list()$idx_order)
       names_excluded <- c("names","bait", "groups","conditions")
       updateCheckboxGroupInput(session, "columns_displayed",
-                               choices = as.list( setdiff(names(results), names_excluded),selected=c("names", "max_stoichio", "max_fold_change", "min_p_val")) )
+                               choices = as.list( setdiff(names(results), names_excluded)),
+                               selected=c("max_stoichio", "max_fold_change", "min_p_val") )
       results
   })
 
-  summaryTable <- reactive({
-    summary_table(ordered_Interactome(),  add_columns = input$columns_displayed)
+  #Observe functions -------------------------------------------------------------------
+  
+  observe({
+    b_name <- input$bait_gene_name
+    updateTextInput(session, "bckg_bait", value =  b_name)
   })
-
-  output$summaryTable <- renderDataTable({summaryTable()[1:order_list()$Ndetect, ] })
-
-  output$download_summaryTable <- downloadHandler(
-    filename = "summary_table.txt",
-    content = function(file) {
-      write.table(summaryTable(), file, sep = "\t", dec = ".", row.names = FALSE)
-    }
-  )
-
-  ranges <- reactiveValues(x = c(-1.5,0.5), y = c(-1,1))
-
+  
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
   observeEvent(input$Stoichio2D_brush, {
@@ -342,8 +342,6 @@ server <- function(input, output, session) {
       ranges$y <- NULL
     }
   })
-
-  ranges_volcano <- reactiveValues(x = NULL, y = NULL)
 
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
@@ -359,8 +357,6 @@ server <- function(input, output, session) {
     }
   })
 
-  ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
-
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
   observeEvent(input$dotPlot_dblclick, {
@@ -374,14 +370,21 @@ server <- function(input, output, session) {
       ranges_dotPlot$y <- NULL
     }
   })
-
-
-  Stoichio2D <- reactive({
-    plot_2D_stoichio(ordered_Interactome(),
-                     condition = input$Stoichio2D_cond,
-                     N_display=min(order_list()$Ndetect, input$Nmax2D) )
+  
+  #Reactive functions for output ---------------------------------------------------------------
+  
+  condTable <- reactive({
+    cond()
   })
-
+    
+  summaryTable <- reactive({
+    summary_table(ordered_Interactome(),  add_columns = input$columns_displayed)
+  })
+  
+  annotTable <- reactive({
+    annotation_enrichment_analysis( ordered_Interactome(), 1:order_list()$Ndetect)
+  })
+  
   Stoichio2D_zoom <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
                      condition = input$Stoichio2D_cond,
@@ -389,48 +392,19 @@ server <- function(input, output, session) {
                      ylim = ranges$y,
                      N_display=min(order_list()$Ndetect, input$Nmax2D) )
   })
-
-  output$Stoichio2D <- renderPlot( Stoichio2D() )
-  output$Stoichio2D_zoom <- renderPlot( Stoichio2D_zoom() )
-
-  output$download_Stoichio2D <- downloadHandler(
-    filename = "Stoichio2D_plot.pdf",
-    content = function(file) {
-      pdf(file, 5, 5)
-      print(Stoichio2D())
-      dev.off()
-    }
-  )
-
-  output$download_Stoichio2D_zoom <- downloadHandler(
-    filename = "Stoichio2D_zoom_plot.pdf",
-    content = function(file) {
-      pdf(file, 5, 5)
-      print(Stoichio2D_zoom())
-      dev.off()
-    }
-  )
-
+  
+  Stoichio2D <- reactive({
+    plot_2D_stoichio(ordered_Interactome(),
+                     condition = input$Stoichio2D_cond,
+                     N_display=min(order_list()$Ndetect, input$Nmax2D) )
+  })
+  
   dotPlot <- reactive({
     plot_per_conditions(ordered_Interactome(),
                         idx_rows = min(input$Nmax, order_list()$Ndetect))+
-    coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
+      coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
   })
-
-  output$dotPlot <- renderPlot( dotPlot() )
-
-  output$download_dotPlot <- downloadHandler(
-    filename = "dot_plot.pdf",
-    content = function(file) {
-      plot_width = 3.4
-      plot_height = input$Nmax/(plot_width+1) + 1
-      pdf(file,plot_width,plot_height)
-      print(dotPlot())
-      dev.off()
-    }
-  )
-
-
+  
   volcano <- reactive({
       plot_volcanos( ordered_Interactome(),
                      conditions = input$volcano_cond,
@@ -447,9 +421,67 @@ server <- function(input, output, session) {
                    fold_change_thresh = input$fold_change_thresh,
                    N_print=input$N_print )
   })
-
+  
+  annotPlot <- reactive({
+    plot_annotation_results(annotTable(),
+                            p_val_max = input$p_val_max,
+                            fold_change_min = input$fold_change_min,
+                            N_annot_min = input$N_annot_min)
+  })
+  
+  #Output Table functions -------------------------------------------------------------------------
+  
+  output$condTable <- renderDataTable(condTable())
+  output$condTable_bis <- renderDataTable(condTable())
+  output$summaryTable <- renderDataTable({summaryTable()[1:order_list()$Ndetect, ] })
+  output$annotTable <- renderDataTable(annotTable())
+  
+  #Output Plot functions -------------------------------------------------------------------------
+  
+  output$Stoichio2D <- renderPlot( Stoichio2D() )
+  output$Stoichio2D_zoom <- renderPlot( Stoichio2D_zoom() )
+  output$dotPlot <- renderPlot( dotPlot() )
   output$volcano <- renderPlot( volcano() )
-
+  output$annotPlot <- renderPlot(annotPlot())
+  
+  #Output Download functions ---------------------------------------------------------------------
+  
+  output$download_summaryTable <- downloadHandler(
+    filename = "summary_table.txt",
+    content = function(file) {
+      write.table(summaryTable(), file, sep = "\t", dec = ".", row.names = FALSE)
+    }
+  )
+  
+  output$download_Stoichio2D <- downloadHandler(
+    filename = "Stoichio2D_plot.pdf",
+    content = function(file) {
+      pdf(file, 5, 5)
+      print(Stoichio2D())
+      dev.off()
+    }
+  )
+  
+  output$download_Stoichio2D_zoom <- downloadHandler(
+    filename = "Stoichio2D_zoom_plot.pdf",
+    content = function(file) {
+      pdf(file, 5, 5)
+      print(Stoichio2D_zoom())
+      dev.off()
+    }
+  )
+  
+  output$download_dotPlot <- downloadHandler(
+    filename = "dot_plot.pdf",
+    content = function(file) {
+      plot_width = 3.4
+      plot_height = input$Nmax/(plot_width+1) + 1
+      pdf(file,plot_width,plot_height)
+      print(dotPlot())
+      dev.off()
+    }
+  )
+  
   output$download_volcano <- downloadHandler(
     filename = "volcano_plot.pdf",
     content = function(file) {
@@ -467,9 +499,26 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-
+  
+  output$download_annotPlot <- downloadHandler(
+    filename = "annotations.pdf",
+    content = function(file) {
+      pdf(file, 5, 5)
+      print(annotPlot())
+      dev.off()
+    }
+  )
+  
+  output$download_annotTable <- downloadHandler(
+    filename = "annotations.txt",
+    content = function(file) {
+      write.table(annotTable(), file,  sep = "\t", dec = ".", row.names = FALSE)
+    }
+  )
+  
+  #Output Info functions -------------------------------------------------------------------------
+  
   output$info_volcano_hover <- renderPrint({
-
     if(!is.null(input$volcano_hover)){
       hover=input$volcano_hover
       dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
@@ -477,21 +526,16 @@ server <- function(input, output, session) {
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
       if( min_dist1 < 0.25){
-        #print( res()$Interactome$names[which.min(dist)] )
         s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
         s2<-paste("p_val: ", ordered_Interactome()$p_val[[input$volcano_cond]][ i_min ],sep="")
         s3<-paste("fold_change: ", ordered_Interactome()$fold_change[[input$volcano_cond]][ i_min ],sep="")
         s4<-paste("stoichio: ", ordered_Interactome()$stoichio[[input$volcano_cond]][ i_min ],sep="")
         cat(s1,s2,s3,s4,sep="\n")
-
-        #print(list(a=1, b=2))
-        #input$volcano_hover$x
       }
     }
   })
 
   output$info_Stoichio2D_zoom_hover <- renderPrint({
-
     if(!is.null(input$Stoichio2D_zoom_hover)){
       hover=input$Stoichio2D_zoom_hover
       if(input$Stoichio2D_cond == "max"){
@@ -514,7 +558,6 @@ server <- function(input, output, session) {
   })
 
   output$info_Stoichio2D_hover <- renderPrint({
-
     if(!is.null(input$Stoichio2D_hover)){
       hover=input$Stoichio2D_hover
       if(input$Stoichio2D_cond == "max"){
@@ -524,7 +567,6 @@ server <- function(input, output, session) {
         dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
                       (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
       }
-
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
 
@@ -538,7 +580,6 @@ server <- function(input, output, session) {
   })
 
   output$info_dotPlot_hover <- renderPrint({
-
     if(!is.null(input$dotPlot_hover)){
       i_prot = round(-input$dotPlot_hover$y)
       i_cond = round(input$dotPlot_hover$x)
@@ -550,42 +591,8 @@ server <- function(input, output, session) {
       s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ i_cond ]][ i_prot ], sep="")
       cat(s1, s2, s3, s4, s5, s6,sep="\n")
     }
-
   })
 
-
-  annotTable <- reactive({
-    annotation_enrichment_analysis( ordered_Interactome(), 1:order_list()$Ndetect)
-  })
-
-  annotPlot <- reactive({
-    plot_annotation_results(annotTable(),
-                            p_val_max = input$p_val_max,
-                            fold_change_min = input$fold_change_min,
-                            N_annot_min = input$N_annot_min)
-  })
-
-  output$annotPlot <- renderPlot(annotPlot())
-
-  output$annotTable <- renderDataTable({
-    annotTable()
-  })
-
-  output$download_annotPlot <- downloadHandler(
-    filename = "annotations.pdf",
-    content = function(file) {
-      pdf(file, 5, 5)
-      print(annotPlot())
-      dev.off()
-    }
-  )
-
-  output$download_annotTable <- downloadHandler(
-    filename = "annotations.txt",
-    content = function(file) {
-      write.table(annotTable(), file,  sep = "\t", dec = ".", row.names = FALSE)
-    }
-  )
   
 }
 
