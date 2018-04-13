@@ -26,9 +26,9 @@ ui <- fluidPage(
            wellPanel(
              h3("Parameters"),
              textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
-             numericInput("p_val_thresh", "p-value (maximum)", value = 0.05),
+             numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
-             numericInput("Nrep", "# iterations", value = 1)
+             numericInput("Nrep", "# iterations", value = 3)
            )
     ),
     column(9,
@@ -39,13 +39,13 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         h2("General"),
+                                         h3("General"),
                                          textInput("bckg_bait", "Name of Bait background", value = "Bait"),
                                          textInput("bckg_ctrl", "Name of Control background", value = "WT")
                                        ),
                                        br(),
                                        wellPanel(
-                                         h2("Preffix:"),
+                                         h3("Preffix:"),
                                          textInput("preffix_bio", "For biological replicates", value = "S"),
                                          textInput("preffix_tech", "For technical replicates", value = "R"),
                                          textInput("preffix_time", "For experimental conditions", value = "")
@@ -56,7 +56,7 @@ ui <- fluidPage(
                                        dataTableOutput("condTable")
                                 )
                        ),
-                       tabPanel("Conditions",
+                       tabPanel("Filter",
                                 column(4,
                                     br(),
                                     wellPanel(
@@ -124,7 +124,7 @@ ui <- fluidPage(
                                          helpText("Brush and double-click to zoom")
                                        )
                                 ),
-                                column(4,
+                                column(6,
                                        br(),
                                        downloadButton("download_dotPlot", "Download Plot", value = FALSE),
                                        br(),
@@ -184,7 +184,7 @@ ui <- fluidPage(
                                 column(4,
                                        wellPanel(
                                          h3("Annotations"),
-                                         actionButton("append_annot","Import Annotations "),
+                                         checkboxInput("append_annot","Import Annotations ", value=FALSE),
                                          helpText("warning: Importing annotations can take a while"),
                                          numericInput("p_val_max", "p-value (maximum)", value = 0.05),
                                          numericInput("fold_change_min", "fold-change (minimum)", value = 2),
@@ -299,12 +299,16 @@ server <- function(input, output, session) {
     res_int
   })
 
-  annotated_Interactome <- reactive({
+  annotations <- reactive({
     if(input$append_annot){
-      append_annotations(res()$Interactome)
+      output=get_annotations(data())
     }else{
-      res()$Interactome
+      output=NULL
     }
+  })
+    
+  annotated_Interactome <- reactive({
+    append_annotations(res()$Interactome, annotations())
   })
 
   order_list <- reactive({

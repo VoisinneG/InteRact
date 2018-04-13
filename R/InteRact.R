@@ -197,7 +197,7 @@ InteRact <- function(df,
                                    name_bait = bckg_bait, name_ctrl = bckg_ctrl,
                                    background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
                                    by_conditions = TRUE, log_transf = TRUE)
-      res[[i]]$protein_ID <- df$Protein.IDs
+      res[[i]]$Protein.IDs <- df$Protein.IDs
       
     }
     
@@ -716,7 +716,6 @@ annotation_enrichment_analysis <- function(res, idx_detect){
   return(df.annot)
 }
 
-
 plot_annotation_results <- function(df, p_val_max=0.05, fold_change_min =2, N_annot_min=2){
   idx_filter <-  which(df$p_value_adjust_fdr <= p_val_max & 
                        df$fold_change >= fold_change_min & 
@@ -739,26 +738,48 @@ plot_annotation_results <- function(df, p_val_max=0.05, fold_change_min =2, N_an
   
 }
 
+
+  
 #' @export
 append_annotations <- function (x, ...) {
   UseMethod("append_annotations", x)
 }
 
 #' @export
-append_annotations.InteRactome <- function( res ){
+append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Protein.IDs" ){
   
-  res_int <- res;
+  res_int<-res
+  if( !is.null(annotations) ){
+    
+    idx_match<-rep(NA,length(res$names))
+    for(i in 1:length(res$names) ){
+      idx_match[i] <- which(as.character(annotations[[name_id]]) == as.character(res[[name_id]][i]) )
+    }
+    
+    for( var_names in setdiff(names(annotations), name_id) ){
+      res_int[[var_names]] <- as.character(annotations[[var_names]][idx_match])
+    }
+  }
+  return(res_int)
   
-  nodes<-res_int$names
-  nodes_IDs<- as.character(res_int$protein_ID);
-  nodes_ID<-rep("",length(nodes));
-  imatch<-rep(0,length(nodes));
-  imatch_review<-rep("",length(nodes));
-  nodes_gene_names<-rep("NA",length(nodes));
-  nodes_entry_names<-rep("",length(nodes));
-  nodes_status<-rep("unreviewed",length(nodes));
+}
+
+#' @export
+get_annotations<- function( data, name_id = "Protein.IDs" ){
   
-  for (i in 1:length(nodes) ){
+  df<-NULL
+  nodes_IDs<- as.character(data[[name_id]]);
+  df[[name_id]] <- nodes_IDs
+  
+  Nnodes<-length(nodes_IDs)
+  nodes_ID<-rep("", Nnodes);
+  imatch<-rep(0, Nnodes);
+  imatch_review<-rep("", Nnodes);
+  nodes_gene_names<-rep("NA", Nnodes);
+  nodes_entry_names<-rep("", Nnodes);
+  nodes_status<-rep("unreviewed", Nnodes);
+  
+  for (i in 1:Nnodes ){
     list_nodes_ID<- unique(strsplit(nodes_IDs[i],split=";")[[1]]);
     for(j in 1:length(list_nodes_ID) ){
       nID_clean <- strsplit(list_nodes_ID[j], split="-")[[1]][1];
@@ -798,26 +819,20 @@ append_annotations.InteRactome <- function( res ){
     
   }
   
-  res_int$status_reviewed <- nodes_status;
-  res_int$protein_ID_reviewed<-nodes_ID;
-  res_int$entry_name_reviewed <- nodes_entry_names;
-  res_int$gene_name_reviewed <- nodes_gene_names;
+  df$status_reviewed <- nodes_status;
+  df$protein_ID_reviewed<-nodes_ID;
+  df$entry_name_reviewed <- nodes_entry_names;
+  df$gene_name_reviewed <- nodes_gene_names;
   
-  res_int$gene_name <- nodes_gene_names;
-  res_int$gene_name[which(nchar(nodes_gene_names)==0)] <- res_int$names[which(nchar(nodes_gene_names)==0)]
-  
-  res_int$gene_name_plot = res_int$gene_name
-  res_int$gene_name_plot[res_int$prey=="Q60787TAG"]<-"OST"
-  res_int$gene_name_plot[res_int$gene_name=="Rps27a"]<-"Ub"
-  
+  df$gene_name <- nodes_gene_names;
+
   ### list keywords for each node
   
+  ukeys_nodes_collapse <-rep("", Nnodes);
+  uGOs_nodes_collapse<-rep("", Nnodes);
+  uPFs_nodes_collapse<-rep("", Nnodes);
   
-  ukeys_nodes_collapse <-rep("",length(nodes));
-  uGOs_nodes_collapse<-rep("",length(nodes));
-  uPFs_nodes_collapse<-rep("",length(nodes));
-  
-  for( i in 1:length(nodes) ){
+  for( i in 1:Nnodes ){
     if(imatch[i]>0){
       
       ukeys_nodes_collapse[i]<-as.character(uniprot_data$Keywords[imatch[i]]);
@@ -826,16 +841,17 @@ append_annotations.InteRactome <- function( res ){
       
       s<-strsplit(as.character(uniprot_data$Protein.families[imatch[i]]), split=", ");
       uPFs_nodes_collapse[i]<-paste(s[[1]], collapse="; ");
-
+      
     }
     
   }
   
-  res_int$keywords = ukeys_nodes_collapse;
-  res_int$GO_IDs = uGOs_nodes_collapse;
-  res_int$Protein_families = uPFs_nodes_collapse;
+  df$keywords = ukeys_nodes_collapse;
+  df$GO_IDs = uGOs_nodes_collapse;
+  df$Protein_families = uPFs_nodes_collapse;
   
-  output=res_int
+  return(as.data.frame(df))
+  
 }
 
 #' @export
