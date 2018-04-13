@@ -31,11 +31,11 @@ ui <- fluidPage(
              numericInput("Nrep", "# iterations", value = 1)
            )
     ),
-    column(9, 
+    column(9,
            br(),
            tabsetPanel(id = "inTabset",
                        tabPanel("Group",
-                                
+
                                 column(4,
                                        br(),
                                        wellPanel(
@@ -54,24 +54,24 @@ ui <- fluidPage(
                                        )
                                 )
                        ),
-                       tabPanel("Conditions", 
+                       tabPanel("Conditions",
                                 column(4,
                                     br(),
                                     wellPanel(
                                         helpText("check boxes to filter out samples"),
-                                        checkboxGroupInput("filter_bio", 
-                                                           "Biological replicates (bio)", 
+                                        checkboxGroupInput("filter_bio",
+                                                           "Biological replicates (bio)",
                                                            choices = list(),
                                                            selected = NULL),
-                                        checkboxGroupInput("filter_tech", 
-                                                           "Technical replicates (tech)", 
+                                        checkboxGroupInput("filter_tech",
+                                                           "Technical replicates (tech)",
                                                            choices = list(),
                                                            selected = NULL),
-                                        checkboxGroupInput("filter_time", 
-                                                           "Experimental conditions (time)", 
+                                        checkboxGroupInput("filter_time",
+                                                           "Experimental conditions (time)",
                                                            choices = list(),
                                                            selected = NULL)
-                                        
+
                                     )
                                 ),
                                 column(8,
@@ -79,16 +79,14 @@ ui <- fluidPage(
                                   dataTableOutput("contents")
                                 )
                        ),
-                       tabPanel("Volcano", 
+                       tabPanel("Volcano",
                                 column(3,
                                        br(),
                                        wellPanel(
-                                         selectInput("volcano_cond", "Select condition", 
+                                         selectInput("volcano_cond", "Select condition",
                                                      choices = list(), selected = NULL),
-                                         #textInput("volcano_cond", "Select conditions", value = ""),
-                                         #uiOutput("my_output_UI_1"),
                                          numericInput("N_print", "# labels displayed (maximum) ", value = 15)
-                                         
+
                                        ),
                                        br(),
                                        wellPanel(
@@ -103,24 +101,19 @@ ui <- fluidPage(
                                         downloadButton("download_all_volcanos", "Download all volcanos")
                                        ),
                                        br(),
-                                       #helpText("Hover mouse over point to display extra info"),
-                                       #helpText("Brush and double-click to zoom"),
-                                       plotOutput("volcano", width="400",height="400", 
+                                       plotOutput("volcano", width="400",height="400",
                                                   hover = hoverOpts(id ="volcano_hover"),
                                                   dblclick = "volcano_dblclick",
                                                   brush = brushOpts(
                                                   id = "volcano_brush",
                                                   resetOnNew = TRUE) ),
-                                       verbatimTextOutput("info_volcano_hover") 
+                                       verbatimTextOutput("info_volcano_hover")
                                 )
                        ),
-                       tabPanel("Dot Plot", 
+                       tabPanel("Dot Plot",
                                 column(3,
                                        br(),
                                        wellPanel(
-                                         #uiOutput("my_output_UI_2"),
-                                         #numericInput("p_val_thresh", "p-value (maximum)", value = NULL),
-                                         #numericInput("fold_change_thresh", "fold-change (minimum)", value = NULL),
                                          numericInput("Nmax", "N display ", value = 30)
                                        ),
                                        br(),
@@ -140,20 +133,15 @@ ui <- fluidPage(
                                                     id = "dotPlot_brush",
                                                     resetOnNew = TRUE) ),
                                        br(),
-                                       verbatimTextOutput("info_dotPlot_hover") 
-                                ),
-                                column(3,
-                                       br(),
-                                       verbatimTextOutput("info_dotPlot_hover") 
+                                       verbatimTextOutput("info_dotPlot_hover")
                                 )
-
                        ),
-                       tabPanel("2D Stoichio", 
+                       tabPanel("2D Stoichio",
                                 br(),
                                 fluidRow(
                                   column(width=4,
                                     wellPanel(
-                                      selectInput("Stoichio2D_cond", "Select condition", 
+                                      selectInput("Stoichio2D_cond", "Select condition",
                                                   choices = list(), selected = NULL)
                                     )
                                   ),
@@ -170,12 +158,11 @@ ui <- fluidPage(
                                          downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
                                          plotOutput("Stoichio2D", width="300",height="300",
                                                     hover = hoverOpts(id ="Stoichio2D_hover"),
-                                                    #dblclick = "Stoichio2D_dblclick",
                                                     brush = brushOpts(
                                                       id = "Stoichio2D_brush",
                                                       resetOnNew = TRUE) ),
                                          verbatimTextOutput("info_Stoichio2D_hover")
-                                         
+
                                   ),
                                   column(width=5,
                                          br(),
@@ -184,11 +171,11 @@ ui <- fluidPage(
                                          plotOutput("Stoichio2D_zoom", width="300",height="300",
                                                     hover = hoverOpts(id ="Stoichio2D_zoom_hover")),
                                          br(),
-                                         verbatimTextOutput("info_Stoichio2D_zoom_hover")    
+                                         verbatimTextOutput("info_Stoichio2D_zoom_hover")
                                  )
                                 )
-                                
-                                
+
+
                        ),
                        tabPanel("Annotations",
                                 br(),
@@ -212,16 +199,16 @@ ui <- fluidPage(
                                        br(),
                                        dataTableOutput("annotTable")
                                 )
-                                
-                                
+
+
                        ),
-                       tabPanel("Summary", 
+                       tabPanel("Summary",
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         checkboxGroupInput("columns_displayed", 
-                                                            "Columns displayed", 
-                                                            choices = c("names", "max_stoichio", "max_fold_change", "min_p_val"), 
+                                         checkboxGroupInput("columns_displayed",
+                                                            "Columns displayed",
+                                                            choices = c("names", "max_stoichio", "max_fold_change", "min_p_val"),
                                                             selected = c("names", "max_stoichio", "max_fold_change", "min_p_val")
                                                             )
                                        )
@@ -233,7 +220,7 @@ ui <- fluidPage(
                                        br(),
                                        dataTableOutput("summaryTable")
                                 )
-                                
+
                        )
            )
     )
@@ -264,17 +251,17 @@ server <- function(input, output, session) {
   })
   
   res<- reactive({
-    updateSelectInput(session, "volcano_cond", 
-                      choices = as.list(setdiff(unique(cond()$time), input$filter_time) ), 
+    updateSelectInput(session, "volcano_cond",
+                      choices = as.list(setdiff(unique(cond()$time), input$filter_time) ),
                       selected = NULL)
-    updateSelectInput(session, "Stoichio2D_cond", 
-                      choices = as.list(setdiff( c("max", unique(cond()$time)), input$filter_time)), 
+    updateSelectInput(session, "Stoichio2D_cond",
+                      choices = as.list(setdiff( c("max", unique(cond()$time)), input$filter_time)),
                       selected = NULL)
     cond()
-    res_int<-InteRact(data(), 
-           bait_gene_name = input$bait_gene_name, 
-           N_rep=input$Nrep, 
-           bckg_bait = input$bckg_bait , 
+    res_int<-InteRact(data(),
+           bait_gene_name = input$bait_gene_name,
+           N_rep=input$Nrep,
+           bckg_bait = input$bckg_bait ,
            bckg_ctrl = input$bckg_ctrl,
            preffix_bio = input$preffix_bio,
            preffix_tech = input$preffix_tech,
@@ -282,16 +269,16 @@ server <- function(input, output, session) {
            filter_bio = input$filter_bio,
            filter_tech = input$filter_tech,
            filter_time = input$filter_time,
-           bckg=cond()$bckg, 
-           time=cond()$time, 
-           bio=cond()$bio, 
+           bckg=cond()$bckg,
+           time=cond()$time,
+           bio=cond()$bio,
            tech=cond()$tech
            )
     res_int$Interactome <- merge_proteome(res_int$Interactome)
     res_int
   })
-  
-  
+
+
   output$contents <- renderDataTable({
     updateCheckboxGroupInput(session, "filter_bio",
                              choices = as.list(unique(cond()$bio)),
@@ -304,7 +291,7 @@ server <- function(input, output, session) {
                              selected = NULL)
     cond()
   })
-  
+
   annotated_Interactome <- reactive({
     if(input$append_annot){
       append_annotations(res()$Interactome)
@@ -312,13 +299,13 @@ server <- function(input, output, session) {
       res()$Interactome
     }
   })
-  
+
   order_list <- reactive({
-    get_order_discrete(res()$Interactome, 
-                       p_val_thresh =input$p_val_thresh, 
-                       fold_change_thresh = params$fold_change_thresh )
+    get_order_discrete(res()$Interactome,
+                       p_val_thresh =input$p_val_thresh,
+                       fold_change_thresh = input$fold_change_thresh )
   })
-  
+
   ordered_Interactome <- reactive({
       results <- order_interactome(annotated_Interactome(), order_list()$idx_order)
       names_excluded <- c("names","bait", "groups","conditions")
@@ -326,22 +313,22 @@ server <- function(input, output, session) {
                                choices = as.list( setdiff(names(results), names_excluded),selected=c("names", "max_stoichio", "max_fold_change", "min_p_val")) )
       results
   })
-  
+
   summaryTable <- reactive({
     summary_table(ordered_Interactome(),  add_columns = input$columns_displayed)
   })
-    
+
   output$summaryTable <- renderDataTable({summaryTable()[1:order_list()$Ndetect, ] })
-  
+
   output$download_summaryTable <- downloadHandler(
     filename = "summary_table.txt",
     content = function(file) {
       write.table(summaryTable(), file, sep = "\t", dec = ".", row.names = FALSE)
     }
   )
-  
+
   ranges <- reactiveValues(x = c(-1.5,0.5), y = c(-1,1))
-  
+
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
   observeEvent(input$Stoichio2D_brush, {
@@ -349,15 +336,15 @@ server <- function(input, output, session) {
     if (!is.null(brush)) {
       ranges$x <- c(brush$xmin, brush$xmax)
       ranges$y <- c(brush$ymin, brush$ymax)
-      
+
     } else {
       ranges$x <- NULL
       ranges$y <- NULL
     }
   })
-  
+
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
-  
+
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
   observeEvent(input$volcano_dblclick, {
@@ -365,15 +352,15 @@ server <- function(input, output, session) {
     if (!is.null(brush_volcano)) {
       ranges_volcano$x <- c(brush_volcano$xmin, brush_volcano$xmax)
       ranges_volcano$y <- c(brush_volcano$ymin, brush_volcano$ymax)
-      
+
     } else {
       ranges_volcano$x <- NULL
       ranges_volcano$y <- NULL
     }
   })
-  
+
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
-  
+
   # When a double-click happens, check if there's a brush on the plot.
   # If so, zoom to the brush bounds; if not, reset the zoom.
   observeEvent(input$dotPlot_dblclick, {
@@ -381,20 +368,20 @@ server <- function(input, output, session) {
     if (!is.null(brush_dotPlot)) {
       ranges_dotPlot$x <- c(brush_dotPlot$xmin, brush_dotPlot$xmax)
       ranges_dotPlot$y <- c(brush_dotPlot$ymin, brush_dotPlot$ymax)
-      
+
     } else {
       ranges_dotPlot$x <- NULL
       ranges_dotPlot$y <- NULL
     }
   })
-  
-  
+
+
   Stoichio2D <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
                      condition = input$Stoichio2D_cond,
                      N_display=min(order_list()$Ndetect, input$Nmax2D) )
   })
-  
+
   Stoichio2D_zoom <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
                      condition = input$Stoichio2D_cond,
@@ -402,10 +389,10 @@ server <- function(input, output, session) {
                      ylim = ranges$y,
                      N_display=min(order_list()$Ndetect, input$Nmax2D) )
   })
-  
+
   output$Stoichio2D <- renderPlot( Stoichio2D() )
   output$Stoichio2D_zoom <- renderPlot( Stoichio2D_zoom() )
-  
+
   output$download_Stoichio2D <- downloadHandler(
     filename = "Stoichio2D_plot.pdf",
     content = function(file) {
@@ -414,7 +401,7 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-  
+
   output$download_Stoichio2D_zoom <- downloadHandler(
     filename = "Stoichio2D_zoom_plot.pdf",
     content = function(file) {
@@ -423,46 +410,46 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-  
+
   dotPlot <- reactive({
-    plot_per_conditions(ordered_Interactome(), 
+    plot_per_conditions(ordered_Interactome(),
                         idx_rows = min(input$Nmax, order_list()$Ndetect))+
     coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
   })
-  
+
   output$dotPlot <- renderPlot( dotPlot() )
-  
+
   output$download_dotPlot <- downloadHandler(
     filename = "dot_plot.pdf",
     content = function(file) {
       plot_width = 3.4
-      plot_height = input$Nmax/(plot_width+1) + 1 
+      plot_height = input$Nmax/(plot_width+1) + 1
       pdf(file,plot_width,plot_height)
       print(dotPlot())
       dev.off()
     }
   )
-  
-  
+
+
   volcano <- reactive({
       plot_volcanos( ordered_Interactome(),
                      conditions = input$volcano_cond,
-                     p_val_thresh = input$p_val_thresh, 
+                     p_val_thresh = input$p_val_thresh,
                      fold_change_thresh = input$fold_change_thresh,
                      xlim = ranges_volcano$x,
                      ylim = ranges_volcano$y,
                      N_print=input$N_print)[[1]]
   })
-  
+
   all_volcanos <- reactive({
     plot_volcanos( ordered_Interactome(),
-                   p_val_thresh = input$p_val_thresh, 
-                   fold_change_thresh = input$fold_change_thresh, 
+                   p_val_thresh = input$p_val_thresh,
+                   fold_change_thresh = input$fold_change_thresh,
                    N_print=input$N_print )
   })
-  
+
   output$volcano <- renderPlot( volcano() )
-  
+
   output$download_volcano <- downloadHandler(
     filename = "volcano_plot.pdf",
     content = function(file) {
@@ -471,7 +458,7 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-  
+
   output$download_all_volcanos <- downloadHandler(
     filename = "all_volcanos_plot.pdf",
     content = function(file) {
@@ -480,12 +467,12 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-  
+
   output$info_volcano_hover <- renderPrint({
-    
+
     if(!is.null(input$volcano_hover)){
       hover=input$volcano_hover
-      dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 + 
+      dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
                   (hover$y+log10(ordered_Interactome()$p_val[[input$volcano_cond]]) )^2)
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
@@ -496,15 +483,15 @@ server <- function(input, output, session) {
         s3<-paste("fold_change: ", ordered_Interactome()$fold_change[[input$volcano_cond]][ i_min ],sep="")
         s4<-paste("stoichio: ", ordered_Interactome()$stoichio[[input$volcano_cond]][ i_min ],sep="")
         cat(s1,s2,s3,s4,sep="\n")
-        
+
         #print(list(a=1, b=2))
         #input$volcano_hover$x
       }
     }
   })
-  
+
   output$info_Stoichio2D_zoom_hover <- renderPrint({
-    
+
     if(!is.null(input$Stoichio2D_zoom_hover)){
       hover=input$Stoichio2D_zoom_hover
       if(input$Stoichio2D_cond == "max"){
@@ -516,7 +503,7 @@ server <- function(input, output, session) {
       }
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
-      
+
       if(min_dist1 < 0.25){
         s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
         s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ i_min ],sep="")
@@ -525,9 +512,9 @@ server <- function(input, output, session) {
       }
     }
   })
-  
+
   output$info_Stoichio2D_hover <- renderPrint({
-    
+
     if(!is.null(input$Stoichio2D_hover)){
       hover=input$Stoichio2D_hover
       if(input$Stoichio2D_cond == "max"){
@@ -537,10 +524,10 @@ server <- function(input, output, session) {
         dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
                       (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
       }
-      
+
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
-      
+
       if(min_dist1 < 0.25){
         s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
         s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ i_min ],sep="")
@@ -549,9 +536,9 @@ server <- function(input, output, session) {
       }
     }
   })
-  
+
   output$info_dotPlot_hover <- renderPrint({
-    
+
     if(!is.null(input$dotPlot_hover)){
       i_prot = round(-input$dotPlot_hover$y)
       i_cond = round(input$dotPlot_hover$x)
@@ -563,27 +550,27 @@ server <- function(input, output, session) {
       s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ i_cond ]][ i_prot ], sep="")
       cat(s1, s2, s3, s4, s5, s6,sep="\n")
     }
-    
+
   })
-  
-  
+
+
   annotTable <- reactive({
     annotation_enrichment_analysis( ordered_Interactome(), 1:order_list()$Ndetect)
   })
-    
+
   annotPlot <- reactive({
-    plot_annotation_results(annotTable(), 
-                            p_val_max = input$p_val_max, 
-                            fold_change_min = input$fold_change_min, 
+    plot_annotation_results(annotTable(),
+                            p_val_max = input$p_val_max,
+                            fold_change_min = input$fold_change_min,
                             N_annot_min = input$N_annot_min)
   })
-  
+
   output$annotPlot <- renderPlot(annotPlot())
-  
+
   output$annotTable <- renderDataTable({
     annotTable()
   })
-  
+
   output$download_annotPlot <- downloadHandler(
     filename = "annotations.pdf",
     content = function(file) {
@@ -592,7 +579,7 @@ server <- function(input, output, session) {
       dev.off()
     }
   )
-  
+
   output$download_annotTable <- downloadHandler(
     filename = "annotations.txt",
     content = function(file) {
