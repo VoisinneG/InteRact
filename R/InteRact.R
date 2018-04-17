@@ -620,35 +620,36 @@ global_analysis.InteRactome <- function( res ){
   
 }
 
-annotation_enrichment_analysis <- function(res, idx_detect){
+#' @export
+annotation_enrichment_analysis <- function(df, idx_detect){
   # idx_detect : indices of the proteins for which the enrichment analysis is performed
   
-  if( ! "keywords" %in% names(res) ){
+  if( ! "keywords" %in% names(df) ){
     stop("Annotations not available. Import annotations first.")
   }
   
   #list annotation terms found in the dataset ------------------------------------------------
   
-  pfs <- paste(unique(res$Protein_families), collapse="; ");
+  pfs <- paste(unique(df$Protein_families), collapse="; ");
   unique_pfs <- unique(strsplit(pfs, split="; ")[[1]]);
   
-  keys <- paste(unique(res$keywords),collapse="; ");
+  keys <- paste(unique(df$keywords),collapse="; ");
   unique_keys <- unique(strsplit(keys, split="; ")[[1]]);
   
   annot_terms <-  setdiff(c(unique_pfs, unique_keys), "");
   
   # Compute Background -----------------------------------------------------------------------
   
-  nodes_tot <- as.character(res$gene_name_reviewed);
+  nodes_tot <- as.character(df$gene_name_reviewed);
   u_nodes_tot <- unique(nodes_tot);
   
   u_annot_nodes_collapse <- rep("", length(u_nodes_tot));
   idx_tot <- rep(0, length(u_nodes_tot));
   
   for ( i in 1:length(u_nodes_tot) ){
-    idx_tot[i] <- which(res$gene_name_reviewed == u_nodes_tot[i])[1];
-    u_annot_nodes_collapse[i] <- paste( c(as.character(res$keywords[ idx_tot[i] ]), 
-                                              as.character(res$Protein_families[ idx_tot[i] ]) ), 
+    idx_tot[i] <- which(df$gene_name_reviewed == u_nodes_tot[i])[1];
+    u_annot_nodes_collapse[i] <- paste( c(as.character(df$keywords[ idx_tot[i] ]), 
+                                              as.character(df$Protein_families[ idx_tot[i] ]) ), 
                                             collapse="; ");
   }
   
@@ -699,8 +700,7 @@ annotation_enrichment_analysis <- function(res, idx_detect){
   p_value_adjust_bonferroni[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "bonferroni");
   p_value_adjust_fdr[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "fdr");
   
-  df.annot<-data.frame(bait=rep(res$bait, length(annot_terms) ), 
-                       annot_terms,
+  df.annot<-data.frame(annot_terms,
                        N_annot,
                        freq_annot,
                        fold_change, 
