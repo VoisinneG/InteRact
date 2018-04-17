@@ -716,6 +716,7 @@ annotation_enrichment_analysis <- function(df, idx_detect){
   return(df.annot)
 }
 
+#' @export
 plot_annotation_results <- function(df, p_val_max=0.05, fold_change_min =2, N_annot_min=2){
   idx_filter <-  which(df$p_value_adjust_fdr <= p_val_max & 
                        df$fold_change >= fold_change_min & 
