@@ -621,7 +621,7 @@ global_analysis.InteRactome <- function( res ){
 }
 
 #' @export
-annotation_enrichment_analysis <- function(df, idx_detect){
+annotation_enrichment_analysis <- function( df, idx_detect){
   # idx_detect : indices of the proteins for which the enrichment analysis is performed
   
   if( ! "keywords" %in% names(df) ){
@@ -641,19 +641,17 @@ annotation_enrichment_analysis <- function(df, idx_detect){
   # Compute Background -----------------------------------------------------------------------
   
   nodes_tot <- as.character(df$gene_name_reviewed);
-  u_nodes_tot <- unique(nodes_tot);
   
-  u_annot_nodes_collapse <- rep("", length(u_nodes_tot));
-  idx_tot <- rep(0, length(u_nodes_tot));
+  u_annot_nodes_collapse <- rep("", length(nodes_tot));
+  idx_tot <- rep(0, length(nodes_tot));
   
-  for ( i in 1:length(u_nodes_tot) ){
-    idx_tot[i] <- which(df$gene_name_reviewed == u_nodes_tot[i])[1];
-    u_annot_nodes_collapse[i] <- paste( c(as.character(df$keywords[ idx_tot[i] ]), 
-                                              as.character(df$Protein_families[ idx_tot[i] ]) ), 
+  for ( i in 1:length(nodes_tot) ){
+    u_annot_nodes_collapse[i] <- paste( c(as.character(df$keywords[ i ]), 
+                                              as.character(df$Protein_families[ i ]) ), 
                                             collapse="; ");
   }
   
-  N_background = length(u_nodes_tot);
+  N_background = length(nodes_tot);
   
   N_annot_background <- rep(0,length(annot_terms));
   freq_annot_background <- rep(0,length(annot_terms));
@@ -711,7 +709,8 @@ annotation_enrichment_analysis <- function(df, idx_detect){
                        nodes_annot,
                        p_value_adjust_bonferroni,
                        N_annot_background, 
-                       freq_annot_background)
+                       freq_annot_background,
+                       nodes_annot_background)
   
   df.annot <- df.annot[ order(df.annot$p_value, decreasing = FALSE), ]
   
@@ -719,20 +718,21 @@ annotation_enrichment_analysis <- function(df, idx_detect){
 }
 
 #' @export
-plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = NULL, fold_change_min =2, N_annot_min=2){
+plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "none", fold_change_min =2, N_annot_min=2){
   
   name_p_val <- switch(method_adjust_p_val,
-                       NULL = "p_value",
+                       "none" = "p_value",
                        "fdr" = "p_value_adjust_fdr",
                        "bonferroni" = "p_value_adjust_bonferroni")
   
-  df$p_value_adjusted <- df [[name_p_val]]
+  df$p_value_adjusted <- df[[name_p_val]]
   
   idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
                        df$fold_change >= fold_change_min & 
                        df$N_annot >= N_annot_min)
-  if(lenght(idx_filter==0)){
-    stop("No annotation left after filtering. You might want to change input parameters")
+  if(length(idx_filter) == 0){
+    warning("No annotation left after filtering. You might want to change input parameters")
+    return(NULL)
   }
   df_filter <- df[ idx_filter, ]
   df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
@@ -744,7 +744,8 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = NU
       axis.text.x = element_text(size=14, angle = 90, hjust = 1,vjust=0.5),
       axis.title.x = element_text(size=14)
     ) +
-    scale_x_continuous(name=NULL, breaks=df_filter$order, labels=df_filter$annot_terms) +
+    scale_x_continuous(name = NULL, breaks=df_filter$order, labels=df_filter$annot_terms) +
+    scale_y_continuous(name = paste("-log10(",name_p_val,")",sep="")) +
     geom_col()+
     coord_flip()
   
