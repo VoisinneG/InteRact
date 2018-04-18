@@ -657,10 +657,12 @@ annotation_enrichment_analysis <- function(df, idx_detect){
   
   N_annot_background <- rep(0,length(annot_terms));
   freq_annot_background <- rep(0,length(annot_terms));
+  nodes_annot_background <- rep("",length(annot_terms));
   
   for ( k in 1:length(annot_terms) ){
     idx_annot <- grep(annot_terms[k], u_annot_nodes_collapse, fixed=TRUE)
     N_annot_background[k] = length(idx_annot);
+    nodes_annot_background[k] = paste(nodes_tot[idx_annot], collapse=";")
     freq_annot_background[k] = N_annot_background[k]/N_background;
   }
   
@@ -717,15 +719,26 @@ annotation_enrichment_analysis <- function(df, idx_detect){
 }
 
 #' @export
-plot_annotation_results <- function(df, p_val_max=0.05, fold_change_min =2, N_annot_min=2){
-  idx_filter <-  which(df$p_value_adjust_fdr <= p_val_max & 
+plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = NULL, fold_change_min =2, N_annot_min=2){
+  
+  name_p_val <- switch(method_adjust_p_val,
+                       NULL = "p_value",
+                       "fdr" = "p_value_adjust_fdr",
+                       "bonferroni" = "p_value_adjust_bonferroni")
+  
+  df$p_value_adjusted <- df [[name_p_val]]
+  
+  idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
                        df$fold_change >= fold_change_min & 
                        df$N_annot >= N_annot_min)
+  if(lenght(idx_filter==0)){
+    stop("No annotation left after filtering. You might want to change input parameters")
+  }
   df_filter <- df[ idx_filter, ]
   df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
   df_filter$order <- 1:dim(df_filter)[1]
   
-  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjust_fdr) )) + 
+  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjusted) )) + 
     theme(
       axis.text.y = element_text(size=14),
       axis.text.x = element_text(size=14, angle = 90, hjust = 1,vjust=0.5),
