@@ -1,9 +1,14 @@
 
 # import uniprot data
 
-uniprot_data<-read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
-                        "Uniprot/uniprot-mus_musculus-SwissProt+TrEMBL.txt", sep=""),
+uniprot_data_mouse <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
+                        "Uniprot/uniprot-mus+musculus.txt", sep=""),
                   sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
+
+# Note that only reviewd human protein are imported
+uniprot_data_human <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
+                                      "Uniprot/uniprot-homo+sapiens+AND+reviewed.txt", sep=""),
+                                sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
 
 # import proteome data
 
@@ -13,4 +18,5 @@ proteome_data <- read.table(paste("~/Google_Drive/++Work/++Research/++Projects/"
                           sep="" ),
                     sep="\t",header=TRUE)
 
-devtools::use_data( uniprot_data, proteome_data, pkg=".", internal = TRUE, overwrite = TRUE)
+
+devtools::use_data( uniprot_data_mouse, uniprot_data_human, proteome_data, pkg=".", internal = TRUE, overwrite = TRUE)

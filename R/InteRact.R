@@ -326,7 +326,7 @@ average_technical_replicates<-function(df, cond){
 #' @param Column_gene_name The name of df's column containing gene names
 #' @return A filtered data frame 
 #' @export
-filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names"){
+filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names", split_param=";"){
 
   idx_row = 1:dim(df)[1]
   if( "Score" %in% colnames(df)){
@@ -353,6 +353,8 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names"){
   }else{
     warning(paste("Column gene_name '", Column_gene_name, "' not available",sep=""))
   }
+  
+  df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=split_param)[[1]][1] )
   
   output = df
 }
@@ -621,34 +623,74 @@ global_analysis.InteRactome <- function( res ){
 }
 
 #' @export
-annotation_enrichment_analysis <- function( df, idx_detect){
+annotation_enrichment_analysis <- function( df, idx_detect, annotation_selected = c("Keywords.up", "Protein.families.up") , name_var = "Gene.names...primary...up"){
   # idx_detect : indices of the proteins for which the enrichment analysis is performed
+  # annotation_selected : set of annotation terms to consider. So far, annotations supported 
+  # are stored in varaiable "supported_annotations:
+  # c("Gene.ontology.IDs", "Protein.families",  "Cross.reference..Pfam.", "Cross.reference..KEGG.", 
+  #   "Keywords", "Cross.reference..Reactome.", "Gene.ontology..GO.")
   
-  if( ! "keywords" %in% names(df) ){
+  supported_annotations <- c("Gene.ontology.IDs.up", "Protein.families.up",  "Cross.reference..Pfam..up", "Cross.reference..KEGG..up", 
+                             "Keywords.up", "Cross.reference..Reactome..up", "Gene.ontology..GO..up")
+  
+  if( sum(annotation_selected %in% supported_annotations) != length(annotation_selected) ){
+    stop("Annotations not supported. Change parameter : annotation_selected")
+  }
+  if( sum(names(df) %in% supported_annotations) == 0 ){
     stop("Annotations not available. Import annotations first.")
   }
-  
   #list annotation terms found in the dataset ------------------------------------------------
   
-  pfs <- paste(unique(df$Protein_families), collapse="; ");
-  unique_pfs <- unique(strsplit(pfs, split="; ")[[1]]);
+  df_int <- df
   
-  keys <- paste(unique(df$keywords),collapse="; ");
-  unique_keys <- unique(strsplit(keys, split="; ")[[1]]);
+  if("Protein.families" %in% annotation_selected){
+    df_int[["Protein.families"]] <- as.character(df_int[["Protein.families"]])
+    for (i in 1:length(df_int[["Protein.families"]])){
+      s <- strsplit(df_int[["Protein.families"]][i], split=", ")[[1]]
+      s_develop <- s[1]
+      if (length(s) > 1) {
+        for (j in 2:length(s)){
+          s_develop <- c(s_develop, paste(s_develop[length(s_develop)], s[j], sep=", "))
+        }
+      }
+      df_int[["Protein.families"]][i] <- paste(s_develop, collapse="; ")
+    }
+  }
   
-  annot_terms <-  setdiff(c(unique_pfs, unique_keys), "");
+  
+  annot_terms <- NULL
+  
+  for (annot_type in annotation_selected){
+      u_annot<-paste(unique(df_int[[annot_type]]), collapse="; ")
+      annot_terms <- c(annot_terms, unique(strsplit(u_annot, split="; ")[[1]]) )
+  }
+  
+  annot_terms <-  setdiff(annot_terms, "");
+  
+  #pfs <- paste(unique(df$Protein_families), collapse="; ");
+  #unique_pfs <- unique(strsplit(pfs, split="; ")[[1]]);
+  
+  #keys <- paste(unique(df$keywords),collapse="; ");
+  #unique_keys <- unique(strsplit(keys, split="; ")[[1]]);
+  
+  #annot_terms <-  setdiff(c(unique_pfs, unique_keys), "");
   
   # Compute Background -----------------------------------------------------------------------
   
-  nodes_tot <- as.character(df$gene_name_reviewed);
+  nodes_tot <- as.character(df[[name_var]]);
   
   u_annot_nodes_collapse <- rep("", length(nodes_tot));
   idx_tot <- rep(0, length(nodes_tot));
   
   for ( i in 1:length(nodes_tot) ){
-    u_annot_nodes_collapse[i] <- paste( c(as.character(df$keywords[ i ]), 
-                                              as.character(df$Protein_families[ i ]) ), 
-                                            collapse="; ");
+    s <- NULL
+    for (annot_type in annotation_selected) {
+      s <- c(s, as.character(df[[annot_type]][ i ]))
+    }
+    u_annot_nodes_collapse[i] <- paste(s, collapse = "; ")
+    #u_annot_nodes_collapse[i] <- paste( c(as.character(df$keywords[ i ]), 
+    #                                          as.character(df$Protein_families[ i ]) ), 
+    #                                        collapse="; ");
   }
   
   N_background = length(nodes_tot);
@@ -763,109 +805,132 @@ append_annotations <- function (x, ...) {
 #' @export
 append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Protein.IDs" ){
   
-  res_int<-res
-  if( !is.null(annotations) ){
+    res_int<-res
     
-    idx_match<-rep(NA,length(res$names))
-    for(i in 1:length(res$names) ){
-      idx_match[i] <- which(as.character(annotations[[name_id]]) == as.character(res[[name_id]][i]) )
+    if( is.null(annotations) ){
+      warning("No annotations to append")
+    }
+    else{
+      idx_match<-rep(NA,length(res$names))
+      for(i in 1:length(res$names) ){
+        idx_match[i] <- which(as.character(annotations[[name_id]]) == as.character(res[[name_id]][i]) )
+      }
+      
+      for( var_names in setdiff(names(annotations), name_id) ){
+        res_int[[var_names]] <- as.character(annotations[[var_names]][idx_match])
+      }
     }
     
-    for( var_names in setdiff(names(annotations), name_id) ){
-      res_int[[var_names]] <- as.character(annotations[[var_names]][idx_match])
-    }
-  }
-  return(res_int)
-  
+    return(res_int)
+    
 }
 
+
+
 #' @export
-get_annotations<- function( data, name_id = "Protein.IDs" ){
+get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", organism = "mouse" ){
+# Get annotations from uniprot for a set of protein identifiers
+# From a set of IDs, keep the first that correspond to a "reviewed" protein, 
+# or by default the first ID of the set
+# name_id : column containing the set of protein identifiers separated by "split_param"
+# organism = c("mouse", "human")
+  
+  df_annot <- switch(organism, "mouse" = uniprot_data_mouse, "human" = uniprot_data_human)
   
   df<-NULL
-  nodes_IDs<- as.character(data[[name_id]]);
-  df[[name_id]] <- nodes_IDs
   
+  nodes_IDs<- as.character(data[[name_id]]);
   Nnodes<-length(nodes_IDs)
+  
   nodes_ID<-rep("", Nnodes);
-  imatch<-rep(0, Nnodes);
-  imatch_review<-rep("", Nnodes);
-  nodes_gene_names<-rep("NA", Nnodes);
-  nodes_entry_names<-rep("", Nnodes);
-  nodes_status<-rep("unreviewed", Nnodes);
+  imatch<-rep(NA, Nnodes);
+  # nodes_gene_names<-rep("NA", Nnodes);
+  # nodes_entry_names<-rep("", Nnodes);
+  # nodes_status<-rep("unreviewed", Nnodes);
+  
   
   for (i in 1:Nnodes ){
-    list_nodes_ID<- unique(strsplit(nodes_IDs[i],split=";")[[1]]);
+    list_nodes_ID<- unique(strsplit(nodes_IDs[i], split=split_param, fixed = TRUE)[[1]]);
     for(j in 1:length(list_nodes_ID) ){
       nID_clean <- strsplit(list_nodes_ID[j], split="-")[[1]][1];
-      if(j==1){
-        nodes_ID[i]<-nID_clean;
-      }
-      idx_entry<-which(uniprot_data$Entry==nID_clean)
+      #if(j==1){
+      #  nodes_ID[i]<-nID_clean;
+      #}
+      idx_entry<-which(df_annot$Entry == nID_clean)
       if(length(idx_entry>0)) {
         
-        if(imatch[i]==0){
+        if(is.na(imatch[i])){
           imatch[i]<-idx_entry;
-          nodes_ID[i]<-nID_clean;
+          #nodes_ID[i]<-nID_clean;
         }
         
-        if(uniprot_data$Status[idx_entry]=="reviewed"){
+        if(df_annot$Status[idx_entry]=="reviewed"){
           imatch[i]<-idx_entry;
-          imatch_review[i]<-paste(imatch_review[i],idx_entry,collapse=";")
-          nodes_ID[i]<-nID_clean;
-          nodes_status[i]="reviewed"
+          #nodes_ID[i]<-nID_clean;
+          #nodes_status[i]="reviewed"
           break;
         }
       }
     }
     
-    if(imatch[i]>0){
-      s1<-strsplit(as.character(uniprot_data$Gene.names[imatch[i]]),split=" ")[[1]][1];
-      s2<-strsplit(as.character(uniprot_data$Entry.name[imatch[i]]),split="_")[[1]][1];
-      nodes_gene_names[i]<-s1;
-      nodes_entry_names[i]<-s2
-      if(is.na(s1)){
-        nodes_gene_names[i]<- "NA" #as.character(Tuni$Entry.name[imatch[i]]);
-      }
-      if(substr(nodes_gene_names[i],1,1)=="\""){
-        nodes_gene_names[i]=nodes[i];
-      }
-    }
-    
   }
   
-  df$status_reviewed <- nodes_status;
-  df$protein_ID_reviewed<-nodes_ID;
-  df$entry_name_reviewed <- nodes_entry_names;
-  df$gene_name_reviewed <- nodes_gene_names;
   
-  df$gene_name <- nodes_gene_names;
-
-  ### list keywords for each node
+  df<-df_annot[imatch, ]
+  names(df) <- paste(names(df), ".up", sep = "")
+  df <- cbind(data[[name_id]], df)
+  names(df)[1] <- name_id
   
-  ukeys_nodes_collapse <-rep("", Nnodes);
-  uGOs_nodes_collapse<-rep("", Nnodes);
-  uPFs_nodes_collapse<-rep("", Nnodes);
-  
-  for( i in 1:Nnodes ){
-    if(imatch[i]>0){
-      
-      ukeys_nodes_collapse[i]<-as.character(uniprot_data$Keywords[imatch[i]]);
-      
-      uGOs_nodes_collapse[i]<-as.character(uniprot_data$Gene.ontology.IDs[imatch[i]]);
-      
-      s<-strsplit(as.character(uniprot_data$Protein.families[imatch[i]]), split=", ");
-      uPFs_nodes_collapse[i]<-paste(s[[1]], collapse="; ");
-      
-    }
+    # if(imatch[i]>0){
+    #   # keep the first gene
+    #   s1<-strsplit(as.character(uniprot_data$Gene.names[imatch[i]]),split=" ")[[1]][1];
+    #   s2<-strsplit(as.character(uniprot_data$Entry.name[imatch[i]]),split="_")[[1]][1];
+    #   nodes_gene_names[i]<-s1;
+    #   nodes_entry_names[i]<-s2
+    #   if(is.na(s1)){
+    #     nodes_gene_names[i]<- "NA" #as.character(Tuni$Entry.name[imatch[i]]);
+    #   }
+    #   if(substr(nodes_gene_names[i],1,1)=="\""){
+    #     nodes_gene_names[i]=nodes[i];
+    #   }
+    # }
     
-  }
+    
+  #}
   
-  df$keywords = ukeys_nodes_collapse;
-  df$GO_IDs = uGOs_nodes_collapse;
-  df$Protein_families = uPFs_nodes_collapse;
   
-  return(as.data.frame(df))
+  
+  # df$status_reviewed <- nodes_status;
+  # df$protein_ID_reviewed<-nodes_ID;
+  # df$entry_name_reviewed <- nodes_entry_names;
+  # df$gene_name_reviewed <- nodes_gene_names;
+  # 
+  # df$gene_name <- nodes_gene_names;
+  # 
+  # ### list keywords for each node
+  # 
+  # ukeys_nodes_collapse <-rep("", Nnodes);
+  # uGOs_nodes_collapse<-rep("", Nnodes);
+  # uPFs_nodes_collapse<-rep("", Nnodes);
+  # 
+  # for( i in 1:Nnodes ){
+  #   if(imatch[i]>0){
+  #     ukeys_nodes_collapse[i]<-as.character(df_annot$Keywords[imatch[i]]);
+  #     
+  #     uGOs_nodes_collapse[i]<-as.character(df_annot$Gene.ontology.IDs[imatch[i]]);
+  #     
+  #     s<-strsplit(as.character(uniprot_data$Protein.families[imatch[i]]), split=", ");
+  #     uPFs_nodes_collapse[i]<-paste(s[[1]], collapse="; ");
+  #   }
+  # }
+  # 
+  # df$keywords = ukeys_nodes_collapse;
+  # df$GO_IDs = uGOs_nodes_collapse;
+  # df$Protein_families = uPFs_nodes_collapse;
+  
+  #return(as.data.frame(df))
+  
+  return(df)
   
 }
 
@@ -875,7 +940,7 @@ merge_proteome <- function (x, ...) {
 }
 
 #' @export
-merge_proteome.InteRactome <- function( res, matching="names" ){
+merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Protein.IDs" ){
   
       res_int <- res;
     
@@ -888,9 +953,13 @@ merge_proteome.InteRactome <- function( res, matching="names" ){
       Copy_Number <- rep(0, length(res$names));
     
       for( i in 1:length(res$names) ){
-        idx_prot <- which(gene_name_prot==as.character(res[[matching]][i]));
-        idx_ID_x <-  which(proteome_data$Protein.IDs.x==as.character(res$nodes_ID_reviewed[i]));
-        idx_ID_y <-  which(proteome_data$Protein.IDs.y==as.character(res$nodes_ID_reviewed[i]));
+        #idx_prot <- which(gene_name_prot==as.character(res[[matching]][i]));
+        #idx_ID_x <-  which(proteome_data$Protein.IDs.x==as.character(res$nodes_ID_reviewed[i]));
+        #idx_ID_y <-  which(proteome_data$Protein.IDs.y==as.character(res$nodes_ID_reviewed[i]));
+        
+        idx_ID_x <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.x), fixed=TRUE);
+        idx_ID_y <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.y), fixed=TRUE);
+        
         abund_x <- NA;
         abund_y <- NA;
         if( length(idx_ID_x)>0 ){ 
@@ -900,13 +969,15 @@ merge_proteome.InteRactome <- function( res, matching="names" ){
           abund_y <- proteome_data$mean.y[idx_ID_y] 
         }
         
-        if(length(idx_prot)>0){
-          Copy_Number[i] = proteome_data$mean[ idx_prot[1] ];
-        }else if( length(idx_ID_x)>0 || length(idx_ID_y)>0 ){
-          Copy_Number[i] = mean( c(abund_x, abund_y), na.rm=TRUE);
-        }else{
-          Copy_Number[i] = NA;
-        }
+        Copy_Number[i] <- mean(c(abund_x, abund_y), na.rm = TRUE)
+        
+        #if(length(idx_prot)>0){
+        #  Copy_Number[i] = proteome_data$mean[ idx_prot[1] ];
+        #}else if( length(idx_ID_x)>0 || length(idx_ID_y)>0 ){
+        #  Copy_Number[i] = mean( c(abund_x, abund_y), na.rm=TRUE);
+        #}else{
+        #  Copy_Number[i] = NA;
+        #}
       }
       res_int$Copy_Number = Copy_Number
       res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]

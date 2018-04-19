@@ -187,6 +187,8 @@ ui <- fluidPage(
                                          h3("Annotations"),
                                          checkboxInput("append_annot","Import Annotations ", value=FALSE),
                                          helpText("warning: Loading annotations for the first time can take a while"),
+                                         selectInput("method_adjust_p_val", "Method to adjust p-values",
+                                                     choices = c("none", "fdr", "bonferroni"), selected = "none"),
                                          numericInput("p_val_max", "p-value (maximum)", value = 0.05),
                                          numericInput("fold_change_min", "fold-change (minimum)", value = 2),
                                          numericInput("N_annot_min", "Number of annotated proteins (minimum)", value = 2)
@@ -240,15 +242,14 @@ server <- function(input, output, session) {
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
   annot <- reactiveValues(imported=FALSE)
-  saved_annot <- reactiveValues(Protein.IDs=NULL,
-                                status_reviewed=NULL,
-                                protein_ID_reviewed=NULL, 
-                                entry_name_reviewed=NULL, 
-                                gene_name_reviewed=NULL, 
-                                gene_name=NULL,          
-                                keywords=NULL,
-                                GO_IDs=NULL,
-                                Protein_families=NULL)
+  saved_annot <- reactiveValues(
+                                Protein.IDs=NULL,
+                                Gene.names...primary...up=NULL,
+                                Status.up=NULL,
+                                Entry.up=NULL,
+                                Keywords.up=NULL,
+                                Protein.families.up=NULL
+                                )
   Ninteractors <- reactiveValues(x=0)
   
   #Main reactive functions -------------------------------------------------------------------------
@@ -320,14 +321,11 @@ server <- function(input, output, session) {
         df <- get_annotations(data())
         
         saved_annot$Protein.IDs <- df$Protein.IDs
-        saved_annot$status_reviewed <- df$status_reviewed
-        saved_annot$protein_ID_reviewed <- df$protein_ID_reviewed
-        saved_annot$entry_name_reviewed <- df$ntry_name_reviewed
-        saved_annot$gene_name_reviewed <- df$gene_name_reviewed
-        saved_annot$gene_name <- df$gene_name      
-        saved_annot$keywords <- df$keywords
-        saved_annot$GO_IDs <- df$GO_IDs
-        saved_annot$Protein_families <- df$Protein_families
+        saved_annot$Gene.names...primary...up <- df$Gene.names...primary...up
+        saved_annot$Status.up <- df$Status.up
+        saved_annot$Entry.up <- df$Entry.up
+        saved_annot$Keywords.up <- df$Keywords.up
+        saved_annot$Protein.families.up <- df$Protein.families.up
         
         annot$imported <- TRUE
       }
@@ -459,6 +457,7 @@ server <- function(input, output, session) {
   
   annotPlot <- reactive({
     plot_annotation_results(annotTable(),
+                            method_adjust_p_val = input$method_adjust_p_val,
                             p_val_max = input$p_val_max,
                             fold_change_min = input$fold_change_min,
                             N_annot_min = input$N_annot_min)
