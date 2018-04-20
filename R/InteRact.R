@@ -962,7 +962,8 @@ add_KEGG_data <- function(df, organism="mouse"){
   KEGG <- switch(organism, "mouse" = KEGG_mouse, "human" = KEGG_human)
   for(i in 1:dim(df)[1]){
     idx_KEGG <- grep(df[["Cross.reference..KEGG."]][i], as.character(KEGG$IDs), fixed = TRUE)
-    KEGG_pathways[i] <- paste(as.character(KEGG$name[idx_KEGG]), collapse = ";")
+    pathways <- paste(KEGG$name[idx_KEGG]," [",KEGG$pathway[idx_KEGG],"]",sep="")
+    KEGG_pathways[i] <- paste(as.character(pathways), collapse = ";")
   }
   df_int$KEGG <- KEGG_pathways
   
