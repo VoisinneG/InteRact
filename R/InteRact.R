@@ -623,22 +623,35 @@ global_analysis.InteRactome <- function( res ){
 }
 
 #' @export
-annotation_enrichment_analysis <- function( df, idx_detect, annotation_selected = c("Keywords.up", "Protein.families.up") , name_var = "Gene.names...primary...up"){
-  # idx_detect : indices of the proteins for which the enrichment analysis is performed
-  # annotation_selected : set of annotation terms to consider. So far, annotations supported 
-  # are stored in varaiable "supported_annotations:
-  # c("Gene.ontology.IDs", "Protein.families",  "Cross.reference..Pfam.", "Cross.reference..KEGG.", 
-  #   "Keywords", "Cross.reference..Reactome.", "Gene.ontology..GO.")
+annotation_enrichment_analysis <- function( df, 
+                                            idx_detect, 
+                                            annotation_selected = c("Keywords", "Protein.families") , 
+                                            names = df$Gene.names...primary.., organism = "mouse"){
+  # df : data frame with annotation data
+  # idx_detect : indices of the subset of proteins in df for which the enrichment analysis is performed
+  # against the background formed by all proteins in df
+  # annotation_selected : set of annotation terms to consider. 
+  #Annotations supported are stored in varaiable "supported_annotations:
   
-  supported_annotations <- c("Gene.ontology.IDs.up", "Protein.families.up",  "Cross.reference..Pfam..up", "Cross.reference..KEGG..up", 
-                             "Keywords.up", "Cross.reference..Reactome..up", "Gene.ontology..GO..up")
+  supported_annotations <- c("KEGG",
+                             "Gene.ontology.IDs", 
+                             "Protein.families",  
+                             "Cross.reference..Pfam.", 
+                             "Keywords", 
+                             "Cross.reference..Reactome.", 
+                             "Gene.ontology..GO.")
   
-  if( sum(annotation_selected %in% supported_annotations) != length(annotation_selected) ){
-    stop("Annotations not supported. Change parameter : annotation_selected")
-  }
-  if( sum(names(df) %in% supported_annotations) == 0 ){
+
+  if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) ){
     stop("Annotations not available. Import annotations first.")
+  }else if ( length(annotation_selected) == 0) {
+    stop("No annotations selected. Change selected annotations")
+  }else if (sum(annotation_selected %in% supported_annotations) != length(annotation_selected)){
+    stop("Annotations not supported. Change selected annotations")
   }
+  
+  cat("Perfoming annotation enrichment analysis...\n")
+  
   #list annotation terms found in the dataset ------------------------------------------------
   
   df_int <- df
@@ -657,27 +670,61 @@ annotation_enrichment_analysis <- function( df, idx_detect, annotation_selected 
     }
   }
   
-  
   annot_terms <- NULL
+  annot_type <- NULL
+  annot_names <- NULL
   
-  for (annot_type in annotation_selected){
-      u_annot<-paste(unique(df_int[[annot_type]]), collapse="; ")
-      annot_terms <- c(annot_terms, unique(strsplit(u_annot, split="; ")[[1]]) )
+  for (annot_type_sel in annotation_selected){
+    
+      collapse_sep <- switch(annot_type_sel,
+                           "KEGG" = ";",
+                           "Gene.ontology.IDs" = "; ",
+                           "Protein.families" = "; ",
+                           "Cross.reference..Pfam." = ";",
+                           "Keywords" = "; ",
+                           "Cross.reference..Reactome." = ";",
+                           "Gene.ontology..GO." = "; ")
+      
+      u_annot<-paste(unique(df_int[[annot_type_sel]]), collapse = collapse_sep)
+      terms <- unique(strsplit(u_annot, split = collapse_sep)[[1]])
+      
+      annot_names_int <- terms
+      if(annot_type_sel == "Cross.reference..Reactome."){
+        reactome <- switch(organism, "mouse" = reactome_mouse, "human" = reactome_human)
+        annot_names_int <- paste(
+                              reactome$Name[match(terms, reactome$ID)],
+                              ", [",
+                              reactome$ID[match(terms, reactome$ID)],
+                              "]",
+                              sep = "")
+      }
+      if(annot_type_sel == "Cross.reference..Pfam."){
+        pfam <- switch(organism, "mouse" = pfam_mouse, "human" = pfam_human)
+        annot_names_int <- paste(
+                                pfam$hmm.name[match(terms, pfam$hmm.acc)],
+                                ", ",
+                                pfam$type[match(terms, pfam$hmm.acc)],
+                                ", [",
+                                pfam$hmm.acc[match(terms, pfam$hmm.acc)],
+                                "]",
+                                sep = "")
+      }
+      
+      annot_terms <- c(annot_terms,  terms)
+      annot_type <- c(annot_type, rep(annot_type_sel, length(terms)))
+      annot_names <- c(annot_names, annot_names_int)
+      
   }
   
-  annot_terms <-  setdiff(annot_terms, "");
+  df.annot <- data.frame(annot_terms = annot_terms, annot_type = annot_type, annot_names = annot_names)
+  df.annot <- df.annot[which(df.annot$annot_terms != ""), ]
+
+ 
   
-  #pfs <- paste(unique(df$Protein_families), collapse="; ");
-  #unique_pfs <- unique(strsplit(pfs, split="; ")[[1]]);
-  
-  #keys <- paste(unique(df$keywords),collapse="; ");
-  #unique_keys <- unique(strsplit(keys, split="; ")[[1]]);
-  
-  #annot_terms <-  setdiff(c(unique_pfs, unique_keys), "");
   
   # Compute Background -----------------------------------------------------------------------
   
-  nodes_tot <- as.character(df[[name_var]]);
+  nodes_tot <- as.character(names);
   
   u_annot_nodes_collapse <- rep("", length(nodes_tot));
   idx_tot <- rep(0, length(nodes_tot));
@@ -687,40 +734,45 @@ annotation_enrichment_analysis <- function( df, idx_detect, annotation_selected 
     for (annot_type in annotation_selected) {
       s <- c(s, as.character(df[[annot_type]][ i ]))
     }
-    u_annot_nodes_collapse[i] <- paste(s, collapse = "; ")
-    #u_annot_nodes_collapse[i] <- paste( c(as.character(df$keywords[ i ]), 
-    #                                          as.character(df$Protein_families[ i ]) ), 
-    #                                        collapse="; ");
+    u_annot_nodes_collapse[i] <- paste(s, collapse = ";")
   }
   
   N_background = length(nodes_tot);
   
-  N_annot_background <- rep(0,length(annot_terms));
-  freq_annot_background <- rep(0,length(annot_terms));
-  nodes_annot_background <- rep("",length(annot_terms));
+  N_annot_background <- rep(0, dim(df.annot)[1]);
+  freq_annot_background <- rep(0, dim(df.annot)[1]);
+  nodes_annot_background <- rep("", dim(df.annot)[1]);
   
-  for ( k in 1:length(annot_terms) ){
-    idx_annot <- grep(annot_terms[k], u_annot_nodes_collapse, fixed=TRUE)
+  pb <- txtProgressBar(min = 0, max = 2*dim(df.annot)[1], style = 3)
+  count<-0
+  
+  for ( k in 1:dim(df.annot)[1] ){
+    
+    idx_annot <- grep(df.annot$annot_terms[k], u_annot_nodes_collapse, fixed=TRUE)
     N_annot_background[k] = length(idx_annot);
     nodes_annot_background[k] = paste(nodes_tot[idx_annot], collapse=";")
     freq_annot_background[k] = N_annot_background[k]/N_background;
+    
+    count <- count +1
+    setTxtProgressBar(pb, count)
   }
   
   N_annotation_test <- length(which(N_annot_background>0))
   
   # Perform enrichment test for each annotation ----------------------------------------------
   
-  N_annot <- rep(0,length(annot_terms));
-  freq_annot <- rep(0,length(annot_terms));
-  nodes_annot <- rep("",length(annot_terms));
-  p_value <- rep(0,length(annot_terms));
-  fold_change <- rep(0,length(annot_terms));
-  p_value_adjust <- rep(0,length(annot_terms));
+  N_annot <- rep(0, dim(df.annot)[1]);
+  freq_annot <- rep(0, dim(df.annot)[1]);
+  nodes_annot <- rep("", dim(df.annot)[1]);
+  p_value <- rep(0, dim(df.annot)[1]);
+  fold_change <- rep(0, dim(df.annot)[1]);
+  p_value_adjust <- rep(0, dim(df.annot)[1]);
   
   
-  for(k in 1:length(annot_terms) ){
+  
+  for(k in 1:dim(df.annot)[1] ){
     
-    idx_annot <- idx_detect[ grep(annot_terms[k], u_annot_nodes_collapse[idx_detect],fixed=TRUE) ]
+    idx_annot <- idx_detect[ grep(df.annot$annot_terms[k], u_annot_nodes_collapse[idx_detect],fixed=TRUE) ]
     N_annot[k]=length(idx_annot);
     N_sample = length(idx_detect);
     
@@ -734,7 +786,11 @@ annotation_enrichment_analysis <- function( df, idx_detect, annotation_selected 
     
     fold_change[k] = freq_annot[k]/freq_annot_background[k];
     
+    count <- count +1
+    setTxtProgressBar(pb, count)
   }
+  
+  close(pb)
   
   idx_annot_exist <-  which(N_annot>0);
   p_value_adjust_fdr <- rep( 1,length(p_value) );
@@ -742,25 +798,28 @@ annotation_enrichment_analysis <- function( df, idx_detect, annotation_selected 
   p_value_adjust_bonferroni[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "bonferroni");
   p_value_adjust_fdr[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "fdr");
   
-  df.annot<-data.frame(annot_terms,
-                       N_annot,
-                       freq_annot,
-                       fold_change, 
-                       p_value, 
-                       p_value_adjust_fdr,
-                       nodes_annot,
-                       p_value_adjust_bonferroni,
-                       N_annot_background, 
-                       freq_annot_background,
-                       nodes_annot_background)
+  df.annot.2 <- data.frame(
+                  N_annot,
+                  freq_annot,
+                  fold_change, 
+                  p_value, 
+                  p_value_adjust_fdr,
+                  nodes_annot,
+                  p_value_adjust_bonferroni,
+                  N_annot_background, 
+                  freq_annot_background,
+                  nodes_annot_background)
+  
+  df.annot<-cbind(df.annot, df.annot.2)
   
   df.annot <- df.annot[ order(df.annot$p_value, decreasing = FALSE), ]
+  cat("Done.\n")
   
   return(df.annot)
 }
 
 #' @export
-plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "none", fold_change_min =2, N_annot_min=2){
+plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "fdr", fold_change_min =2, N_annot_min=2){
   
   name_p_val <- switch(method_adjust_p_val,
                        "none" = "p_value",
@@ -786,7 +845,7 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "n
       axis.text.x = element_text(size=14, angle = 90, hjust = 1,vjust=0.5),
       axis.title.x = element_text(size=14)
     ) +
-    scale_x_continuous(name = NULL, breaks=df_filter$order, labels=df_filter$annot_terms) +
+    scale_x_continuous(name = NULL, breaks=df_filter$order, labels=df_filter$annot_names) +
     scale_y_continuous(name = paste("-log10(",name_p_val,")",sep="")) +
     geom_col()+
     coord_flip()
@@ -795,8 +854,6 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "n
   
 }
 
-
-  
 #' @export
 append_annotations <- function (x, ...) {
   UseMethod("append_annotations", x)
@@ -811,6 +868,7 @@ append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Pr
       warning("No annotations to append")
     }
     else{
+      cat("Appending annotation to interactome...\n")
       idx_match<-rep(NA,length(res$names))
       for(i in 1:length(res$names) ){
         idx_match[i] <- which(as.character(annotations[[name_id]]) == as.character(res[[name_id]][i]) )
@@ -819,13 +877,12 @@ append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Pr
       for( var_names in setdiff(names(annotations), name_id) ){
         res_int[[var_names]] <- as.character(annotations[[var_names]][idx_match])
       }
+      cat("Done.\n")
     }
     
     return(res_int)
     
 }
-
-
 
 #' @export
 get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", organism = "mouse" ){
@@ -842,98 +899,76 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
   nodes_IDs<- as.character(data[[name_id]]);
   Nnodes<-length(nodes_IDs)
   
+  if( length( strsplit( paste(nodes_IDs, collapse=" "), split = split_param, fixed = TRUE)[[1]] ) == 1){
+    stop(paste("The split parameter '",split_param, "' was not detected in '", name_id,"' : Change split_param.", sep = "") )
+  }
+    
   nodes_ID<-rep("", Nnodes);
   imatch<-rep(NA, Nnodes);
-  # nodes_gene_names<-rep("NA", Nnodes);
-  # nodes_entry_names<-rep("", Nnodes);
-  # nodes_status<-rep("unreviewed", Nnodes);
+  
+
+  # create progress bar
+  cat("Creating annotation table...\n")
+  pb <- txtProgressBar(min = 0, max = Nnodes, style = 3)
   
   
   for (i in 1:Nnodes ){
+    
     list_nodes_ID<- unique(strsplit(nodes_IDs[i], split=split_param, fixed = TRUE)[[1]]);
     for(j in 1:length(list_nodes_ID) ){
       nID_clean <- strsplit(list_nodes_ID[j], split="-")[[1]][1];
-      #if(j==1){
-      #  nodes_ID[i]<-nID_clean;
-      #}
       idx_entry<-which(df_annot$Entry == nID_clean)
       if(length(idx_entry>0)) {
         
         if(is.na(imatch[i])){
           imatch[i]<-idx_entry;
-          #nodes_ID[i]<-nID_clean;
         }
         
         if(df_annot$Status[idx_entry]=="reviewed"){
           imatch[i]<-idx_entry;
-          #nodes_ID[i]<-nID_clean;
-          #nodes_status[i]="reviewed"
           break;
         }
+        
       }
     }
-    
+    setTxtProgressBar(pb, i)
   }
-  
+  close(pb)
   
   df<-df_annot[imatch, ]
-  names(df) <- paste(names(df), ".up", sep = "")
   df <- cbind(data[[name_id]], df)
   names(df)[1] <- name_id
   
-    # if(imatch[i]>0){
-    #   # keep the first gene
-    #   s1<-strsplit(as.character(uniprot_data$Gene.names[imatch[i]]),split=" ")[[1]][1];
-    #   s2<-strsplit(as.character(uniprot_data$Entry.name[imatch[i]]),split="_")[[1]][1];
-    #   nodes_gene_names[i]<-s1;
-    #   nodes_entry_names[i]<-s2
-    #   if(is.na(s1)){
-    #     nodes_gene_names[i]<- "NA" #as.character(Tuni$Entry.name[imatch[i]]);
-    #   }
-    #   if(substr(nodes_gene_names[i],1,1)=="\""){
-    #     nodes_gene_names[i]=nodes[i];
-    #   }
-    # }
-    
-    
-  #}
+  # Add KEGG data
+  KEGG_pathways <- rep("", dim(df)[1])
+  KEGG <- switch(organism, "mouse" = KEGG_mouse, "human" = KEGG_human)
+  for(i in 1:dim(df)[1]){
+    idx_KEGG <- grep(df[["Cross.reference..KEGG."]][i], as.character(KEGG$IDs), fixed = TRUE)
+    KEGG_pathways[i] <- paste(as.character(KEGG$pathway[idx_KEGG]), collapse = ";")
+  }
+  df$KEGG <- KEGG_pathways
   
-  
-  
-  # df$status_reviewed <- nodes_status;
-  # df$protein_ID_reviewed<-nodes_ID;
-  # df$entry_name_reviewed <- nodes_entry_names;
-  # df$gene_name_reviewed <- nodes_gene_names;
-  # 
-  # df$gene_name <- nodes_gene_names;
-  # 
-  # ### list keywords for each node
-  # 
-  # ukeys_nodes_collapse <-rep("", Nnodes);
-  # uGOs_nodes_collapse<-rep("", Nnodes);
-  # uPFs_nodes_collapse<-rep("", Nnodes);
-  # 
-  # for( i in 1:Nnodes ){
-  #   if(imatch[i]>0){
-  #     ukeys_nodes_collapse[i]<-as.character(df_annot$Keywords[imatch[i]]);
-  #     
-  #     uGOs_nodes_collapse[i]<-as.character(df_annot$Gene.ontology.IDs[imatch[i]]);
-  #     
-  #     s<-strsplit(as.character(uniprot_data$Protein.families[imatch[i]]), split=", ");
-  #     uPFs_nodes_collapse[i]<-paste(s[[1]], collapse="; ");
-  #   }
-  # }
-  # 
-  # df$keywords = ukeys_nodes_collapse;
-  # df$GO_IDs = uGOs_nodes_collapse;
-  # df$Protein_families = uPFs_nodes_collapse;
-  
-  #return(as.data.frame(df))
-  
+  cat("Done.\n")
   return(df)
   
 }
 
+add_KEGG_data <- function(df, organism="mouse"){
+  
+  df_int <- df
+  
+  # Add KEGG data
+  KEGG_pathways <- rep("", dim(df)[1])
+  KEGG <- switch(organism, "mouse" = KEGG_mouse, "human" = KEGG_human)
+  for(i in 1:dim(df)[1]){
+    idx_KEGG <- grep(df[["Cross.reference..KEGG."]][i], as.character(KEGG$IDs), fixed = TRUE)
+    KEGG_pathways[i] <- paste(as.character(KEGG$name[idx_KEGG]), collapse = ";")
+  }
+  df_int$KEGG <- KEGG_pathways
+  
+  return(df_int)
+}
+  
 #' @export
 merge_proteome <- function (x, ...) {
   UseMethod("merge_proteome", x)

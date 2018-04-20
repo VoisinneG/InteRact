@@ -29,7 +29,7 @@ ui <- fluidPage(
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
              numericInput("Nrep", "# iterations", value = 3),
-             verbatimTextOutput("annot_imported")
+             verbatimTextOutput("interactors")
            )
     ),
     column(9,
@@ -187,6 +187,17 @@ ui <- fluidPage(
                                          h3("Annotations"),
                                          checkboxInput("append_annot","Import Annotations ", value=FALSE),
                                          helpText("warning: Loading annotations for the first time can take a while"),
+                                         br(),
+                                         checkboxGroupInput("annotation_selected",
+                                                            "Select annoations",
+                                                            choices = c("Gene.ontology.IDs", 
+                                                                        "Protein.families",  
+                                                                        "Cross.reference..Pfam.", 
+                                                                        "Keywords", 
+                                                                        "Cross.reference..Reactome.", 
+                                                                        "Gene.ontology..GO."),
+                                                            selected = c("Keywords", "Protein.families")),
+                                         
                                          selectInput("method_adjust_p_val", "Method to adjust p-values",
                                                      choices = c("none", "fdr", "bonferroni"), selected = "none"),
                                          numericInput("p_val_max", "p-value (maximum)", value = 0.05),
@@ -243,12 +254,17 @@ server <- function(input, output, session) {
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
   annot <- reactiveValues(imported=FALSE)
   saved_annot <- reactiveValues(
-                                Protein.IDs=NULL,
-                                Gene.names...primary...up=NULL,
-                                Status.up=NULL,
-                                Entry.up=NULL,
-                                Keywords.up=NULL,
-                                Protein.families.up=NULL
+                                Protein.IDs = NULL,
+                                Gene.names...primary.. = NULL,
+                                Status = NULL,
+                                Entry = NULL,
+                                Keywords = NULL,
+                                Protein.families = NULL,
+                                Gene.ontology.IDs = NULL,
+                                Cross.reference..Pfam. = NULL, 
+                                Cross.reference..KEGG. = NULL, 
+                                Cross.reference..Reactome. = NULL, 
+                                Gene.ontology..GO. = NULL
                                 )
   Ninteractors <- reactiveValues(x=0)
   
@@ -321,11 +337,16 @@ server <- function(input, output, session) {
         df <- get_annotations(data())
         
         saved_annot$Protein.IDs <- df$Protein.IDs
-        saved_annot$Gene.names...primary...up <- df$Gene.names...primary...up
-        saved_annot$Status.up <- df$Status.up
-        saved_annot$Entry.up <- df$Entry.up
-        saved_annot$Keywords.up <- df$Keywords.up
-        saved_annot$Protein.families.up <- df$Protein.families.up
+        saved_annot$Gene.names...primary.. <- df$Gene.names...primary..
+        saved_annot$Status <- df$Status
+        saved_annot$Entry <- df$Entry
+        saved_annot$Keywords <- df$Keywords
+        saved_annot$Protein.families <- df$Protein.families
+        saved_annot$Gene.ontology.IDs = df$Gene.ontology.IDs
+        saved_annot$Cross.reference..Pfam. = df$Cross.reference..Pfam.
+        saved_annot$Cross.reference..KEGG. = df$Cross.reference..KEGG.
+        saved_annot$Cross.reference..Reactome. = df$Cross.reference..Reactome.
+        saved_annot$Gene.ontology..GO. = df$Gene.ontology..GO.
         
         annot$imported <- TRUE
       }
@@ -415,7 +436,10 @@ server <- function(input, output, session) {
   })
   
   annotTable <- reactive({
-    annotation_enrichment_analysis( ordered_Interactome(), 1:order_list()$Ndetect)
+    annotation_enrichment_analysis( ordered_Interactome(), 
+                                    1:order_list()$Ndetect, 
+                                    annotation_selected = input$annotation_selected, 
+                                    names = ordered_Interactome()$names)
   })
   
   Stoichio2D_zoom <- reactive({
@@ -552,7 +576,7 @@ server <- function(input, output, session) {
   
   #Output Info functions -------------------------------------------------------------------------
   
-  output$annot_imported<- renderPrint({
+  output$interactors<- renderPrint({
     s1 <- paste("# interactors : ", Ninteractors$x, sep="")
     cat(s1)
   })
