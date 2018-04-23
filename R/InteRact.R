@@ -638,7 +638,8 @@ annotation_enrichment_analysis <- function( df,
                              "Pfam", 
                              "Keywords", 
                              "Reactome", 
-                             "GO")
+                             "GO",
+                             "Hallmark")
   
 
   if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) ){
@@ -681,7 +682,8 @@ annotation_enrichment_analysis <- function( df,
                            "Protein.families" = "; ",
                            "Pfam" = ";",
                            "Keywords" = "; ",
-                           "Reactome" = ";"
+                           "Reactome" = ";",
+                           "Hallmark"=";"
                            )
       
       u_annot<-paste(unique(df_int[[annot_type_sel]]), collapse = collapse_sep)
@@ -964,7 +966,28 @@ add_KEGG_data <- function(df, organism="mouse"){
   
   return(df_int)
 }
+
+add_Hallmark_data <- function(df, column_gene_name="Gene.names...primary.."){
   
+  df_int <- df
+  hallmark_set <- rep("", dim(df_int)[1])
+  
+  for(i in 1:dim(df_int)[1]){
+    idx_set <- NULL
+    for(j in 1:dim(Hallmark)[1]){
+      idx_in_geneset <- match(toupper(df_int[[column_gene_name]][i]), strsplit(as.character(Hallmark$gene[j]), split=";")[[1]])
+      if(!is.na(idx_in_geneset)){
+        idx_set <- c(idx_set, j)
+      }
+    }
+    hallmark_set[i] <- paste( as.character(Hallmark$name[idx_set]), collapse=";")
+  }
+  
+  df_int$Hallmark <- hallmark_set
+  
+  return(df_int)
+}
+
 #' @export
 merge_proteome <- function (x, ...) {
   UseMethod("merge_proteome", x)

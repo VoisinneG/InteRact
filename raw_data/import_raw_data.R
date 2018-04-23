@@ -95,6 +95,21 @@ pfam_human <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Data
 
 names(pfam_human) <- names(pfam_mouse)
 
+# import Hallmark data ------------------------------------------------------------------------------------------
+
+Hallmark_input <- readLines("~/Google_Drive/++Work/++Research/Resources-Databases/Hallmark_database/h.all.v6.1.symbols.gmt.txt")
+Hallmark_split <- strsplit(Hallmark_input, split="\t")
+
+Hallmark_name <- rep("", length(Hallmark))
+Hallmark_genes <- rep("", length(Hallmark))
+
+for ( i in 1:length(Hallmark) ){
+  Hallmark_name[i] <- Hallmark_split[[i]][1]
+  Hallmark_genes[i] <- paste(Hallmark_split[[i]][3:length( Hallmark_split[[i]] )], collapse=";")
+}
+
+Hallmark <- data.frame(name = Hallmark_name,  gene = Hallmark_genes)
+
 # import proteome data ------------------------------------------------------------------------------------------
 
 proteome_data <- read.table(paste("~/Google_Drive/++Work/++Research/++Projects/",
@@ -113,6 +128,7 @@ devtools::use_data( uniprot_data_mouse,
                     pfam_human,
                     KEGG_mouse,
                     KEGG_human,
+                    Hallmark,
                     proteome_data, 
                     pkg=".", 
                     internal = TRUE, 
