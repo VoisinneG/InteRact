@@ -633,13 +633,12 @@ annotation_enrichment_analysis <- function( df,
   # annotation_selected : set of annotation terms to consider. 
   #Annotations supported are stored in varaiable "supported_annotations:
   
-  supported_annotations <- c("KEGG",
-                             "Gene.ontology.IDs", 
+  supported_annotations <- c( 
                              "Protein.families",  
-                             "Cross.reference..Pfam.", 
+                             "Pfam", 
                              "Keywords", 
-                             "Cross.reference..Reactome.", 
-                             "Gene.ontology..GO.")
+                             "Reactome", 
+                             "GO")
   
 
   if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) ){
@@ -678,18 +677,18 @@ annotation_enrichment_analysis <- function( df,
     
       collapse_sep <- switch(annot_type_sel,
                            "KEGG" = ";",
-                           "Gene.ontology.IDs" = "; ",
+                           "GO" = "; ",
                            "Protein.families" = "; ",
-                           "Cross.reference..Pfam." = ";",
+                           "Pfam" = ";",
                            "Keywords" = "; ",
-                           "Cross.reference..Reactome." = ";",
-                           "Gene.ontology..GO." = "; ")
+                           "Reactome" = ";"
+                           )
       
       u_annot<-paste(unique(df_int[[annot_type_sel]]), collapse = collapse_sep)
       terms <- unique(strsplit(u_annot, split = collapse_sep)[[1]])
       
       annot_names_int <- terms
-      if(annot_type_sel == "Cross.reference..Reactome."){
+      if(annot_type_sel == "Reactome"){
         reactome <- switch(organism, "mouse" = reactome_mouse, "human" = reactome_human)
         annot_names_int <- paste(
                               reactome$Name[match(terms, reactome$ID)],
@@ -698,7 +697,7 @@ annotation_enrichment_analysis <- function( df,
                               "]",
                               sep = "")
       }
-      if(annot_type_sel == "Cross.reference..Pfam."){
+      if(annot_type_sel == "Pfam"){
         pfam <- switch(organism, "mouse" = pfam_mouse, "human" = pfam_human)
         annot_names_int <- paste(
                                 pfam$hmm.name[match(terms, pfam$hmm.acc)],
@@ -939,16 +938,12 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
   df <- cbind(data[[name_id]], df)
   names(df)[1] <- name_id
   
-  # Add KEGG data
-  KEGG_pathways <- rep("", dim(df)[1])
-  KEGG <- switch(organism, "mouse" = KEGG_mouse, "human" = KEGG_human)
-  for(i in 1:dim(df)[1]){
-    idx_KEGG <- grep(df[["Cross.reference..KEGG."]][i], as.character(KEGG$IDs), fixed = TRUE)
-    KEGG_pathways[i] <- paste(as.character(KEGG$pathway[idx_KEGG]), collapse = ";")
-  }
-  df$KEGG <- KEGG_pathways
+  names(df)[which(names(df) == "Cross.reference..Pfam.")]<-"Pfam"
+  names(df)[which(names(df) == "Cross.reference..Reactome.")]<-"Reactome"
+  names(df)[which(names(df) == "Gene.ontology..GO.")]<-"GO"
   
   cat("Done.\n")
+  
   return(df)
   
 }

@@ -190,12 +190,13 @@ ui <- fluidPage(
                                          br(),
                                          checkboxGroupInput("annotation_selected",
                                                             "Select annoations",
-                                                            choices = c("Gene.ontology.IDs", 
-                                                                        "Protein.families",  
-                                                                        "Cross.reference..Pfam.", 
-                                                                        "Keywords", 
-                                                                        "Cross.reference..Reactome.", 
-                                                                        "Gene.ontology..GO."),
+                                                            choices = c( 
+                                                                        "Protein.families",
+                                                                        "Keywords",
+                                                                        "GO",
+                                                                        "KEGG",
+                                                                        "Reactome", 
+                                                                        "Pfam"),
                                                             selected = c("Keywords", "Protein.families")),
                                          
                                          selectInput("method_adjust_p_val", "Method to adjust p-values",
@@ -259,12 +260,11 @@ server <- function(input, output, session) {
                                 Status = NULL,
                                 Entry = NULL,
                                 Keywords = NULL,
+                                KEGG = NULL,
                                 Protein.families = NULL,
-                                Gene.ontology.IDs = NULL,
-                                Cross.reference..Pfam. = NULL, 
-                                Cross.reference..KEGG. = NULL, 
-                                Cross.reference..Reactome. = NULL, 
-                                Gene.ontology..GO. = NULL
+                                Pfam = NULL, 
+                                Reactome = NULL, 
+                                GO = NULL
                                 )
   Ninteractors <- reactiveValues(x=0)
   
@@ -334,19 +334,20 @@ server <- function(input, output, session) {
     output = NULL
     if(input$append_annot){
       if(!annot$imported){
+        
         df <- get_annotations(data())
+        df <- add_KEGG_data(df)
         
         saved_annot$Protein.IDs <- df$Protein.IDs
         saved_annot$Gene.names...primary.. <- df$Gene.names...primary..
         saved_annot$Status <- df$Status
         saved_annot$Entry <- df$Entry
         saved_annot$Keywords <- df$Keywords
+        saved_annot$KEGG <- df$KEGG
         saved_annot$Protein.families <- df$Protein.families
-        saved_annot$Gene.ontology.IDs = df$Gene.ontology.IDs
-        saved_annot$Cross.reference..Pfam. = df$Cross.reference..Pfam.
-        saved_annot$Cross.reference..KEGG. = df$Cross.reference..KEGG.
-        saved_annot$Cross.reference..Reactome. = df$Cross.reference..Reactome.
-        saved_annot$Gene.ontology..GO. = df$Gene.ontology..GO.
+        saved_annot$Pfam = df$Pfam
+        saved_annot$Reactome = df$Reactome
+        saved_annot$GO = df$GO
         
         annot$imported <- TRUE
       }
