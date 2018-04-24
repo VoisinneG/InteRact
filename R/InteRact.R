@@ -110,7 +110,8 @@ InteRact <- function(df,
                      preffix_time="",
                      filter_time=NULL,
                      filter_bio=NULL,
-                     filter_tech=NULL
+                     filter_tech=NULL,
+                     updateProgress = NULL
                      ){
   
   if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
@@ -181,12 +182,19 @@ InteRact <- function(df,
   
   if(N_rep>0){
     
+    
+    
     res <- vector("list", N_rep)
     names(res)<-paste( rep('Rep_',N_rep), 1:N_rep, sep="" )
     cat(paste("Replacing missing values and performing interactome analysis for",N_rep,"replicates\n",sep=" "))
     
     n_replace <- length(which(is.na(log10_T_int_norm_mean)));
     for(i in 1:N_rep){
+      
+      if (is.function(updateProgress)) {
+        text <- paste0( i, "/", N_rep)
+        updateProgress(value = i/N_rep*100, detail = text)
+      }
       
       cat(paste("Nrep=",i,"\n",sep=""));
       log10_T_int_norm_mean_rep[is.na(log10_T_int_norm_mean)] <- rnorm( n_replace, mean=q, sd=s) 
@@ -626,7 +634,8 @@ global_analysis.InteRactome <- function( res ){
 annotation_enrichment_analysis <- function( df, 
                                             idx_detect, 
                                             annotation_selected = c("Keywords", "Protein.families") , 
-                                            names = df$Gene.names...primary.., organism = "mouse"){
+                                            names = df$Gene.names...primary.., organism = "mouse",
+                                            updateProgress = NULL){
   # df : data frame with annotation data
   # idx_detect : indices of the subset of proteins in df for which the enrichment analysis is performed
   # against the background formed by all proteins in df
@@ -683,7 +692,7 @@ annotation_enrichment_analysis <- function( df,
   for (annot_type_sel in annotation_selected){
     
       collapse_sep <- ";"
-      if( annot_type_sel %in% c("Protein.families", "Pfam", "Keywords") ) collapse_sep <- "; "
+      if( annot_type_sel %in% c("Protein.families", "Keywords") ) collapse_sep <- "; "
 
       
       u_annot<-paste(unique(df_int[[annot_type_sel]]), collapse = collapse_sep)
@@ -740,11 +749,13 @@ annotation_enrichment_analysis <- function( df,
   
   N_background = length(nodes_tot);
   
-  N_annot_background <- rep(0, dim(df.annot)[1]);
-  freq_annot_background <- rep(0, dim(df.annot)[1]);
-  nodes_annot_background <- rep("", dim(df.annot)[1]);
+  n_annot <- dim(df.annot)[1]
   
-  pb <- txtProgressBar(min = 0, max = 2*dim(df.annot)[1], style = 3)
+  N_annot_background <- rep(0, n_annot);
+  freq_annot_background <- rep(0, n_annot);
+  nodes_annot_background <- rep("", n_annot);
+  
+  pb <- txtProgressBar(min = 0, max = 2*n_annot, style = 3)
   count<-0
   
   for ( k in 1:dim(df.annot)[1] ){
@@ -756,22 +767,25 @@ annotation_enrichment_analysis <- function( df,
     
     count <- count +1
     setTxtProgressBar(pb, count)
+    # progress bar
+    if (is.function(updateProgress)) {
+      text <- paste0( round(count/(2*n_annot)*100, 0), " %")
+      updateProgress(value = count/(2*n_annot)*100, detail = text)
+    }
   }
   
   N_annotation_test <- length(which(N_annot_background>0))
   
   # Perform enrichment test for each annotation ----------------------------------------------
   
-  N_annot <- rep(0, dim(df.annot)[1]);
-  freq_annot <- rep(0, dim(df.annot)[1]);
-  nodes_annot <- rep("", dim(df.annot)[1]);
-  p_value <- rep(0, dim(df.annot)[1]);
-  fold_change <- rep(0, dim(df.annot)[1]);
-  p_value_adjust <- rep(0, dim(df.annot)[1]);
+  N_annot <- rep(0, n_annot);
+  freq_annot <- rep(0, n_annot);
+  nodes_annot <- rep("", n_annot);
+  p_value <- rep(0, n_annot);
+  fold_change <- rep(0, n_annot);
+  p_value_adjust <- rep(0, n_annot);
   
-  
-  
-  for(k in 1:dim(df.annot)[1] ){
+  for(k in 1:n_annot ){
     
     idx_annot <- idx_detect[ grep(df.annot$annot_terms[k], u_annot_nodes_collapse[idx_detect],fixed=TRUE) ]
     N_annot[k]=length(idx_annot);
@@ -789,6 +803,11 @@ annotation_enrichment_analysis <- function( df,
     
     count <- count +1
     setTxtProgressBar(pb, count)
+    # progress bar
+    if (is.function(updateProgress)) {
+      text <- paste0( round(count/(2*n_annot)*100, 0), " %")
+      updateProgress(value = count/(2*n_annot)*100, detail = text)
+    }
   }
   
   close(pb)
@@ -833,7 +852,7 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "f
                        df$fold_change >= fold_change_min & 
                        df$N_annot >= N_annot_min)
   if(length(idx_filter) == 0){
-    warning("No annotation left after filtering. You might want to change input parameters")
+    stop("No annotation left after filtering. You might want to change input parameters")
     return(NULL)
   }
   df_filter <- df[ idx_filter, ]
@@ -886,7 +905,7 @@ append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Pr
 }
 
 #' @export
-get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", organism = "mouse" ){
+get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", organism = "mouse", updateProgress = NULL ){
 # Get annotations from uniprot for a set of protein identifiers
 # From a set of IDs, keep the first that correspond to a "reviewed" protein, 
 # or by default the first ID of the set
@@ -933,6 +952,12 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
       }
     }
     setTxtProgressBar(pb, i)
+    
+    if (is.function(updateProgress)) {
+      text <- paste0( round(i/Nnodes*100, 0), " %")
+      updateProgress(value = i/Nnodes*100, detail = text)
+    }
+    
   }
   close(pb)
   
@@ -951,7 +976,7 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
 }
 
 #' @export
-add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", organism = "mouse", slim = FALSE){
+add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", organism = "mouse", slim = FALSE, updateProgress = NULL){
 # GO_type = "molecular_function", biological_process" or "cellular_component"
 # organism = "mouse" or "human
 # slim = TRUE or FALSE (use GO slim annotations)
@@ -972,7 +997,13 @@ add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", orga
   pb <- txtProgressBar(min = 0, max = dim(df_int)[1], style = 3)
   
   for(i in 1:dim(df_int)[1]){
+    # progress bar
+    if (is.function(updateProgress)) {
+      text <- paste0( round(i/dim(df_int)[1]*100, 0), " %")
+      updateProgress(value = i/dim(df_int)[1]*100, detail = text)
+    }
     setTxtProgressBar(pb, i)
+    
     idx_GO <- idx_type[ grep(df_int[[map_id]][i], GOA$DB_Object_ID[idx_type], fixed = TRUE) ]
     if(length(idx_GO) > 0){
       term <- paste(GOA$GO_name[idx_GO], " [", GOA$GO_ID[idx_GO], "]", sep = "")
@@ -991,14 +1022,20 @@ add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", orga
 }
 
 #' @export
-add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse"){
+add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse", updateProgress = NULL){
   
   df_int <- df
   
   # Add KEGG data
   KEGG_pathways <- rep("", dim(df)[1])
   KEGG <- switch(organism, "mouse" = KEGG_mouse, "human" = KEGG_human)
-  for(i in 1:dim(df)[1]){
+  for(i in 1:dim(df_int)[1]){
+    # progress bar
+    if (is.function(updateProgress)) {
+      text <- paste0( round(i/dim(df_int)[1]*100, 0), " %")
+      updateProgress(value = i/dim(df_int)[1]*100, detail = text)
+    }
+    
     idx_KEGG <- grep(df_int[[map_id]][i], as.character(KEGG$IDs), fixed = TRUE)
     pathways <- paste(KEGG$name[idx_KEGG]," [",KEGG$pathway[idx_KEGG],"]",sep="")
     KEGG_pathways[i] <- paste(as.character(pathways), collapse = ";")
@@ -1009,7 +1046,7 @@ add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse
 }
 
 #' @export
-add_Hallmark_data <- function(df, map_id="Gene.names...primary.."){
+add_Hallmark_data <- function(df, map_id="Gene.names...primary..", updateProgress = NULL){
   
   df_int <- df
   hallmark_set <- rep("", dim(df_int)[1])
@@ -1020,6 +1057,11 @@ add_Hallmark_data <- function(df, map_id="Gene.names...primary.."){
   pb <- txtProgressBar(min = 0, max = dim(df_int)[1], style = 3)
   
   for(i in 1:dim(df_int)[1]){
+    # progress bar
+    if (is.function(updateProgress)) {
+      text <- paste0( round(i/dim(df_int)[1]*100, 0), " %")
+      updateProgress(value = i/dim(df_int)[1]*100, detail = text)
+    }
     setTxtProgressBar(pb, i)
     idx_set <- NULL
     for(j in 1:dim(Hallmark)[1]){

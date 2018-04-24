@@ -203,7 +203,7 @@ ui <- fluidPage(
                                                                         "GO_biological_process",
                                                                         "GO_cellular_component"),
                                                             selected = c("Keywords", "Protein.families")),
-                                         checkboxInput("slim","use GO slim", value=FALSE),
+                                         #checkboxInput("slim","use GO slim", value=FALSE),
                                          selectInput("method_adjust_p_val", "Method to adjust p-values",
                                                      choices = c("none", "fdr", "bonferroni"), selected = "fdr"),
                                          numericInput("p_val_max", "p-value (maximum)", value = 0.05),
@@ -311,6 +311,17 @@ server <- function(input, output, session) {
   })
   
   res<- reactive({
+    
+    # Create a Progress object
+    progress <- shiny::Progress$new(min = 0, max = 100)
+    progress$set(message = "Computing interactome...", value = 0)
+    # Close the progress when this reactive exits (even if there's an error)
+    on.exit(progress$close())
+    # Create a callback function to update progress.
+    updateProgress <- function(value = NULL, detail = NULL) {
+      progress$set(value = value, detail = detail)
+    }
+    
     updateSelectInput(session, "volcano_cond",
                       choices = as.list(setdiff(unique(cond()$time), input$filter_time) ),
                       selected = NULL)
@@ -332,7 +343,8 @@ server <- function(input, output, session) {
            bckg=cond()$bckg,
            time=cond()$time,
            bio=cond()$bio,
-           tech=cond()$tech
+           tech=cond()$tech,
+           updateProgress = updateProgress
            )
     res_int$Interactome <- merge_proteome(res_int$Interactome)
     res_int
@@ -344,12 +356,39 @@ server <- function(input, output, session) {
     if(input$append_annot){
       if(!annot$imported){
         
-        df <- get_annotations(data())
-        df <- add_KEGG_data(df)
-        df <- add_Hallmark_data(df)
-        df <- add_GO_data(df, GO_type = "molecular_function", slim = input$slim)
-        df <- add_GO_data(df, GO_type = "biological_process", slim = input$slim)
-        df <- add_GO_data(df, GO_type = "cellular_component", slim = input$slim)
+        # Create a Progress object
+        progress <- shiny::Progress$new(min = 0, max = 100)
+        
+        # Close the progress when this reactive exits (even if there's an error)
+        on.exit(progress$close())
+        # Create a callback function to update progress.
+        updateProgress <- function(value = NULL, detail = NULL) {
+          progress$set(value = value, detail = detail)
+        }
+        
+        
+        progress$set(message = "Appending annotations...", value = 0)
+        df <- get_annotations(data(), updateProgress = updateProgress)
+        
+        progress$set(message = "Adding KEGG annotations...", value = 0)
+        Sys.sleep(1)
+        df <- add_KEGG_data(df, updateProgress = updateProgress)
+        
+        progress$set(message = "Adding Hallmark annotations...", value = 0)
+        Sys.sleep(1)
+        df <- add_Hallmark_data(df, updateProgress = updateProgress)
+        
+        progress$set(message = "Adding GO molecular function annotations...", value = 0)
+        Sys.sleep(1)
+        df <- add_GO_data(df, GO_type = "molecular_function", slim = FALSE, updateProgress = updateProgress)
+        
+        progress$set(message = "Adding GO biological_process annotations...", value = 0)
+        Sys.sleep(1)
+        df <- add_GO_data(df, GO_type = "biological_process", slim = FALSE, updateProgress = updateProgress)
+        
+        progress$set(message = "Adding GO cellular_component annotations...", value = 0)
+        Sys.sleep(1)
+        df <- add_GO_data(df, GO_type = "cellular_component", slim = FALSE, updateProgress = updateProgress)
         
         saved_annot$Protein.IDs <- df$Protein.IDs
         saved_annot$Gene.names...primary.. <- df$Gene.names...primary..
@@ -454,10 +493,23 @@ server <- function(input, output, session) {
   })
   
   annotTable <- reactive({
+    
+    # Create a Progress object
+    progress2 <- shiny::Progress$new(min = 0, max = 100)
+    
+    # Close the progress when this reactive exits (even if there's an error)
+    on.exit(progress2$close())
+    # Create a callback function to update progress.
+    updateProgress2 <- function(value = NULL, detail = NULL) {
+      progress2$set(value = value, detail = detail)
+    }
+    progress2$set(message = "Performing annotation enrichment analysis...", value = 0)
+    
     annotation_enrichment_analysis( ordered_Interactome(), 
                                     1:order_list()$Ndetect, 
                                     annotation_selected = input$annotation_selected, 
-                                    names = ordered_Interactome()$names)
+                                    names = ordered_Interactome()$names,
+                                    updateProgress = updateProgress2)
   })
   
   Stoichio2D_zoom <- reactive({
