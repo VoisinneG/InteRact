@@ -185,7 +185,8 @@ ui <- fluidPage(
                                 column(4,
                                        wellPanel(
                                          h3("Annotations"),
-                                         checkboxInput("append_annot","Import Annotations ", value=FALSE),
+                                         #checkboxInput("append_annot","Import Annotations ", value=FALSE),
+                                         actionButton("append_annot","Import Annotations "),
                                          helpText("warning: Loading annotations for the first time can take a while"),
                                          br(),
                                          checkboxGroupInput("annotation_selected",
@@ -196,11 +197,15 @@ ui <- fluidPage(
                                                                         "GO",
                                                                         "KEGG",
                                                                         "Reactome", 
-                                                                        "Pfam"),
+                                                                        "Pfam",
+                                                                        "Hallmark",
+                                                                        "GO_molecular_function",
+                                                                        "GO_biological_process",
+                                                                        "GO_cellular_component"),
                                                             selected = c("Keywords", "Protein.families")),
-                                         
+                                         checkboxInput("slim","use GO slim", value=FALSE),
                                          selectInput("method_adjust_p_val", "Method to adjust p-values",
-                                                     choices = c("none", "fdr", "bonferroni"), selected = "none"),
+                                                     choices = c("none", "fdr", "bonferroni"), selected = "fdr"),
                                          numericInput("p_val_max", "p-value (maximum)", value = 0.05),
                                          numericInput("fold_change_min", "fold-change (minimum)", value = 2),
                                          numericInput("N_annot_min", "Number of annotated proteins (minimum)", value = 2)
@@ -264,7 +269,11 @@ server <- function(input, output, session) {
                                 Protein.families = NULL,
                                 Pfam = NULL, 
                                 Reactome = NULL, 
-                                GO = NULL
+                                GO = NULL,
+                                Hallmark = NULL,
+                                GO_molecular_function = NULL,
+                                GO_biological_process = NULL,
+                                GO_cellular_component = NULL
                                 )
   Ninteractors <- reactiveValues(x=0)
   
@@ -337,6 +346,10 @@ server <- function(input, output, session) {
         
         df <- get_annotations(data())
         df <- add_KEGG_data(df)
+        df <- add_Hallmark_data(df)
+        df <- add_GO_data(df, GO_type = "molecular_function", slim = input$slim)
+        df <- add_GO_data(df, GO_type = "biological_process", slim = input$slim)
+        df <- add_GO_data(df, GO_type = "cellular_component", slim = input$slim)
         
         saved_annot$Protein.IDs <- df$Protein.IDs
         saved_annot$Gene.names...primary.. <- df$Gene.names...primary..
@@ -348,6 +361,10 @@ server <- function(input, output, session) {
         saved_annot$Pfam = df$Pfam
         saved_annot$Reactome = df$Reactome
         saved_annot$GO = df$GO
+        saved_annot$Hallmark = df$Hallmark
+        saved_annot$GO_molecular_function = df$GO_molecular_function
+        saved_annot$GO_biological_process = df$GO_biological_process
+        saved_annot$GO_cellular_component = df$GO_cellular_component
         
         annot$imported <- TRUE
       }

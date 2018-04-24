@@ -639,10 +639,16 @@ annotation_enrichment_analysis <- function( df,
                              "Keywords", 
                              "Reactome", 
                              "GO",
-                             "Hallmark")
+                             "Hallmark",
+                             "GO_molecular_function",
+                             "GO_biological_process",
+                             "GO_cellular_component",
+                             "GOslim_molecular_function",
+                             "GOslim_biological_process",
+                             "GOslim_cellular_component")
   
 
-  if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) ){
+  if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) | (sum(annotation_selected %in% names(df)) != length(annotation_selected)) ){
     stop("Annotations not available. Import annotations first.")
   }else if ( length(annotation_selected) == 0) {
     stop("No annotations selected. Change selected annotations")
@@ -676,15 +682,9 @@ annotation_enrichment_analysis <- function( df,
   
   for (annot_type_sel in annotation_selected){
     
-      collapse_sep <- switch(annot_type_sel,
-                           "KEGG" = ";",
-                           "GO" = "; ",
-                           "Protein.families" = "; ",
-                           "Pfam" = ";",
-                           "Keywords" = "; ",
-                           "Reactome" = ";",
-                           "Hallmark"=";"
-                           )
+      collapse_sep <- ";"
+      if( annot_type_sel %in% c("Protein.families", "Pfam", "Keywords") ) collapse_sep <- "; "
+
       
       u_annot<-paste(unique(df_int[[annot_type_sel]]), collapse = collapse_sep)
       terms <- unique(strsplit(u_annot, split = collapse_sep)[[1]])
@@ -950,7 +950,48 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
   
 }
 
-add_KEGG_data <- function(df, organism="mouse"){
+#' @export
+add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", organism = "mouse", slim = FALSE){
+# GO_type = "molecular_function", biological_process" or "cellular_component"
+# organism = "mouse" or "human
+# slim = TRUE or FALSE (use GO slim annotations)
+  
+  df_int <- df
+  GO_terms <- rep("", dim(df_int)[1])
+  
+  name_GOA <- paste("GOA_", organism, sep = "");
+  if (slim) {
+    name_GOA <- paste(name_GOA, "_slim", sep = "")
+  }
+  GOA <- get(name_GOA)
+  
+  idx_type <- as.vector(which(GOA$GO_type == GO_type))
+  
+  # create progress bar
+  cat("Adding GO annotation data...\n")
+  pb <- txtProgressBar(min = 0, max = dim(df_int)[1], style = 3)
+  
+  for(i in 1:dim(df_int)[1]){
+    setTxtProgressBar(pb, i)
+    idx_GO <- idx_type[ grep(df_int[[map_id]][i], GOA$DB_Object_ID[idx_type], fixed = TRUE) ]
+    if(length(idx_GO) > 0){
+      term <- paste(GOA$GO_name[idx_GO], " [", GOA$GO_ID[idx_GO], "]", sep = "")
+      GO_terms[i] <- paste(as.character(unique(term)), collapse = ";")
+    }
+    
+  }
+  close(pb)
+  
+  name_annot <- "GO_"
+  if( slim ) name_annot <- paste(name_annot, "slim_", sep ="")
+  name_annot <- paste(name_annot, GO_type, sep= "")
+  df_int[[name_annot]] <- GO_terms
+  
+  return(df_int)
+}
+
+#' @export
+add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse"){
   
   df_int <- df
   
@@ -958,7 +999,7 @@ add_KEGG_data <- function(df, organism="mouse"){
   KEGG_pathways <- rep("", dim(df)[1])
   KEGG <- switch(organism, "mouse" = KEGG_mouse, "human" = KEGG_human)
   for(i in 1:dim(df)[1]){
-    idx_KEGG <- grep(df[["Cross.reference..KEGG."]][i], as.character(KEGG$IDs), fixed = TRUE)
+    idx_KEGG <- grep(df_int[[map_id]][i], as.character(KEGG$IDs), fixed = TRUE)
     pathways <- paste(KEGG$name[idx_KEGG]," [",KEGG$pathway[idx_KEGG],"]",sep="")
     KEGG_pathways[i] <- paste(as.character(pathways), collapse = ";")
   }
@@ -967,21 +1008,29 @@ add_KEGG_data <- function(df, organism="mouse"){
   return(df_int)
 }
 
-add_Hallmark_data <- function(df, column_gene_name="Gene.names...primary.."){
+#' @export
+add_Hallmark_data <- function(df, map_id="Gene.names...primary.."){
   
   df_int <- df
   hallmark_set <- rep("", dim(df_int)[1])
   
+  
+  # create progress bar
+  cat("Adding Hallmark annotation data...\n")
+  pb <- txtProgressBar(min = 0, max = dim(df_int)[1], style = 3)
+  
   for(i in 1:dim(df_int)[1]){
+    setTxtProgressBar(pb, i)
     idx_set <- NULL
     for(j in 1:dim(Hallmark)[1]){
-      idx_in_geneset <- match(toupper(df_int[[column_gene_name]][i]), strsplit(as.character(Hallmark$gene[j]), split=";")[[1]])
+      idx_in_geneset <- match(toupper(df_int[[map_id]][i]), strsplit(as.character(Hallmark$gene[j]), split=";")[[1]])
       if(!is.na(idx_in_geneset)){
         idx_set <- c(idx_set, j)
       }
     }
     hallmark_set[i] <- paste( as.character(Hallmark$name[idx_set]), collapse=";")
   }
+  close(pb)
   
   df_int$Hallmark <- hallmark_set
   

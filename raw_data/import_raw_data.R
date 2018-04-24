@@ -100,15 +100,75 @@ names(pfam_human) <- names(pfam_mouse)
 Hallmark_input <- readLines("~/Google_Drive/++Work/++Research/Resources-Databases/Hallmark_database/h.all.v6.1.symbols.gmt.txt")
 Hallmark_split <- strsplit(Hallmark_input, split="\t")
 
-Hallmark_name <- rep("", length(Hallmark))
-Hallmark_genes <- rep("", length(Hallmark))
+Hallmark_name <- rep("", length(Hallmark_split))
+Hallmark_genes <- rep("", length(Hallmark_split))
 
-for ( i in 1:length(Hallmark) ){
+for ( i in 1:length(Hallmark_split) ){
   Hallmark_name[i] <- Hallmark_split[[i]][1]
   Hallmark_genes[i] <- paste(Hallmark_split[[i]][3:length( Hallmark_split[[i]] )], collapse=";")
 }
 
 Hallmark <- data.frame(name = Hallmark_name,  gene = Hallmark_genes)
+
+# import GO data -----------------------------------------------------------------------------------------------
+
+library("ontologyIndex")
+
+onto <- get_ontology("~/Google_Drive/++Work/++Research/Resources-Databases/GO/go.obo", propagate_relationships = "is_a",
+                     extract_tags = "everything")
+
+names_gaf <- c(
+  "DB",
+  "DB_Object_ID",
+  "DB_Object_Symbol",
+  "Qualifier",
+  "GO_ID",
+  "DB:Reference",
+  "Evidence Code",
+  "With (or) From",
+  "Aspect",
+  "DB_Object_Name",
+  "DB_Object_Synonym",
+  "DB_Object_Type",
+  "Taxon and Interacting taxon",
+  "Date",
+  "Assigned_By",
+  "Annotation_Extension",
+  "Gene_Product_Form_ID"
+)
+
+#Import GOA annotations for mouse uniprot proteome
+GOA_mouse <- read.table("~/Google_Drive/++Work/++Research/Resources-Databases/GO/goa_mouse.gaf", sep="\t", skip=12, quote="\"")
+
+names(GOA_mouse) <- names_gaf
+idx_match <- match(GOA_mouse$GO_ID, onto$id)
+GOA_mouse$GO_type <- onto$namespace[idx_match]
+GOA_mouse$GO_name <- onto$name[idx_match]
+
+#Import GOA_slim annotations for mouse uniprot proteome
+GOA_mouse_slim <- read.table("~/Google_Drive/++Work/++Research/Resources-Databases/GO/goa_mouse_mapped_to_goslim_generic.gaf", sep="\t", skip=12, quote="\"")
+
+names(GOA_mouse_slim) <- names_gaf
+idx_match <- match(GOA_mouse_slim$GO_ID, onto$id)
+GOA_mouse_slim$GO_type <- onto$namespace[idx_match]
+GOA_mouse_slim$GO_name <- onto$name[idx_match]
+
+#Import GOA annotations for mouse uniprot proteome
+GOA_human <- read.table("~/Google_Drive/++Work/++Research/Resources-Databases/GO/goa_human.gaf", sep="\t", skip=12, quote="\"")
+
+names(GOA_human) <- names_gaf
+idx_match <- match(GOA_human$GO_ID, onto$id)
+GOA_human$GO_type <- onto$namespace[idx_match]
+GOA_human$GO_name <- onto$name[idx_match]
+
+#Import GOA_slim annotations for mouse uniprot proteome
+GOA_human_slim <- read.table("~/Google_Drive/++Work/++Research/Resources-Databases/GO/goa_human_mapped_to_goslim_generic.gaf", sep="\t", skip=12, quote="\"")
+
+names(GOA_human_slim) <- names_gaf
+idx_match <- match(GOA_human_slim$GO_ID, onto$id)
+GOA_human_slim$GO_type <- onto$namespace[idx_match]
+GOA_human_slim$GO_name <- onto$name[idx_match]
+
 
 # import proteome data ------------------------------------------------------------------------------------------
 
@@ -129,6 +189,10 @@ devtools::use_data( uniprot_data_mouse,
                     KEGG_mouse,
                     KEGG_human,
                     Hallmark,
+                    GOA_mouse,
+                    GOA_mouse_slim,
+                    GOA_human,
+                    GOA_human_slim,
                     proteome_data, 
                     pkg=".", 
                     internal = TRUE, 
