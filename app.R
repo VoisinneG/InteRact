@@ -253,30 +253,21 @@ server <- function(input, output, session) {
   
   #Reactive values ---------------------------------------------------------------------------------
   
+  Ninteractors <- reactiveValues(x=0)
   ranges <- reactiveValues(x = c(-1.5,0.5), y = c(-1,1))
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
-  annot <- reactiveValues(imported=FALSE)
-  saved_annot <- reactiveValues(
-                                Protein.IDs = NULL,
-                                Gene.names...primary.. = NULL,
-                                Status = NULL,
-                                Entry = NULL,
-                                Keywords = NULL,
-                                KEGG = NULL,
-                                Protein.families = NULL,
-                                Pfam = NULL, 
-                                Reactome = NULL, 
-                                GO = NULL,
-                                Hallmark = NULL,
-                                GO_molecular_function = NULL,
-                                GO_biological_process = NULL,
-                                GO_cellular_component = NULL,
-                                Cross.reference..KEGG. = NULL
-                                )
-  annotation<- reactiveValues(selected = NULL, loaded = NULL, to_load = "")
+
+  saved_df <- reactiveValues(annot = NULL, enrichment = NULL)
+ 
+  annotation<- reactiveValues(selected = NULL, 
+                              loaded = NULL, 
+                              to_load = NULL, 
+                              enrichment_performed = NULL, 
+                              enrichment_to_perform = NULL)
+  
   var_to_load <- reactiveValues(names=NULL)
-  Ninteractors <- reactiveValues(x=0)
+  
   
   #Main reactive functions -------------------------------------------------------------------------
   
@@ -316,9 +307,7 @@ server <- function(input, output, session) {
     # Create a Progress object
     progress <- shiny::Progress$new(min = 0, max = 100)
     progress$set(message = "Compute interactome...", value = 0)
-    # Close the progress when this reactive exits (even if there's an error)
     on.exit(progress$close())
-    # Create a callback function to update progress.
     updateProgress <- function(value = NULL, detail = NULL) {
       progress$set(value = value, detail = detail)
     }
@@ -352,74 +341,6 @@ server <- function(input, output, session) {
   })
 
   
-  observeEvent(input$launch_annot, {
-        
-    annotation$selected <- input$annotation_selected
-    
-    # identify which selected variables have not been uploaded yet
-    is_loaded <- rep(0, length(names(saved_annot)))
-    for (i in 1:length(names(saved_annot))){
-      if(!is.null(saved_annot[[ names(saved_annot)[i] ]])) is_loaded[i] <- 1
-    }
-    annotation$loaded <- names(saved_annot)[is_loaded==1]
-    annotation$to_load <- setdiff(annotation$selected, annotation$loaded)
-    
-        
-    if(length(annotation$to_load )>0){
-      
-          # Create a Progress object
-          progress <- shiny::Progress$new(min = 0, max = 100)
-          # Close the progress when this reactive exits (even if there's an error)
-          on.exit(progress$close())
-          # Create a callback function to update progress.
-          updateProgress <- function(value = NULL, detail = NULL) {
-            progress$set(value = value, detail = detail)
-          }
-          if( !("Entry" %in% annotation$loaded) ){
-            Sys.sleep(1)
-            progress$set(message = "Append annotations...", value = 0)
-            df <- get_annotations(data(), updateProgress = updateProgress)
-            saved_annot$Protein.IDs <- df$Protein.IDs
-            saved_annot$Gene.names...primary.. <- df$Gene.names...primary..
-            saved_annot$Status <- df$Status
-            saved_annot$Entry <- df$Entry
-            saved_annot$Keywords <- df$Keywords
-            saved_annot$Protein.families <- df$Protein.families
-            saved_annot$Pfam = df$Pfam
-            saved_annot$Reactome = df$Reactome
-            saved_annot$GO = df$GO
-            saved_annot$Cross.reference..KEGG. = df$Cross.reference..KEGG.
-          }
-          if( "KEGG" %in% annotation$to_load ){
-            progress$set(message = "Add KEGG annotations...", value = 0)
-            df <- add_KEGG_data(saved_annot, updateProgress = updateProgress)
-            saved_annot$KEGG <- df$KEGG
-          }
-          if( "Hallmark" %in% annotation$to_load ){
-            progress$set(message = "Add Hallmark annotations...", value = 0)
-            df <- add_Hallmark_data(saved_annot, updateProgress = updateProgress)
-            saved_annot$Hallmark = df$Hallmark
-          }
-          if( "GO_molecular_function" %in% annotation$to_load ){
-            progress$set(message = "Add GO molecular function annotations...", value = 0)
-            df<- add_GO_data(saved_annot, GO_type = "molecular_function", slim = FALSE, updateProgress = updateProgress)
-            saved_annot$GO_molecular_function = df$GO_molecular_function
-          }
-          if( "GO_biological_process" %in% annotation$to_load ){
-            progress$set(message = "Add GO biological_process annotations...", value = 0)
-            df <- add_GO_data(saved_annot, GO_type = "biological_process", slim = FALSE, updateProgress = updateProgress)
-            saved_annot$GO_biological_process = df$GO_biological_process
-          }
-          if( "GO_cellular_component" %in% annotation$to_load ){
-            progress$set(message = "Add GO cellular_component annotations...", value = 0)
-            df <- add_GO_data(saved_annot, GO_type = "cellular_component", slim = FALSE, updateProgress = updateProgress)
-            saved_annot$GO_cellular_component = df$GO_cellular_component
-          }
-      }
-        
-        
-  })
-
   order_list <- reactive({
     order_list_int <- get_order_discrete(res()$Interactome,
                        p_val_thresh =input$p_val_thresh,
@@ -429,16 +350,17 @@ server <- function(input, output, session) {
   })
 
   ordered_Interactome <- reactive({
-      results <- order_interactome(res()$Interactome, order_list()$idx_order)
-      names_excluded <- c("names","bait", "groups","conditions")
-      updateCheckboxGroupInput(session, "columns_displayed",
-                               choices = as.list( setdiff(names(results), names_excluded)),
-                               selected=c("max_stoichio", "max_fold_change", "min_p_val") )
-      results
+      order_interactome(res()$Interactome, order_list()$idx_order)
   })
   
   annotated_Interactome <- reactive({
-      append_annotations(ordered_Interactome(), saved_annot )
+      results<-append_annotations(ordered_Interactome(), saved_df$annot )
+      
+      names_excluded <- c("names","bait", "groups","conditions")
+      updateCheckboxGroupInput(session, "columns_displayed",
+                             choices = as.list( setdiff(names(results), names_excluded)),
+                             selected=c("max_stoichio", "max_fold_change", "min_p_val") )
+      results
   })
 
   #Observe functions -------------------------------------------------------------------
@@ -446,6 +368,52 @@ server <- function(input, output, session) {
   observe({
     b_name <- input$bait_gene_name
     updateTextInput(session, "bckg_bait", value =  b_name)
+  })
+  
+  observeEvent(input$launch_annot, {
+    
+    annotation$selected <- input$annotation_selected
+    annotation$loaded <- names(saved_df$annot)
+    annotation$to_load <- setdiff(annotation$selected, annotation$loaded)
+    
+    if(length(annotation$to_load )>0){
+      
+      # Create a Progress object
+      progress <- shiny::Progress$new(min = 0, max = 100)
+      on.exit(progress$close())
+      updateProgress <- function(value = NULL, detail = NULL) {
+        progress$set(value = value, detail = detail)
+      }
+      
+      if( !("Entry" %in% annotation$loaded) ){
+        Sys.sleep(1)
+        progress$set(message = "Append annotations...", value = 0)
+        saved_df$annot <- get_annotations(data(), updateProgress = updateProgress)
+      }
+      if( "KEGG" %in% annotation$to_load ){
+        progress$set(message = "Add KEGG annotations...", value = 0)
+        saved_df$annot <- add_KEGG_data(saved_df$annot, updateProgress = updateProgress)
+      }
+      if( "Hallmark" %in% annotation$to_load ){
+        progress$set(message = "Add Hallmark annotations...", value = 0)
+        saved_df$annot <- add_Hallmark_data(saved_df$annot, updateProgress = updateProgress)
+      }
+      if( "GO_molecular_function" %in% annotation$to_load ){
+        progress$set(message = "Add GO molecular function annotations...", value = 0)
+        saved_df$annot<- add_GO_data(saved_df$annot, GO_type = "molecular_function", slim = FALSE, updateProgress = updateProgress)
+      }
+      if( "GO_biological_process" %in% annotation$to_load ){
+        progress$set(message = "Add GO biological_process annotations...", value = 0)
+        saved_df$annot <- add_GO_data(saved_df$annot, GO_type = "biological_process", slim = FALSE, updateProgress = updateProgress)
+      }
+      if( "GO_cellular_component" %in% annotation$to_load ){
+        progress$set(message = "Add GO cellular_component annotations...", value = 0)
+        saved_df$annot <- add_GO_data(saved_df$annot, GO_type = "cellular_component", slim = FALSE, updateProgress = updateProgress)
+      }
+    }
+    
+    annotation$loaded <- names(saved_df$annot)
+    
   })
   
   # When a double-click happens, check if there's a brush on the plot.
@@ -500,24 +468,60 @@ server <- function(input, output, session) {
     summary_table(annotated_Interactome(),  add_columns = input$columns_displayed)
   })
   
-  annotTable <- eventReactive(input$launch_annot,  {
+  
+  observeEvent(input$launch_annot,{
     
     if(!is.null(annotation$loaded)){
-      # Create a Progress object
-      progress2 <- shiny::Progress$new(min = 0, max = 100)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress2$close())
-      # Create a callback function to update progress.
-      updateProgress2 <- function(value = NULL, detail = NULL) {
-        progress2$set(value = value, detail = detail)
-      }
-      progress2$set(message = "Perform enrichment analysis...", value = 0)
       
-      annotation_enrichment_analysis( annotated_Interactome(), 
-                                      1:order_list()$Ndetect, 
-                                      annotation_selected = annotation$selected, 
-                                      names = annotated_Interactome()$names,
-                                      updateProgress = updateProgress2)
+      if("annot_type" %in% names(saved_df$enrichment)){
+        annotation$enrichment_performed <- unique(saved_df$enrichment$annot_type)
+      }
+      
+      annotation$enrichment_to_perform <- setdiff(annotation$selected, annotation$enrichment_performed)
+      
+      if( length(annotation$enrichment_to_perform) > 0 ){
+        
+        # Create a Progress object
+        progress2 <- shiny::Progress$new(min = 0, max = 100)
+        on.exit(progress2$close())
+        updateProgress2 <- function(value = NULL, detail = NULL) {
+          progress2$set(value = value, detail = detail)
+        }
+        progress2$set(message = "Perform enrichment analysis...", value = 0)
+        
+        df_annot <- annotation_enrichment_analysis( annotated_Interactome(), 
+                                                    1:order_list()$Ndetect, 
+                                                    annotation_selected = annotation$enrichment_to_perform, 
+                                                    names = annotated_Interactome()$names,
+                                                    updateProgress = updateProgress2)
+        saved_df$enrichment <- rbind(saved_df$enrichment, df_annot)
+        annotation$enrichment_performed <- unique(saved_df$enrichment$annot_type)
+      }
+      
+    }
+    
+  })
+  
+  annotTable <- reactive({
+    
+    if(!is.null(annotation$enrichment_performed) & length(setdiff(annotation$selected, annotation$enrichment_performed))==0 ){
+      
+      idx_annot <- which(saved_df$enrichment$annot_type %in% annotation$selected)
+      df<-saved_df$enrichment[idx_annot, ]
+      
+      idx_annot_exist <-  which(df$N_annot>0);
+      p_value_adjust_fdr <- rep( 1,length(df$p_value) );
+      p_value_adjust_bonferroni <- rep( 1,length(df$p_value) );
+      p_value_adjust_bonferroni[idx_annot_exist] <- p.adjust(df$p_value[idx_annot_exist], method = "bonferroni");
+      p_value_adjust_fdr[idx_annot_exist] <- p.adjust(df$p_value[idx_annot_exist], method = "fdr");
+      
+      df$p_value_adjust_fdr <- p_value_adjust_fdr
+      df$p_value_adjust_bonferroni <- p_value_adjust_bonferroni
+      df<- df[ order(df$p_value, decreasing = FALSE), ]
+      
+      output = df
+    }else{
+      output = NULL
     }
     
   })

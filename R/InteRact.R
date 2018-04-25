@@ -842,6 +842,12 @@ annotation_enrichment_analysis <- function( df,
 #' @export
 plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "fdr", fold_change_min =2, N_annot_min=2){
   
+  if(length(df) == 0 ){
+    stop("Empty input...")
+  }else if( dim(df)[1] == 0){
+    stop("Empty input...")
+  }
+    
   name_p_val <- switch(method_adjust_p_val,
                        "none" = "p_value",
                        "fdr" = "p_value_adjust_fdr",
@@ -1101,7 +1107,7 @@ merge_proteome <- function (x, ...) {
 }
 
 #' @export
-merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Protein.IDs" ){
+merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Entry" ){
   
       res_int <- res;
     
@@ -1114,13 +1120,13 @@ merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Protein.IDs"
       Copy_Number <- rep(0, length(res$names));
     
       for( i in 1:length(res$names) ){
-        #idx_prot <- which(gene_name_prot==as.character(res[[matching]][i]));
-        #idx_ID_x <-  which(proteome_data$Protein.IDs.x==as.character(res$nodes_ID_reviewed[i]));
-        #idx_ID_y <-  which(proteome_data$Protein.IDs.y==as.character(res$nodes_ID_reviewed[i]));
+        idx_prot <- which(gene_name_prot==as.character(res$names[i]));
+        idx_ID_x <-  which(proteome_data$Protein.IDs.x==as.character(res$Protein.IDs[i]));
+        idx_ID_y <-  which(proteome_data$Protein.IDs.y==as.character(res$Protein.IDs[i]));
         
-        idx_ID_x <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.x), fixed=TRUE);
-        idx_ID_y <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.y), fixed=TRUE);
-        
+        #idx_ID_x <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.x), fixed=TRUE);
+        #idx_ID_y <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.y), fixed=TRUE);
+        # 
         abund_x <- NA;
         abund_y <- NA;
         if( length(idx_ID_x)>0 ){ 
@@ -1130,15 +1136,16 @@ merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Protein.IDs"
           abund_y <- proteome_data$mean.y[idx_ID_y] 
         }
         
-        Copy_Number[i] <- mean(c(abund_x, abund_y), na.rm = TRUE)
+        #Copy_Number[i] <- mean(c(abund_x, abund_y), na.rm = TRUE)
         
-        #if(length(idx_prot)>0){
-        #  Copy_Number[i] = proteome_data$mean[ idx_prot[1] ];
-        #}else if( length(idx_ID_x)>0 || length(idx_ID_y)>0 ){
-        #  Copy_Number[i] = mean( c(abund_x, abund_y), na.rm=TRUE);
-        #}else{
-        #  Copy_Number[i] = NA;
-        #}
+        if(length(idx_prot)>0){
+         Copy_Number[i] = proteome_data$mean[ idx_prot[1] ];
+        }else if( length(idx_ID_x)>0 || length(idx_ID_y)>0 ){
+         Copy_Number[i] = mean( c(abund_x, abund_y), na.rm=TRUE);
+        }else{
+         Copy_Number[i] = NA;
+        }
+        
       }
       res_int$Copy_Number = Copy_Number
       res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
