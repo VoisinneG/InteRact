@@ -885,7 +885,12 @@ append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Pr
   
     res_int<-res
     
-    if( is.null(annotations) ){
+    n_annot <- 0
+    for (annot_var in names(annotations)){
+      n_annot <- n_annot + length(annotations[[annot_var]])
+    }
+    
+    if( is.null(annotations) | n_annot == 0){
       warning("No annotations to append")
     }
     else{
