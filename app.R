@@ -184,11 +184,6 @@ ui <- fluidPage(
                                 br(),
                                 column(4,
                                        wellPanel(
-                                         h3("Annotations"),
-                                         #checkboxInput("append_annot","Import Annotations ", value=FALSE),
-                                         actionButton("append_annot","Import Annotations "),
-                                         helpText("warning: Loading annotations for the first time can take a while"),
-                                         br(),
                                          checkboxGroupInput("annotation_selected",
                                                             "Select annoations",
                                                             choices = c( 
@@ -203,6 +198,9 @@ ui <- fluidPage(
                                                                         "GO_biological_process",
                                                                         "GO_cellular_component"),
                                                             selected = c("Keywords", "Protein.families")),
+                                         actionButton("launch_annot","Launch analysis")
+                                       ),
+                                       wellPanel(
                                          #checkboxInput("slim","use GO slim", value=FALSE),
                                          selectInput("method_adjust_p_val", "Method to adjust p-values",
                                                      choices = c("none", "fdr", "bonferroni"), selected = "fdr"),
@@ -273,8 +271,10 @@ server <- function(input, output, session) {
                                 Hallmark = NULL,
                                 GO_molecular_function = NULL,
                                 GO_biological_process = NULL,
-                                GO_cellular_component = NULL
+                                GO_cellular_component = NULL,
+                                Cross.reference..KEGG. = NULL
                                 )
+  annotation_selected <- reactiveValues(names=NULL)
   Ninteractors <- reactiveValues(x=0)
   
   #Main reactive functions -------------------------------------------------------------------------
@@ -352,64 +352,94 @@ server <- function(input, output, session) {
 
   
   annotations <- reactive({
+    
     output = NULL
-    if(input$append_annot){
-      if(!annot$imported){
+    
+    if(input$launch_annot){
         
-        # Create a Progress object
-        progress <- shiny::Progress$new(min = 0, max = 100)
         
-        # Close the progress when this reactive exits (even if there's an error)
-        on.exit(progress$close())
-        # Create a callback function to update progress.
-        updateProgress <- function(value = NULL, detail = NULL) {
-          progress$set(value = value, detail = detail)
+        
+        # identify which selected variables are still to be uploaded
+        is_loaded <- rep(0, length(names(saved_annot)))
+        
+        for (i in 1:length(names(saved_annot))){
+          if(!is.null(saved_annot[[ names(saved_annot)[i] ]])) {
+            is_loaded[i] <- 1
+            
+          }
         }
         
         
-        progress$set(message = "Appending annotations...", value = 0)
-        df <- get_annotations(data(), updateProgress = updateProgress)
+        cat(paste("length(names(saved_annot)):",length(names(saved_annot)),"\n"))
+        cat(paste("names:",names(saved_annot),"\n"))
+        cat(paste("idx loaded:",is_loaded,"\n"))
         
-        progress$set(message = "Adding KEGG annotations...", value = 0)
-        Sys.sleep(1)
-        df <- add_KEGG_data(df, updateProgress = updateProgress)
+        loaded_var <- names(saved_annot)[is_loaded==1]
+
+        cat(paste("loaded:",loaded_var,"\n"))
         
-        progress$set(message = "Adding Hallmark annotations...", value = 0)
-        Sys.sleep(1)
-        df <- add_Hallmark_data(df, updateProgress = updateProgress)
+        var_to_load <- setdiff(annotation_selected$names, loaded_var)
+        cat(paste("selected:",annotation_selected$names,"\n"))
+        cat(paste("to be loaded:",var_to_load,"\n"))
         
-        progress$set(message = "Adding GO molecular function annotations...", value = 0)
-        Sys.sleep(1)
-        df <- add_GO_data(df, GO_type = "molecular_function", slim = FALSE, updateProgress = updateProgress)
+        if(length(var_to_load)>0){
+          # Create a Progress object
+          progress <- shiny::Progress$new(min = 0, max = 100)
+          # Close the progress when this reactive exits (even if there's an error)
+          on.exit(progress$close())
+          # Create a callback function to update progress.
+          updateProgress <- function(value = NULL, detail = NULL) {
+            progress$set(value = value, detail = detail)
+          }
+          if( !("Entry" %in% loaded_var) ){
+            Sys.sleep(1)
+            progress$set(message = "Append annotations...", value = 0)
+            df <- get_annotations(data(), updateProgress = updateProgress)
+            saved_annot$Protein.IDs <- df$Protein.IDs
+            saved_annot$Gene.names...primary.. <- df$Gene.names...primary..
+            saved_annot$Status <- df$Status
+            saved_annot$Entry <- df$Entry
+            saved_annot$Keywords <- df$Keywords
+            saved_annot$Protein.families <- df$Protein.families
+            saved_annot$Pfam = df$Pfam
+            saved_annot$Reactome = df$Reactome
+            saved_annot$GO = df$GO
+            saved_annot$Cross.reference..KEGG. = df$Cross.reference..KEGG.
+          }
+          if( "KEGG" %in% var_to_load ){
+            progress$set(message = "Add KEGG annotations...", value = 0)
+            df <- add_KEGG_data(saved_annot, updateProgress = updateProgress)
+            saved_annot$KEGG <- df$KEGG
+          }
+          if( "Hallmark" %in% var_to_load ){
+            progress$set(message = "Add Hallmark annotations...", value = 0)
+            df <- add_Hallmark_data(saved_annot, updateProgress = updateProgress)
+            saved_annot$Hallmark = df$Hallmark
+          }
+          if( "GO_molecular_function" %in% var_to_load ){
+            progress$set(message = "Add GO molecular function annotations...", value = 0)
+            df<- add_GO_data(saved_annot, GO_type = "molecular_function", slim = FALSE, updateProgress = updateProgress)
+            saved_annot$GO_molecular_function = df$GO_molecular_function
+          }
+          if( "GO_biological_process" %in% var_to_load ){
+            progress$set(message = "Add GO biological_process annotations...", value = 0)
+            df <- add_GO_data(saved_annot, GO_type = "biological_process", slim = FALSE, updateProgress = updateProgress)
+            saved_annot$GO_biological_process = df$GO_biological_process
+          }
+          if( "GO_cellular_component" %in% var_to_load ){
+            progress$set(message = "Add GO cellular_component annotations...", value = 0)
+            df <- add_GO_data(saved_annot, GO_type = "cellular_component", slim = FALSE, updateProgress = updateProgress)
+            saved_annot$GO_cellular_component = df$GO_cellular_component
+          }
+          
+        }
         
-        progress$set(message = "Adding GO biological_process annotations...", value = 0)
-        Sys.sleep(1)
-        df <- add_GO_data(df, GO_type = "biological_process", slim = FALSE, updateProgress = updateProgress)
-        
-        progress$set(message = "Adding GO cellular_component annotations...", value = 0)
-        Sys.sleep(1)
-        df <- add_GO_data(df, GO_type = "cellular_component", slim = FALSE, updateProgress = updateProgress)
-        
-        saved_annot$Protein.IDs <- df$Protein.IDs
-        saved_annot$Gene.names...primary.. <- df$Gene.names...primary..
-        saved_annot$Status <- df$Status
-        saved_annot$Entry <- df$Entry
-        saved_annot$Keywords <- df$Keywords
-        saved_annot$KEGG <- df$KEGG
-        saved_annot$Protein.families <- df$Protein.families
-        saved_annot$Pfam = df$Pfam
-        saved_annot$Reactome = df$Reactome
-        saved_annot$GO = df$GO
-        saved_annot$Hallmark = df$Hallmark
-        saved_annot$GO_molecular_function = df$GO_molecular_function
-        saved_annot$GO_biological_process = df$GO_biological_process
-        saved_annot$GO_cellular_component = df$GO_cellular_component
-        
-        annot$imported <- TRUE
-      }
-      output <- saved_annot
-    }
+        output <- saved_annot
+    } 
+    
+    
     output
+    
   })
 
   annotated_Interactome <- reactive({
@@ -434,6 +464,10 @@ server <- function(input, output, session) {
   })
 
   #Observe functions -------------------------------------------------------------------
+  
+  observeEvent(input$launch_annot, {
+    annotation_selected$names <- input$annotation_selected
+  })
   
   observe({
     b_name <- input$bait_gene_name
@@ -496,18 +530,17 @@ server <- function(input, output, session) {
     
     # Create a Progress object
     progress2 <- shiny::Progress$new(min = 0, max = 100)
-    
     # Close the progress when this reactive exits (even if there's an error)
     on.exit(progress2$close())
     # Create a callback function to update progress.
     updateProgress2 <- function(value = NULL, detail = NULL) {
       progress2$set(value = value, detail = detail)
     }
-    progress2$set(message = "Performing annotation enrichment analysis...", value = 0)
+    progress2$set(message = "Perform enrichment analysis...", value = 0)
     
     annotation_enrichment_analysis( ordered_Interactome(), 
                                     1:order_list()$Ndetect, 
-                                    annotation_selected = input$annotation_selected, 
+                                    annotation_selected = annotation_selected$names, 
                                     names = ordered_Interactome()$names,
                                     updateProgress = updateProgress2)
   })

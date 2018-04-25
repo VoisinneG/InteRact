@@ -124,7 +124,7 @@ InteRact <- function(df,
   df$Npep <- estimate_Npep(df)
   ibait <- which(df$gene_name == bait_gene_name);
   if(length(ibait)==0){
-    stop(paste("Could not find",bait_gene_name,"in column",Column_gene_name, sep=" ")) 
+    stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
   }
   
   # Identify conditions corresponding to intensity columns
@@ -162,7 +162,7 @@ InteRact <- function(df,
   
   T_int[T_int==0] <- NA;
   T_int_norm <- rescale_median(T_int);
-  cat("Rescaling median intensity across conditions\n")
+  cat("Rescale median intensity across conditions\n")
   
   avg <- average_technical_replicates(T_int_norm, cond_filter)
   
@@ -186,7 +186,7 @@ InteRact <- function(df,
     
     res <- vector("list", N_rep)
     names(res)<-paste( rep('Rep_',N_rep), 1:N_rep, sep="" )
-    cat(paste("Replacing missing values and performing interactome analysis for",N_rep,"replicates\n",sep=" "))
+    cat(paste("Replacemissing values and perform interactome analysis for",N_rep,"replicates\n",sep=" "))
     
     n_replace <- length(which(is.na(log10_T_int_norm_mean)));
     for(i in 1:N_rep){
@@ -342,7 +342,7 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names", sp
     df<-df[idx_row, ]
     cat("Data Filtered based on portein identification score\n")
   }else{
-    warning("Column Score not available : Data NOT Filtered based on portein identification score\n")
+    warning("Column 'Score' not available : Data NOT Filtered based on portein identification score\n")
   }
   
   #Remove contaminants from dataset
@@ -350,12 +350,12 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names", sp
   if( Column_gene_name %in% colnames(df)){
     
     df<-df[ - grep("KRT",toupper(df[[Column_gene_name]])), ]
-    cat("Contaminant proteins were discarded\n")
+    cat("Contaminant proteins discarded\n")
     
     idx_name <- which( nchar(as.character(df[[Column_gene_name]])) > 0  )
     if(length(idx_name)>0){
       df <- df[ idx_name, ]
-      cat("Proteins with no gene name available were discarded\n")
+      cat("Proteins with no gene name available discarded\n")
     }
     
   }else{
@@ -649,6 +649,7 @@ annotation_enrichment_analysis <- function( df,
                              "Reactome", 
                              "GO",
                              "Hallmark",
+                             "KEGG",
                              "GO_molecular_function",
                              "GO_biological_process",
                              "GO_cellular_component",
@@ -665,7 +666,7 @@ annotation_enrichment_analysis <- function( df,
     stop("Annotations not supported. Change selected annotations")
   }
   
-  cat("Perfoming annotation enrichment analysis...\n")
+  cat("Perform annotation enrichment analysis...\n")
   
   #list annotation terms found in the dataset ------------------------------------------------
   
@@ -888,7 +889,7 @@ append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Pr
       warning("No annotations to append")
     }
     else{
-      cat("Appending annotation to interactome...\n")
+      cat("Append annotation to interactome...\n")
       idx_match<-rep(NA,length(res$names))
       for(i in 1:length(res$names) ){
         idx_match[i] <- which(as.character(annotations[[name_id]]) == as.character(res[[name_id]][i]) )
@@ -982,7 +983,9 @@ add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", orga
 # slim = TRUE or FALSE (use GO slim annotations)
   
   df_int <- df
-  GO_terms <- rep("", dim(df_int)[1])
+  n <- length(df_int[[map_id]])
+  
+  GO_terms <- rep("", n)
   
   name_GOA <- paste("GOA_", organism, sep = "");
   if (slim) {
@@ -993,14 +996,14 @@ add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", orga
   idx_type <- as.vector(which(GOA$GO_type == GO_type))
   
   # create progress bar
-  cat("Adding GO annotation data...\n")
-  pb <- txtProgressBar(min = 0, max = dim(df_int)[1], style = 3)
+  cat("Add GO annotation data...\n")
+  pb <- txtProgressBar(min = 0, max = n, style = 3)
   
-  for(i in 1:dim(df_int)[1]){
+  for(i in 1:n){
     # progress bar
     if (is.function(updateProgress)) {
-      text <- paste0( round(i/dim(df_int)[1]*100, 0), " %")
-      updateProgress(value = i/dim(df_int)[1]*100, detail = text)
+      text <- paste0( round(i/n*100, 0), " %")
+      updateProgress(value = i/n*100, detail = text)
     }
     setTxtProgressBar(pb, i)
     
@@ -1025,20 +1028,26 @@ add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", orga
 add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse", updateProgress = NULL){
   
   df_int <- df
+  n <- length(df_int[[map_id]])
   
   # Add KEGG data
-  KEGG_pathways <- rep("", dim(df)[1])
+  KEGG_pathways <- rep("", n)
   KEGG <- switch(organism, "mouse" = KEGG_mouse, "human" = KEGG_human)
-  for(i in 1:dim(df_int)[1]){
+  for(i in 1:n){
     # progress bar
     if (is.function(updateProgress)) {
-      text <- paste0( round(i/dim(df_int)[1]*100, 0), " %")
-      updateProgress(value = i/dim(df_int)[1]*100, detail = text)
+      text <- paste0( round(i/n*100, 0), " %")
+      updateProgress(value = i/n*100, detail = text)
     }
     
-    idx_KEGG <- grep(df_int[[map_id]][i], as.character(KEGG$IDs), fixed = TRUE)
-    pathways <- paste(KEGG$name[idx_KEGG]," [",KEGG$pathway[idx_KEGG],"]",sep="")
-    KEGG_pathways[i] <- paste(as.character(pathways), collapse = ";")
+    if(!is.na(df_int[[map_id]][i])){
+      if( nchar(as.character(df_int[[map_id]][i])) >0 ){
+        idx_KEGG <- grep(df_int[[map_id]][i], as.character(KEGG$IDs), fixed = TRUE)
+        pathways <- paste(KEGG$name[idx_KEGG]," [",KEGG$pathway[idx_KEGG],"]",sep="")
+        KEGG_pathways[i] <- paste(as.character(pathways), collapse = ";")
+      }
+    }
+    
   }
   df_int$KEGG <- KEGG_pathways
   
@@ -1049,18 +1058,20 @@ add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse
 add_Hallmark_data <- function(df, map_id="Gene.names...primary..", updateProgress = NULL){
   
   df_int <- df
-  hallmark_set <- rep("", dim(df_int)[1])
+  
+  n <- length(df_int[[map_id]])
+  hallmark_set <- rep("", n )
   
   
   # create progress bar
-  cat("Adding Hallmark annotation data...\n")
-  pb <- txtProgressBar(min = 0, max = dim(df_int)[1], style = 3)
+  cat("Add Hallmark annotation data...\n")
+  pb <- txtProgressBar(min = 0, max = n, style = 3)
   
-  for(i in 1:dim(df_int)[1]){
+  for(i in 1:n){
     # progress bar
     if (is.function(updateProgress)) {
-      text <- paste0( round(i/dim(df_int)[1]*100, 0), " %")
-      updateProgress(value = i/dim(df_int)[1]*100, detail = text)
+      text <- paste0( round(i/n*100, 0), " %")
+      updateProgress(value = i/n*100, detail = text)
     }
     setTxtProgressBar(pb, i)
     idx_set <- NULL
