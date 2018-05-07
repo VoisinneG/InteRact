@@ -635,9 +635,12 @@ annotation_enrichment_analysis <- function( df,
                                             idx_detect, 
                                             annotation_selected = c("Keywords", "Protein.families") , 
                                             names = df$Gene.names...primary.., organism = "mouse",
-                                            updateProgress = NULL){
+                                            updateProgress = NULL, 
+                                            showProgress = TRUE,
+                                            orderOutput = TRUE){
   # df : data frame with annotation data
   # idx_detect : indices of the subset of proteins in df for which the enrichment analysis is performed
+  # (list of indices are supported. The output will then be a list of data-frames)
   # against the background formed by all proteins in df
   # annotation_selected : set of annotation terms to consider. 
   #Annotations supported are stored in varaiable "supported_annotations:
@@ -666,7 +669,7 @@ annotation_enrichment_analysis <- function( df,
     stop("Annotations not supported. Change selected annotations")
   }
   
-  cat("Perform annotation enrichment analysis...\n")
+  if (showProgress) cat("Perform annotation enrichment analysis...\n")
   
   #list annotation terms found in the dataset ------------------------------------------------
   
@@ -732,8 +735,7 @@ annotation_enrichment_analysis <- function( df,
 
  
   
-  
-  # Compute Background -----------------------------------------------------------------------
+  # Compute Background -------------------------------------------------------------------------------------
   
   nodes_tot <- as.character(names);
   
@@ -756,7 +758,7 @@ annotation_enrichment_analysis <- function( df,
   freq_annot_background <- rep(0, n_annot);
   nodes_annot_background <- rep("", n_annot);
   
-  pb <- txtProgressBar(min = 0, max = 2*n_annot, style = 3)
+  if (showProgress & typeof(idx_detect)!="list") pb <- txtProgressBar(min = 0, max = 2*n_annot, style = 3)
   count<-0
   
   for ( k in 1:dim(df.annot)[1] ){
@@ -767,7 +769,7 @@ annotation_enrichment_analysis <- function( df,
     freq_annot_background[k] = N_annot_background[k]/N_background;
     
     count <- count +1
-    setTxtProgressBar(pb, count)
+    if (showProgress & typeof(idx_detect)!="list") setTxtProgressBar(pb, count)
     # progress bar
     if (is.function(updateProgress)) {
       text <- paste0( round(count/(2*n_annot)*100, 0), " %")
@@ -777,75 +779,110 @@ annotation_enrichment_analysis <- function( df,
   
   N_annotation_test <- length(which(N_annot_background>0))
   
-  # Perform enrichment test for each annotation ----------------------------------------------
+  # Perform enrichment test for each annotation and each subset of indices ---------------------------------------
   
-  N_annot <- rep(0, n_annot);
-  freq_annot <- rep(0, n_annot);
-  nodes_annot <- rep("", n_annot);
-  p_value <- rep(0, n_annot);
-  fold_change <- rep(0, n_annot);
-  p_value_adjust <- rep(0, n_annot);
-  
-  for(k in 1:n_annot ){
-    
-    idx_annot <- idx_detect[ grep(df.annot$annot_terms[k], u_annot_nodes_collapse[idx_detect],fixed=TRUE) ]
-    N_annot[k]=length(idx_annot);
-    N_sample = length(idx_detect);
-    
-    freq_annot[k] = N_annot[k]/N_sample;
-    nodes_annot[k]=paste(nodes_tot[idx_annot], collapse=";")
-    
-    p_value[k] = 1-phyper(N_annot[k]-1, 
-                          N_annot_background[k],  
-                          N_background-N_annot_background[k],  
-                          N_sample);
-    
-    fold_change[k] = freq_annot[k]/freq_annot_background[k];
-    
-    count <- count +1
-    setTxtProgressBar(pb, count)
-    # progress bar
-    if (is.function(updateProgress)) {
-      text <- paste0( round(count/(2*n_annot)*100, 0), " %")
-      updateProgress(value = count/(2*n_annot)*100, detail = text)
-    }
+  if (typeof(idx_detect)=="list"){
+    n_sets <- length(idx_detect)
+  } else {
+    n_sets = 1
   }
   
-  close(pb)
+  df.annot.tot <- list()
   
-  idx_annot_exist <-  which(N_annot>0);
-  p_value_adjust_fdr <- rep( 1,length(p_value) );
-  p_value_adjust_bonferroni <- rep( 1,length(p_value) );
-  p_value_adjust_bonferroni[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "bonferroni");
-  p_value_adjust_fdr[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "fdr");
+  if (showProgress  & typeof(idx_detect)=="list") pb <- txtProgressBar(min = 0, max = n_sets, style = 3)
+      
+  for (i in 1:n_sets){
+    
+    if (showProgress & typeof(idx_detect)=="list") setTxtProgressBar(pb, i)
+    
+    if (typeof(idx_detect)=="list"){
+      idx_d <- idx_detect[[i]]
+    } else {
+      idx_d <- idx_detect
+    }
+    
+    N_annot <- rep(0, n_annot);
+    freq_annot <- rep(0, n_annot);
+    nodes_annot <- rep("", n_annot);
+    p_value <- rep(0, n_annot);
+    fold_change <- rep(0, n_annot);
+    p_value_adjust <- rep(0, n_annot);
+    
+    for(k in 1:n_annot ){
+      
+      
+      idx_annot <- idx_d[ grep(df.annot$annot_terms[k], u_annot_nodes_collapse[idx_d],fixed=TRUE) ]
+      N_annot[k]=length(idx_annot);
+      N_sample = length(idx_d);
+      
+      freq_annot[k] = N_annot[k]/N_sample;
+      nodes_annot[k]=paste(nodes_tot[idx_annot], collapse=";")
+      
+      p_value[k] = 1-phyper(N_annot[k]-1, 
+                            N_annot_background[k],  
+                            N_background-N_annot_background[k],  
+                            N_sample);
+      
+      fold_change[k] = freq_annot[k]/freq_annot_background[k];
+      
+      count <- count +1
+      if (showProgress & typeof(idx_detect)!="list") setTxtProgressBar(pb, count)
+      # progress bar
+      if (is.function(updateProgress)) {
+        text <- paste0( round(count/(2*n_annot)*100, 0), " %")
+        updateProgress(value = count/(2*n_annot)*100, detail = text)
+      }
+    }
+    
+    if (showProgress & typeof(idx_detect)!="list"){
+      close(pb)
+      cat("Done.\n")
+    }
+    
+    
+    idx_annot_exist <-  which(N_annot>0);
+    p_value_adjust_fdr <- rep( 1,length(p_value) );
+    p_value_adjust_bonferroni <- rep( 1,length(p_value) );
+    p_value_adjust_bonferroni[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "bonferroni");
+    p_value_adjust_fdr[idx_annot_exist] <- p.adjust(p_value[idx_annot_exist], method = "fdr");
+    
+    df.annot.set <- data.frame(
+      N_annot,
+      freq_annot,
+      fold_change, 
+      p_value, 
+      p_value_adjust_fdr,
+      nodes_annot,
+      p_value_adjust_bonferroni,
+      N_annot_background, 
+      freq_annot_background,
+      nodes_annot_background)
+    
+    df.annot.set <- cbind(df.annot, df.annot.set)
+    
+    if (orderOutput) df.annot.set <- df.annot.set[ order(df.annot.set$p_value, decreasing = FALSE), ]
+
+    df.annot.tot[[i]] <- df.annot.set
+    
+  }
   
-  df.annot.2 <- data.frame(
-                  N_annot,
-                  freq_annot,
-                  fold_change, 
-                  p_value, 
-                  p_value_adjust_fdr,
-                  nodes_annot,
-                  p_value_adjust_bonferroni,
-                  N_annot_background, 
-                  freq_annot_background,
-                  nodes_annot_background)
+  if (showProgress & typeof(idx_detect)=="list") close(pb)
   
-  df.annot<-cbind(df.annot, df.annot.2)
+  if (typeof(idx_detect)=="list"){
+    return(df.annot.tot)
+  } else {
+    return(df.annot.tot[[1]])
+  }
   
-  df.annot <- df.annot[ order(df.annot$p_value, decreasing = FALSE), ]
-  cat("Done.\n")
-  
-  return(df.annot)
 }
 
 #' @export
 plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "fdr", fold_change_min =2, N_annot_min=2){
   
   if(length(df) == 0 ){
-    stop("Empty input...")
+    warning("Empty input...")
   }else if( dim(df)[1] == 0){
-    stop("Empty input...")
+    warning("Empty input...")
   }
     
   name_p_val <- switch(method_adjust_p_val,
@@ -859,7 +896,7 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "f
                        df$fold_change >= fold_change_min & 
                        df$N_annot >= N_annot_min)
   if(length(idx_filter) == 0){
-    stop("No annotation left after filtering. You might want to change input parameters")
+    warning("No annotation left after filtering. You might want to change input parameters")
     return(NULL)
   }
   df_filter <- df[ idx_filter, ]
@@ -932,7 +969,7 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
   Nnodes<-length(nodes_IDs)
   
   if( length( strsplit( paste(nodes_IDs, collapse=" "), split = split_param, fixed = TRUE)[[1]] ) == 1){
-    stop(paste("The split parameter '",split_param, "' was not detected in '", name_id,"' : Change split_param.", sep = "") )
+    warning(paste("The split parameter '",split_param, "' was not detected in '", name_id,"' : you might need to change 'split_param'.", sep = "") )
   }
     
   nodes_ID<-rep("", Nnodes);
