@@ -4,12 +4,13 @@
 \alias{InteRact}
 \title{Analysis of proteomics data}
 \usage{
-InteRact(df, Column_gene_name = "Gene.names", bait_gene_name, N_rep = 10,
-  bckg_bait = bait_gene_name, bckg_ctrl = "WT", bckg = NULL,
+InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
+  Column_ID = "Protein.IDs", Column_Npep = NULL, bait_gene_name,
+  N_rep = 3, bckg_bait = bait_gene_name, bckg_ctrl = "WT", bckg = NULL,
   time = NULL, bio = NULL, tech = NULL,
   Column_intensity_pattern = "^Intensity.", preffix_bio = "S",
   preffix_tech = "R", preffix_time = "", filter_time = NULL,
-  filter_bio = NULL, filter_tech = NULL)
+  filter_bio = NULL, filter_tech = NULL, updateProgress = NULL)
 }
 \arguments{
 \item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
@@ -77,6 +78,15 @@ path <- paste(dir,"/proteinGroups_Cbl.txt",sep="")
 df <- read.csv(path, sep="\\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
 
 res <- InteRact(df, bait_gene_name = "Cbl")
+Interactome <- res$Interactome
+order_list <- get_order_discrete(Interactome)
+Interactome <- order_interactome(Interactome, order_list$idx_order)
+
+Interactome <- merge_proteome(Interactome)
+
+annot <- get_annotations(Interactome)
+Interactome <- append_annotations(Interactome,  annot)
+sum_tbl <- summary_table(Interactome)
 
 # Check which columns have been used along with their description
 print.data.frame(res$cond)

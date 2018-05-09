@@ -6,7 +6,7 @@
 gene names}
 \usage{
 filter_Proteins(df, min_score = 0, Column_gene_name = "Gene.names",
-  split_param = ";")
+  Column_score = "Score", split_param = ";")
 }
 \arguments{
 \item{df}{A data frame}

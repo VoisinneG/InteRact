@@ -60,6 +60,15 @@ load("./R/sysdata.rda")
 #' df <- read.csv(path, sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
 #' 
 #' res <- InteRact(df, bait_gene_name = "Cbl")
+#' Interactome <- res$Interactome
+#' order_list <- get_order_discrete(Interactome)
+#' Interactome <- order_interactome(Interactome, order_list$idx_order)
+#' 
+#' Interactome <- merge_proteome(Interactome)
+#' 
+#' annot <- get_annotations(Interactome)
+#' Interactome <- append_annotations(Interactome,  annot)
+#' sum_tbl <- summary_table(Interactome)
 #' 
 #' # Check which columns have been used along with their description
 #' print.data.frame(res$cond)
@@ -96,8 +105,11 @@ load("./R/sysdata.rda")
 
 InteRact <- function(df,
                      Column_gene_name = "Gene.names",
+                     Column_score = "Score",
+                     Column_ID = "Protein.IDs",
+                     Column_Npep = NULL,
                      bait_gene_name,
-                     N_rep=10,
+                     N_rep=3,
                      bckg_bait = bait_gene_name,
                      bckg_ctrl = "WT",
                      bckg = NULL,
@@ -120,15 +132,15 @@ InteRact <- function(df,
   
   df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
   
-  df<-filter_Proteins(df);
-  df$Npep <- estimate_Npep(df)
+  df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
+  df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
   ibait <- which(df$gene_name == bait_gene_name);
   if(length(ibait)==0){
     stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
   }
   
   # Identify conditions corresponding to intensity columns
-  idx_col<-grep(Column_intensity_pattern,colnames(df))
+  idx_col<-grep(Column_intensity_pattern, colnames(df))
   T_int <- df[ ,idx_col];
   col_I <- colnames(T_int)
   
@@ -140,8 +152,7 @@ InteRact <- function(df,
                                 preffix_time = preffix_time,
                                 preffix_bio = preffix_bio, 
                                 preffix_tech = preffix_tech )
-  }
-  else{
+  } else {
     cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
   }
   
@@ -186,7 +197,7 @@ InteRact <- function(df,
     
     res <- vector("list", N_rep)
     names(res)<-paste( rep('Rep_',N_rep), 1:N_rep, sep="" )
-    cat(paste("Replacemissing values and perform interactome analysis for",N_rep,"replicates\n",sep=" "))
+    cat(paste("Replace missing values and perform interactome analysis for",N_rep,"replicates\n",sep=" "))
     
     n_replace <- length(which(is.na(log10_T_int_norm_mean)));
     for(i in 1:N_rep){
@@ -205,7 +216,7 @@ InteRact <- function(df,
                                    name_bait = bckg_bait, name_ctrl = bckg_ctrl,
                                    background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
                                    by_conditions = TRUE, log_transf = TRUE)
-      res[[i]]$Protein.IDs <- df$Protein.IDs
+      res[[i]]$Protein.IDs <- df[[Column_ID]]
       
     }
     
@@ -221,7 +232,7 @@ InteRact <- function(df,
                                  name_bait = bckg_bait, name_ctrl = bckg_ctrl,
                                  background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
                                  by_conditions = TRUE, log_transf = TRUE)
-    res_mean$protein_ID <- df$Protein.IDs
+    res_mean$protein_ID <- df[[Column_ID]]
   }
   
   res_mean <- global_analysis(res_mean);
@@ -334,11 +345,11 @@ average_technical_replicates<-function(df, cond){
 #' @param Column_gene_name The name of df's column containing gene names
 #' @return A filtered data frame 
 #' @export
-filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names", split_param=";"){
+filter_Proteins <- function( df, min_score=0, Column_gene_name = "Gene.names", Column_score= "Score", split_param=";"){
 
   idx_row = 1:dim(df)[1]
-  if( "Score" %in% colnames(df)){
-    idx_row= which( df$Score>min_score )
+  if( Column_score %in% colnames(df)){
+    idx_row= which( df[[Column_score]] > min_score )
     df<-df[idx_row, ]
     cat("Data Filtered based on portein identification score\n")
   }else{
@@ -349,11 +360,15 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names", sp
   
   if( Column_gene_name %in% colnames(df)){
     
-    df<-df[ - grep("KRT",toupper(df[[Column_gene_name]])), ]
-    cat("Contaminant proteins discarded\n")
+    idx_cont <- grep("KRT",toupper(df[[Column_gene_name]]))
+    if (length(idx_cont) > 0){
+      df<-df[ - grep("KRT",toupper(df[[Column_gene_name]])), ]
+      cat("Contaminant proteins discarded\n")
+    }
+    
     
     idx_name <- which( nchar(as.character(df[[Column_gene_name]])) > 0  )
-    if(length(idx_name)>0){
+    if(length(idx_name) > 0){
       df <- df[ idx_name, ]
       cat("Proteins with no gene name available discarded\n")
     }
@@ -368,18 +383,23 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name= "Gene.names", sp
 }
 
 #' @export
-estimate_Npep <- function(df){
+estimate_Npep <- function(df, Column_Npep = NULL){
   
-  if( "Intensity" %in% colnames(df) & "iBAQ" %in% colnames(df)){
-    Npep <- round( as.numeric( as.character(df$Intensity))/as.numeric( as.character(df$iBAQ)) )
-    cat("Number of theoretically observable peptides computed using iBAQ values\n")
-  }else if("Mol..weight..kDa." %in% colnames(df) ){ 
-    Npep <- df$Mol..weight..kDa.
-    cat("Number of theoretically observable peptides unavailable : used MW instead\n")
-  }else{
-    Npep <- rep(1,dim(df)[1])
-    cat("Number of theoretically observable peptides unavailable : set to 1\n")
+  if ( is.null(Column_Npep) ){
+    if( "Intensity" %in% colnames(df) & "iBAQ" %in% colnames(df)){
+      Npep <- round( as.numeric( as.character(df$Intensity))/as.numeric( as.character(df$iBAQ)) )
+      cat("Number of theoretically observable peptides computed using iBAQ values\n")
+    }else if("Mol..weight..kDa." %in% colnames(df) ){ 
+      Npep <- df$Mol..weight..kDa.
+      cat("Number of theoretically observable peptides unavailable : used MW instead\n")
+    }else{
+      Npep <- rep(1,dim(df)[1])
+      cat("Number of theoretically observable peptides unavailable : set to 1\n")
+    }
+  } else {
+    Npep <- df[[Column_Npep]]
   }
+  
   output<-Npep
 }
 
@@ -1362,8 +1382,8 @@ plot_volcanos.InteRactome <- function( res,
                                        labels=NULL, 
                                        N_print=15, 
                                        conditions=NULL, 
-                                       p_val_thresh=NULL, 
-                                       fold_change_thresh=NULL, 
+                                       p_val_thresh=0.05, 
+                                       fold_change_thresh=2, 
                                        save_file=NULL,
                                        xlim=NULL,
                                        ylim=NULL,
@@ -1632,7 +1652,7 @@ summary_table <- function (x, ...) {
 }
 
 #' @export
-summary_table.InteRactome <- function(res, add_columns = NULL){
+summary_table.InteRactome <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
   #columns <- add_columns
@@ -1661,6 +1681,306 @@ summary_table.InteRactome <- function(res, add_columns = NULL){
   df<-df[,order(idx)]
   
   return(df)
+  
+}
+
+#' @export
+get_PPI_from_psicquic <- function( gene_name, tax_ID = c(9606,10090) , provider = c("IntAct","MINT") ){
+  
+  library(PSICQUIC)
+  psicquic <- PSICQUIC()
+  
+  for (k in 1:length(tax_ID) ){
+    
+    tbl <- interactions(psicquic, 
+                        gene_name, 
+                        species = tax_ID[k] , 
+                        provider = provider )
+    
+    s<-strsplit(tbl$aliasA, split="|", fixed = TRUE);
+    gene_name_A <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        ign<-grep("(gene name)",s[[i]],fixed=TRUE)
+        if(length(ign)>0){
+          gene_name_A[i] <- strsplit( strsplit(s[[i]][ign],split=":")[[1]][2], 
+                                      split="(" ,fixed=TRUE )[[1]][1]
+          
+        }
+      }
+    }
+    
+    s<-strsplit(tbl$aliasB,split="|",fixed = TRUE);
+    gene_name_B <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        ign<-grep("(gene name)",s[[i]],fixed=TRUE)
+        if(length(ign)>0){
+          gene_name_B[i] <- strsplit( strsplit(s[[i]][ign],split=":")[[1]][2], 
+                                      split="(" ,fixed=TRUE )[[1]][1]
+        }
+      }
+    }
+    
+    s<-strsplit(tbl$A,split = ":")
+    uniprot_A <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        uniprot_A[i] <- s[[i]][2]
+      }
+    }
+    
+    s<-strsplit(tbl$B,split = ":")
+    uniprot_B <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        uniprot_B[i] <- s[[i]][2]
+      }
+    }
+    
+    s<-strsplit(tbl$publicationID,split = "|",fixed=TRUE)
+    Pubmed_ID <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        ip<-grep("pubmed",s[[i]],fixed=TRUE);
+        Pubmed_ID[i] <- strsplit(s[[i]][ip],split=":")[[1]][2];
+      }
+    }
+    
+    s<-strsplit(tbl$type,split = "(",fixed=TRUE)
+    Int_type <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        Int_type[i] <- strsplit(s[[i]][2],split=")",fixed=TRUE)[[1]][1];
+      }
+    }
+    
+    s<-strsplit(tbl$detectionMethod,split = "(",fixed=TRUE)
+    Detection_method <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        Detection_method[i] <- strsplit(s[[i]][2],split=")",fixed=TRUE)[[1]][1];
+      }
+    }
+    
+    s<-strsplit(tbl$firstAuthor,split = " ",fixed=TRUE)
+    Author <- rep("",length(s))
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        Author[i] <- paste(s[[i]][1], s[[i]][length(s[[i]])],sep=" ");
+      }
+    }
+    
+    taxon<-rep(tax_ID[k],length(s) );
+    
+    if(k>1){
+      #df2<-data.frame(gene_name_A, gene_name_B, uniprot_A, uniprot_B, taxon, Int_type, Detection_method, Author=Author, pubmed_ID=pubmed_ID, Database=tbl$provider)
+      df2<-data.frame(gene_name_A, gene_name_B, taxon, Int_type, 
+                      Detection_method, Author=Author, Pubmed_ID=Pubmed_ID, Database=tbl$provider)
+      df1<-rbind(df1,df2);
+      
+    }
+    else{
+      #df1<-data.frame(gene_name_A, gene_name_B, uniprot_A, uniprot_B, taxon, Int_type, Detection_method, Author=Author, pubmed_ID=pubmed_ID, Database=tbl$provider)
+      df1<-data.frame(gene_name_A, gene_name_B, taxon, Int_type, 
+                      Detection_method, Author=Author, Pubmed_ID=Pubmed_ID, Database=tbl$provider)
+      
+    }
+    
+    df1 <- df1[nchar(as.character(df1$gene_name_A))>0 & nchar(as.character(df1$gene_name_B))>0 , ]
+    
+  }
+  
+  return(df1)
+}
+
+#' @export
+get_PPI_from_BioGRID <- function( gene_name, tax_ID = c(9606,10090) ){
+  
+  access_key <- "7ad36061b7644111aa9f5b3948429fb2"
+  
+  for (k in 1:length(tax_ID) ){
+  
+    url_adress <- paste("http://webservice.thebiogrid.org/interactions?searchNames=true&geneList=",
+                        gene_name,"&includeInteractors=true&format=tab2&includeHeader=true&taxId=",
+                        tax_ID[k],"&accesskey=",
+                        access_key,sep="");
+    
+    Tbiogrid <- read.table(url_adress,header=TRUE,fill=TRUE,sep="\t",comment.char="", quote="\"")
+    
+    Tbiogrid <- Tbiogrid[Tbiogrid$Organism.Interactor.A == Tbiogrid$Organism.Interactor.B,]
+    
+    taxon_biogrid <- rep(tax_ID[k],dim(Tbiogrid)[1] );  
+    
+    s<-strsplit(as.character(Tbiogrid$Author),split = " ",fixed=TRUE)
+    Author_Biogrid <- rep("",length(s))
+    
+    if(length(s)>0){
+      for (i in 1:length(s) ){
+        Author_Biogrid[i] <- paste(s[[i]][1], s[[i]][length(s[[i]])],sep=" ");
+      }
+    }
+    
+    
+    
+    if(k>1){
+      df_biogrid_2 <- data.frame(gene_name_A=Tbiogrid$Official.Symbol.Interactor.A, 
+                                 gene_name_B = Tbiogrid$Official.Symbol.Interactor.B, 
+                                 taxon=taxon_biogrid, 
+                                 Int_type=Tbiogrid$Experimental.System.Type, 
+                                 Detection_method=Tbiogrid$Experimental.System, 
+                                 Author=Author_Biogrid, 
+                                 Pubmed_ID=Tbiogrid$Pubmed.ID,  
+                                 Database=Tbiogrid$Source.Database )
+      df_biogrid_1 <- rbind(df_biogrid_1,df_biogrid_2);
+    }
+    else{
+      df_biogrid_1 <- data.frame(gene_name_A=Tbiogrid$Official.Symbol.Interactor.A, 
+                                 gene_name_B = Tbiogrid$Official.Symbol.Interactor.B, 
+                                 taxon=taxon_biogrid, 
+                                 Int_type=Tbiogrid$Experimental.System.Type, 
+                                 Detection_method=Tbiogrid$Experimental.System, 
+                                 Author=Author_Biogrid, 
+                                 Pubmed_ID=Tbiogrid$Pubmed.ID,  
+                                 Database=Tbiogrid$Source.Database )
+      
+    }
+    
+  }
+  
+  return(df_biogrid_1)
+  
+}
+
+#' @export
+get_PPI_from_HPRD <- function( gene_name ){
+    
+    THPRD <- THPRD[which(THPRD$Gene_symbol_1 == toupper(gene_name) | THPRD$Gene_symbol_2 == toupper(gene_name)), ]
+    
+    df_HPRD <- data.frame(gene_name_A = THPRD$Gene_symbol_1, 
+                          gene_name_B = THPRD$Gene_symbol_2, 
+                          taxon = rep(9606, dim(THPRD)[1] ), 
+                          Int_type = rep("NA", dim(THPRD)[1] ), 
+                          Detection_method = THPRD$Experiment_type, 
+                          Author = rep("NA", dim(THPRD)[1] ), 
+                          Pubmed_ID = THPRD$Pubmed_id, 
+                          Database = rep("HPRD", dim(THPRD)[1] ));
+    return(df_HPRD)
+  
+}
+
+#' @export
+create_summary_table_PPI <- function(gene_name){
+  
+  cat("Fetching PPi from databases...\n")
+  pb <- txtProgressBar(min = 0, max = 3, style = 3)
+  
+  df_psicquic <- get_PPI_from_psicquic(gene_name = gene_name)
+  setTxtProgressBar(pb, 1)
+  df_biogrid <- get_PPI_from_BioGRID(gene_name = gene_name)
+  setTxtProgressBar(pb, 2)
+  df_HPRD <- get_PPI_from_HPRD(gene_name = gene_name)
+  setTxtProgressBar(pb, 3)
+  close(pb)
+  
+  df_tot <- rbind(df_biogrid, df_psicquic, df_HPRD)
+  
+  uInteractors <- sort(unique(toupper(c(as.character(df_tot$gene_name_A), as.character(df_tot$gene_name_B) ) )))
+  uInteractors <- uInteractors[ uInteractors != toupper(gene_name) ];
+  
+  N_pub_0 <- rep(0,length(uInteractors));
+  Authors_0 <- rep("",length(uInteractors));
+  Pubmed_ID_0 <- rep("",length(uInteractors));
+  Detection_method_0 <- rep("",length(uInteractors));
+  Int_type_0 <- rep("",length(uInteractors));
+  Database_0 <- rep("",length(uInteractors));
+  
+  for (i in 1:length(uInteractors) ){
+    
+    i_int <- which( toupper(as.character(df_tot$gene_name_A)) == uInteractors[i] | toupper(as.character(df_tot$gene_name_B)) == uInteractors[i]  )
+    
+    Authors_0[i] <- paste(as.character(unique(df_tot$Author[i_int])), collapse="|")
+    
+    Pubmed_ID_0[i] <- paste(as.character(unique(df_tot$Pubmed_ID[i_int])), collapse=",")
+    spl <- strsplit(Pubmed_ID_0[i], split=",");
+    Pubmed_ID_0[i] <- paste(spl[[1]], collapse="|");
+    N_pub_0[i] <- length(unique(spl[[1]]));
+    
+    #N_pub[idx_int] <- length(unique(df_tot$pubmed_ID[i_int]));
+    
+    Detection_method_0[i] <- paste(as.character(unique(df_tot$Detection_method[i_int])), collapse="|")
+    Int_type_0[i] <- paste(as.character(unique(df_tot$Int_type[i_int])), collapse="|")
+    Database_0[i] <- paste(as.character(unique(df_tot$Database[i_int])), collapse="|")
+    
+  }
+  
+  df_summary <-data.frame(gene_name_A=rep(toupper(gene_name),length(uInteractors)), 
+                          gene_name_B=uInteractors, 
+                          N_pub = N_pub_0, 
+                          Authors = Authors_0, 
+                          Pubmed_ID = Pubmed_ID_0,
+                          Detection_method = Detection_method_0,
+                          Int_type = Int_type_0,
+                          Database= Database_0)
+  
+  return(df_summary)
+}
+
+#' @export
+append_PPI <- function (x, ...) {
+  UseMethod("append_PPI", x)
+}
+
+#' @export
+append_PPI.InteRactome <- function( res, mapping = "names"){
+  
+  res_int <- res
+  
+  df_ppi <- create_summary_table_PPI( res$bait )
+  uInteractors <- df_ppi$gene_name_B
+  
+  sh_preys<-intersect(toupper(res[[mapping]]), uInteractors)
+  sh_preys<-setdiff(sh_preys, toupper(res$bait))
+  
+  N_pub <- rep(0,length(res$names));
+  Authors <- rep("",length(res$names));
+  Pubmed_ID <- rep("",length(res$names));
+  Detection_method <- rep("",length(res$names));
+  Int_type <- rep("",length(res$names));
+  Database <- rep("",length(res$names));
+  
+  if(length(sh_preys)>0){
+    
+    for (i in 1:length(sh_preys) ){
+      
+      idx_int <- which(toupper(res[[mapping]]) == sh_preys[i] );
+      i_int <- which( toupper(as.character(df_ppi$gene_name_A)) == sh_preys[i] | toupper(as.character(df_ppi$gene_name_B)) == sh_preys[i]  )
+      
+      Authors[idx_int] <- paste(as.character(unique(df_ppi$Authors[i_int])), collapse="|")
+      
+      Pubmed_ID[idx_int] <- paste(as.character(unique(df_ppi$Pubmed_ID[i_int])), collapse="|")
+      spl <- strsplit(Pubmed_ID[idx_int], split="|", fixed=TRUE);
+      
+      N_pub[idx_int] <- length(unique(spl[[1]]));
+      
+      #N_pub[idx_int] <- length(unique(df_ppi$pubmed_ID[i_int]));
+      
+      Detection_method[idx_int] <- paste(as.character(unique(df_ppi$Detection_method[i_int])), collapse="|")
+      Int_type[idx_int] <- paste(as.character(unique(df_ppi$Int_type[i_int])), collapse="|")
+      Database[idx_int] <- paste(as.character(unique(df_ppi$Database[i_int])), collapse="|")
+      
+    }
+    
+  }
+  
+  res_int$N_pub <- N_pub
+  res_int$Authors <- Authors
+  res_int$Pubmed_ID <- Pubmed_ID
+  res_int$Detection_method <- Detection_method
+  res_int$Int_type <- Int_type
+  res_int$Database <- Database
+  
+  return(res_int)
   
 }
 

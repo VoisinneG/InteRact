@@ -110,6 +110,13 @@ for ( i in 1:length(Hallmark_split) ){
 
 Hallmark <- data.frame(name = Hallmark_name,  gene = Hallmark_genes)
 
+# import HPRD database
+
+THPRD <- read.table(paste("~/Google_Drive/++Work/++Research/Resources-Databases/HPRD/",
+                          "HPRD_Release9_062910/BINARY_PROTEIN_PROTEIN_INTERACTIONS.txt",
+                          sep=""),
+                    sep="\t",header = TRUE,quote="\"")
+
 # import GO data -----------------------------------------------------------------------------------------------
 
 library("ontologyIndex")
@@ -194,6 +201,7 @@ devtools::use_data( uniprot_data_mouse,
                     GOA_human,
                     GOA_human_slim,
                     proteome_data, 
+                    THPRD,
                     pkg=".", 
                     internal = TRUE, 
                     overwrite = TRUE)
