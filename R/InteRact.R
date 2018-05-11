@@ -133,16 +133,23 @@ InteRact <- function(df,
   df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
   
   df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
+  
   df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
+  
+  idx_col<-grep(Column_intensity_pattern, colnames(df))
+  
+  df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
+  
+  T_int <- df[ ,idx_col];
+  col_I <- colnames(T_int)
+  
   ibait <- which(df$gene_name == bait_gene_name);
   if(length(ibait)==0){
     stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
   }
   
   # Identify conditions corresponding to intensity columns
-  idx_col<-grep(Column_intensity_pattern, colnames(df))
-  T_int <- df[ ,idx_col];
-  col_I <- colnames(T_int)
+  
   
   if( is.null(bckg) | is.null(time) | is.null(bio) | is.null(tech) ){
     cond <- identify_conditions(df, 
@@ -366,7 +373,6 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name = "Gene.names", C
       cat("Contaminant proteins discarded\n")
     }
     
-    
     idx_name <- which( nchar(as.character(df[[Column_gene_name]])) > 0  )
     if(length(idx_name) > 0){
       df <- df[ idx_name, ]
@@ -379,7 +385,49 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name = "Gene.names", C
   
   df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=split_param)[[1]][1] )
   
-  output = df
+  return(df)
+}
+
+#' @export
+merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name"){
+  
+  # merge protein groups with the same gene name.
+    
+    cat("Merge protein groups associated to the same gene name\n")
+    
+    df_int <- df
+    
+    ugene <- unique(df[[merge_column]]);
+    
+    idx_merge = rep(1, dim(df)[1]); # rows with idx_merge = 0 will be filtered out
+    
+    for(i in 1:length(ugene) ){
+      
+      idx_u <- which( df[[merge_column]] == ugene[i] ) 
+      
+      if (length(idx_u) > 1) {
+        max_I <- rep(0, length(idx_u));
+        for (j in 1:length(idx_u) ){
+          idx_merge[idx_u[j]] = 0;
+          max_I[j] = max(df[ idx_u[j], idx_col])
+        }
+        jmax = which(max_I == max(max_I) );
+        idx_merge[ idx_u[jmax] ] = 1;
+        
+        for (k in idx_col ){
+          s=0;
+          for(j in idx_u ){
+            s= s + df[j, k];
+          }
+          df_int[idx_u[jmax], k] = s;
+        }
+        
+      }
+      
+    }
+    
+    return(df_int[idx_merge>0, ])
+    
 }
 
 #' @export
@@ -1522,7 +1570,7 @@ plot_per_conditions.InteRactome <- function( res,
                                  color_default = 1,
                                  save_file=NULL,
                                  show_plot=TRUE,
-                                 plot_width=3.25,
+                                 plot_width=3.5,
                                  plot_height=length(idx_rows)/(plot_width+1) + 1 ){
   
   if(length(idx_rows)==1){
