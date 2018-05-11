@@ -110,6 +110,7 @@ InteRact <- function(df,
                      Column_Npep = NULL,
                      bait_gene_name,
                      N_rep=3,
+                     quantile_rep  = 0.05,
                      bckg_bait = bait_gene_name,
                      bckg_ctrl = "WT",
                      bckg = NULL,
@@ -172,9 +173,15 @@ InteRact <- function(df,
                    unlist( lapply(filter_tech, function(x) l=which(cond$tech==x) ) ) )
   
   if(!is.null(idx_filter) && length(idx_filter)>0 ){
+    
+    cat("Filter following intensity columns :\n")
+    cat(idx_filter)
+    cat("\n")
+    
     cond_filter <- cond[-idx_filter,] 
+    
   }
-  cat(idx_filter)
+  
   
   #Normalize on median intensity across conditions
   
@@ -191,7 +198,7 @@ InteRact <- function(df,
   
   log10_T_int_norm_mean <- log10(T_int_norm_mean);
   
-  q <- quantile(log10_T_int_norm_mean[ , idx_cond$bckg==bckg_ctrl], na.rm=TRUE, probs=0.01);
+  q <- quantile(log10_T_int_norm_mean[ , idx_cond$bckg==bckg_ctrl], na.rm=TRUE, probs=quantile_rep);
   s <- mean( row_sd(log10_T_int_norm_mean[ ,idx_cond$bckg==bckg_ctrl]), na.rm=TRUE);
   
   log10_T_int_norm_mean_rep<-log10_T_int_norm_mean;
@@ -199,8 +206,6 @@ InteRact <- function(df,
   # replace missing values
   
   if(N_rep>0){
-    
-    
     
     res <- vector("list", N_rep)
     names(res)<-paste( rep('Rep_',N_rep), 1:N_rep, sep="" )
@@ -393,7 +398,7 @@ merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name
   
   # merge protein groups with the same gene name.
     
-    cat("Merge protein groups associated to the same gene name\n")
+    cat("Merge protein groups associated to the same gene name (sum of intensities) \n")
     
     df_int <- df
     
