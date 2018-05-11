@@ -6,8 +6,8 @@
 \usage{
 InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
   Column_ID = "Protein.IDs", Column_Npep = NULL, bait_gene_name,
-  N_rep = 3, bckg_bait = bait_gene_name, bckg_ctrl = "WT", bckg = NULL,
-  time = NULL, bio = NULL, tech = NULL,
+  N_rep = 3, quantile_rep = 0.05, bckg_bait = bait_gene_name,
+  bckg_ctrl = "WT", bckg = NULL, time = NULL, bio = NULL, tech = NULL,
   Column_intensity_pattern = "^Intensity.", preffix_bio = "S",
   preffix_tech = "R", preffix_time = "", filter_time = NULL,
   filter_bio = NULL, filter_tech = NULL, updateProgress = NULL)
