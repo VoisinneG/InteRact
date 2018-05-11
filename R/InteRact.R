@@ -240,7 +240,7 @@ InteRact <- function(df,
     Tfinal <- 10^log10_T_int_norm_mean
     rownames(Tfinal)<-df$gene_name
     
-    res_mean<-analyse_interactome(df = Tfinal, ibait = ibait[[1]], Npep = df$Npep,
+    res_mean<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait[[1]], Npep = df$Npep,
                                  name_bait = bckg_bait, name_ctrl = bckg_ctrl,
                                  background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
                                  by_conditions = TRUE, log_transf = TRUE)
@@ -622,6 +622,19 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
 }
 
 #' @export
+moving_average <- function(x, n){
+  
+  x_smooth <- x
+  
+  for (i in 1:length(x)){
+    idx <- max(c(i-n, 1)):min(c(i+n, length(x))) 
+    x_smooth[i] <- mean(x[idx], na.rm=TRUE)
+  }
+  
+  return(x_smooth)
+}
+
+#' @export
 mean_analysis <- function( res ){
   
   # average results from multiple call to function 'analyse_interactome'
@@ -651,6 +664,44 @@ mean_analysis <- function( res ){
 #' @export
 filter_conditions <- function (x, ...) {
   UseMethod("filter_conditions", x)
+}
+
+#' @export
+smooth <- function (x, ...) {
+  UseMethod("smooth", x)
+}
+
+#' Smooth p-values across conditions
+#' @export
+smooth.InteRactome <- function( res,  n = 2, order_conditions = NULL, var_smooth = c("fold_change","p_val") ){
+  
+  res_smooth <- res
+  
+  if(!is.null(order_conditions)){
+    idx_order <- order_conditions
+  } else {
+    idx_order <- 1:length(res$conditions)
+  }
+  
+  for (var in var_smooth){
+    M <- do.call(cbind, res[[var]])
+    M_smooth <- M
+    
+    for (i in 1:dim(M)[1] ){
+      M_smooth[i, idx_order] <- 10^(moving_average(log10(M[i, idx_order]), n))
+    }
+    
+    for (i in 1:length(res$conditions)){
+      res_smooth[[var]][[res$conditions[i]]] <- M_smooth[ , i]
+    }
+  }
+  
+    
+  if( "norm_stoichio" %in% names(res) ){
+    res_smooth <- global_analysis(res_smooth)
+  }
+  
+  return(res_smooth)
 }
 
 #' Filters conditions from an interactome
@@ -1624,7 +1675,7 @@ dot_plot <- function(Dot_Size,
                      size_range=range(Dot_Size) , 
                      size_var ="size", 
                      color_var="color"){
-  
+
   # Dot_Size: matrix of dot size
   
   M<-Dot_Size
