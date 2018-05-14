@@ -634,46 +634,16 @@ moving_average <- function(x, n){
   return(x_smooth)
 }
 
-#' @export
-mean_analysis <- function( res ){
-  
-  # average results from multiple call to function 'analyse_interactome'
-  
-  cat(paste("Averaging", length(res) ,"interactomes\n",sep=" ") )
-  res_mean = res[[1]];
-  
-  for ( cond in seq_along(res_mean$conditions) ){
-    p_val=vector("list",length(res));
-    fold_change=vector("list",length(res));
-    stoichio = vector("list",length(res));
-    for ( i in seq_along(res)){
-      p_val[[i]] <- res[[i]]$p_val[[cond]]
-      fold_change[[i]] <- res[[i]]$fold_change[[cond]]
-      stoichio[[i]] <- res[[i]]$stoichio[[cond]]
-    }
-    res_mean$p_val[[cond]] <- 10^( rowMeans( log10(do.call(cbind, p_val))) )
-    #res_mean$sd_log10_p_val[[cond]] <- row_sd( log10(do.call(cbind, p_val))) 
-    res_mean$fold_change[[cond]] <- 10^( rowMeans( log10(do.call(cbind, fold_change))) )
-    res_mean$stoichio[[cond]] <- 10^ (rowMeans( log10(do.call(cbind, stoichio))) )
-  }
-  
-  res_mean
-  
-}
 
-#' @export
-filter_conditions <- function (x, ...) {
-  UseMethod("filter_conditions", x)
-}
 
 #' @export
 smooth <- function (x, ...) {
   UseMethod("smooth", x)
 }
 
-#' Smooth p-values across conditions
+#' Smooth selected variables across conditions
 #' @export
-smooth.InteRactome <- function( res,  n = 2, order_conditions = NULL, var_smooth = c("fold_change","p_val") ){
+smooth.InteRactome <- function( res,  n = 1, order_conditions = NULL, var_smooth = c("fold_change","p_val") ){
   
   res_smooth <- res
   
@@ -704,6 +674,118 @@ smooth.InteRactome <- function( res,  n = 2, order_conditions = NULL, var_smooth
   return(res_smooth)
 }
 
+#' @export
+merge_conditions <- function( res,  selected_conditions = NULL){
+# Merge different conditions from different interactomes into a single dataframe 
+  
+  df_merge <- NULL
+  
+  if (class(res) == "list"){
+    
+    for (i in 1:length(res)){
+      if(class(res[[i]]) == "InteRactome"){
+        if(is.null(selected_conditions)){
+          conditions <- res[[i]]$conditions
+        } else {
+          conditions <- selected_conditions
+        }
+        for (cond in conditions){
+          names <- res[[i]]$names
+          df <- data.frame(
+            bait = rep(res[[i]]$bait, length(names)),
+            names = names,
+            Protein.IDs = res[[i]]$Protein.IDs,
+            conditions = rep(cond, length(names)), 
+            p_val = res[[i]]$p_val[[cond]],
+            fold_change = res[[i]]$fold_change[[cond]])
+          
+          df_merge <- rbind(df_merge, df)
+        }
+      } else {
+        stop("Input is not of class 'InteRactome'")
+      }
+    }
+  } else{
+    if(class(res) == "InteRactome"){
+      if(is.null(selected_conditions)){
+        conditions <- res$conditions
+      } else {
+        conditions <- selected_conditions
+      }
+      for (cond in conditions){
+        names <- res$names
+        df <- data.frame(
+          bait = rep(res$bait, length(names)),
+          names = names,
+          Protein.IDs = res$Protein.IDs,
+          conditions = rep(cond, length(names)), 
+          p_val = res$p_val[[cond]],
+          fold_change = res$fold_change[[cond]])
+                 
+        df_merge <- rbind(df_merge, df)
+      }
+    } else {
+      stop("Input is not of class 'InteRactome'")
+    }
+  
+  }
+  return(df_merge)
+}
+
+#' @export
+compute_FDR_from_asymmetry <- function( df ){
+  # Compute FDR using the asymmetry of the volcano plot
+  # df : data.frame containing columns 'p_val' and 'fold_change'
+  
+  df_int <- df
+  FDR <- rep(1, dim(df_int)[1])
+  
+  idx_pos <- which(df_int$fold_change >= 1)
+  
+  for (i in idx_pos){
+    n_right <- length(which(df$p_val <= df$p_val[i] & 
+                              df$fold_change >= df$fold_change[i]))
+    n_left <- length(which(df$p_val <= df$p_val[i] & 
+                             df$fold_change <= 1/df$fold_change[i]))
+    FDR[i] <- n_left/(n_left + n_right)
+  }
+  df_int$FDR <- FDR 
+  
+  return(df_int)
+}
+
+#' @export
+append_FDR <- function( res, df){
+# res : an object of class InteRactome
+# df : a data.frame containing (at least) columns 'bait', names', 'FDR' and 'conditions'
+  
+  res_int <- res
+  df_int <- df
+  
+  df_int <- df_int[which(df_int$bait == res$bait), ]
+  
+  FDR <- list()
+  
+  for (cond in res$conditions){
+    
+    df_cond <- df_int[df_int$conditions == cond, ]
+    idx_match <- match(res$names, df_cond$names)
+    FDR[[cond]] <- df_cond$FDR[idx_match]
+    
+  }
+  
+  res_int$FDR <-FDR
+  res_int <- global_analysis(res_int)
+  
+  return(res_int)
+  
+}
+
+#' @export
+filter_conditions <- function (x, ...) {
+  UseMethod("filter_conditions", x)
+}
+
 #' Filters conditions from an interactome
 #' @export
 filter_conditions.InteRactome <- function( res, conditions_to_filter_out ){
@@ -724,6 +806,35 @@ filter_conditions.InteRactome <- function( res, conditions_to_filter_out ){
 }
 
 #' @export
+mean_analysis <- function( res ){
+  
+  # Performs the average of different interactomes
+  
+  cat(paste("Averaging", length(res) ,"interactomes\n",sep=" ") )
+  res_mean = res[[1]];
+  
+  for ( cond in seq_along(res_mean$conditions) ){
+    p_val=vector("list",length(res));
+    fold_change=vector("list",length(res));
+    stoichio = vector("list",length(res));
+    for ( i in seq_along(res)){
+      p_val[[i]] <- res[[i]]$p_val[[cond]]
+      fold_change[[i]] <- res[[i]]$fold_change[[cond]]
+      stoichio[[i]] <- res[[i]]$stoichio[[cond]]
+    }
+    res_mean$p_val[[cond]] <- 10^( rowMeans( log10(do.call(cbind, p_val))) )
+    #res_mean$sd_log10_p_val[[cond]] <- row_sd( log10(do.call(cbind, p_val))) 
+    res_mean$fold_change[[cond]] <- 10^( rowMeans( log10(do.call(cbind, fold_change))) )
+    res_mean$stoichio[[cond]] <- 10^ (rowMeans( log10(do.call(cbind, stoichio))) )
+  }
+  
+  res_mean
+  
+}
+
+
+
+#' @export
 global_analysis <- function (x, ...) {
   UseMethod("global_analysis", x)
 }
@@ -742,6 +853,11 @@ global_analysis.InteRactome <- function( res ){
   matrix_p_val<-do.call(cbind, res$p_val)
   matrix_p_val[matrix_fold_change<1]<-NA # keep only p_values corresponding to a fold_change >1 
   res_int$min_p_val <- apply( matrix_p_val, 1, function(x)  ifelse( sum(!is.na(x))>0, min(x,na.rm=TRUE),NaN) )
+  
+  if( "FDR" %in% names(res) ){
+    matrix_FDR<-do.call(cbind, res$FDR)
+    res_int$min_FDR <- apply( matrix_FDR, 1, function(x)  ifelse( sum(!is.na(x))>0, min(x,na.rm=TRUE),NaN) )
+  }
   
   norm_stoichio = vector("list",length(res$conditions))
   names(norm_stoichio)<-res$conditions
@@ -1400,24 +1516,73 @@ plot_2D_stoichio.InteRactome <- function( res, condition = "max", xlim=NULL, yli
 }
 
 #' @export
+identify_interactors <- function(res, 
+                                var_p_val = "p_val", 
+                                p_val_thresh = 0.05, 
+                                fold_change_thresh = 2, 
+                                n_success_min = 1, 
+                                consecutive_success = FALSE){
+  
+  res_int <- res
+  
+  n_cond <- length(res$conditions)
+  is_interactor <- rep(0, length(res$names))
+  n_success <- rep(0, length(res$names))
+  
+  M <- do.call(cbind, res[[var_p_val]]) < p_val_thresh & do.call(cbind, res[["fold_change"]]) > fold_change_thresh
+  
+  for (i in 1:length(res$names)){
+    
+    M_test <- M[i, ]
+    n_success[i] <- sum( M_test )
+    
+    if (consecutive_success & n_success_min > 1){
+      for (k in 1:(n_success_min-1)){
+        idx_mod <- ((1:n_cond) + k) %% n_cond
+        idx_mod[ idx_mod == 0] <- n_cond
+        M_test <- rbind(M_test, M[i, idx_mod])
+      }
+      is_interactor[i] <- sum( colMeans( M_test ) == 1 ) > 0
+    } else {
+      is_interactor[i] <- n_success[i] >= n_success_min
+    }
+    
+  }
+  
+  res_int$is_interactor <- is_interactor
+  res_int$n_success <- n_success
+  res_int$interactor <- res$names[is_interactor>0]
+  
+  return(res_int)
+  
+}
+
+#' @export
 get_order_discrete <- function (x, ...) {
   UseMethod("get_order_discrete", x)
 }
 
 #' @export
-get_order_discrete.InteRactome <- function( res , p_val_breaks=c(1,0.1,0.05,0.01), p_val_thresh = 0.01, fold_change_thresh = 1){
+get_order_discrete.InteRactome <- function( res, var_p_val = "p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
   
   p_val_breaks_order <- p_val_breaks[order(p_val_breaks, decreasing=TRUE)]
-  min_p_val_discrete <- rep(1, length(res$min_p_val));
+  min_var <- paste("min_", var_p_val, sep="")
+  min_p_val_discrete <- rep(1, length(res[[min_var]]));
   
   for( i in 1:length(p_val_breaks_order) ){
-    min_p_val_discrete[res$max_fold_change>fold_change_thresh & res$min_p_val <= p_val_breaks_order[i] ]<-p_val_breaks_order[i];
+    min_p_val_discrete[ res$max_fold_change>1 & res[[min_var]] <= p_val_breaks_order[i] ] <- p_val_breaks_order[i];
   }
   
-  Ndetect<-length(which( res$min_p_val<=p_val_thresh & res$max_fold_change>=fold_change_thresh) )
-  idx_order<-order( min_p_val_discrete, 1/res$max_stoichio, decreasing =FALSE)
+  if( "interactor" %in% names(res)){
+    Ndetect<-length(res$interactor)
+    idx_order<-order(res$is_interactor, res$n_success, 1/min_p_val_discrete, res$max_stoichio, decreasing = TRUE)
+  } else {
+    Ndetect<-length(which(min_p_val_discrete<=0.05))
+    idx_order<-order(1/min_p_val_discrete, res$max_stoichio, decreasing = TRUE)
+  }
   
   output = list(idx_order=idx_order, Ndetect= Ndetect, min_p_val_discrete = min_p_val_discrete)
+  
   return(output)
 }
 
@@ -1433,7 +1598,7 @@ order_interactome.InteRactome <- function(res, idx_order){
     stop("Vector of ordering indexes does not have the proper length")
   }
   res_order<-res;
-  for( var in setdiff( names(res), c("bait","groups","conditions") ) ){
+  for( var in setdiff( names(res), c("bait","groups","conditions", "interactor") ) ){
     names_var <- names(res[[var]])
     if( length(names_var)>0 ){
       for(i in 1:length(names_var) ){
@@ -1594,20 +1759,23 @@ plot <- function (x, ...) {
 plot.InteRactome <- function(x, 
                              p_val_breaks=c(1,0.1,0.05,0.01), 
                              p_val_thresh = 0.01,
-                             fold_change_thresh=1,
+                             fold_change_thresh=2,
                              Nmax=30, 
+                             var_p_val="p_val",
                              size_var="norm_stoichio", 
                              size_range=c(0,1), 
                              save_file=NULL ){
-  order_list <- get_order_discrete(x, p_val_breaks, p_val_thresh, fold_change_thresh )
+  order_list <- get_order_discrete(x, 
+                                   var_p_val = var_p_val, 
+                                   p_val_breaks = p_val_breaks )
   Interactome_order <- order_interactome(x, order_list$idx_order)
   plot_per_conditions(Interactome_order, 
                       idx_rows = min(Nmax, order_list$Ndetect), 
-                      size_var=size_var, 
-                      size_range=size_range, 
-                      color_var="p_val", 
-                      color_breaks=p_val_breaks, 
-                      save_file=save_file )
+                      size_var = size_var, 
+                      size_range = size_range, 
+                      color_var = var_p_val, 
+                      color_breaks = p_val_breaks, 
+                      save_file = save_file )
 }
 
 #' @export
@@ -1647,9 +1815,15 @@ plot_per_conditions.InteRactome <- function( res,
      }
    }
   
+  if("interactor" %in% names(res)){
+    title_text <- paste(res$groups," (n=",length(res$interactor),")",sep="")
+  } else {
+    title_text <- res$groups
+  }
+  
   p<-dot_plot( as.matrix(M[idx_rows, ]), 
                as.matrix(Mcol[idx_rows,]), 
-               title = res$groups,
+               title = title_text,
                size_var = size_var, 
                size_range=size_range,
                color_var=color_var)
