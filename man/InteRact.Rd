@@ -79,6 +79,7 @@ df <- read.csv(path, sep="\\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
 
 res <- InteRact(df, bait_gene_name = "Cbl")
 Interactome <- res$Interactome
+Interactome <- identify_interactors(Interactome, p_val_thresh = 0.05, fold_change_thresh = 2)
 order_list <- get_order_discrete(Interactome)
 Interactome <- order_interactome(Interactome, order_list$idx_order)
 

@@ -2,11 +2,11 @@
 % Please edit documentation in R/InteRact.R
 \name{smooth.InteRactome}
 \alias{smooth.InteRactome}
-\title{Smooth p-values across conditions}
+\title{Smooth selected variables across conditions}
 \usage{
-\method{smooth}{InteRactome}(res, n = 2, order_conditions = NULL,
+\method{smooth}{InteRactome}(res, n = 1, order_conditions = NULL,
   var_smooth = c("fold_change", "p_val"))
 }
 \description{
-Smooth p-values across conditions
+Smooth selected variables across conditions
 }

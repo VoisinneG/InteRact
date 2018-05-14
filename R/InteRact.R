@@ -61,6 +61,7 @@ load("./R/sysdata.rda")
 #' 
 #' res <- InteRact(df, bait_gene_name = "Cbl")
 #' Interactome <- res$Interactome
+#' Interactome <- identify_interactors(Interactome, p_val_thresh = 0.05, fold_change_thresh = 2)
 #' order_list <- get_order_discrete(Interactome)
 #' Interactome <- order_interactome(Interactome, order_list$idx_order)
 #' 
@@ -634,8 +635,6 @@ moving_average <- function(x, n){
   return(x_smooth)
 }
 
-
-
 #' @export
 smooth <- function (x, ...) {
   UseMethod("smooth", x)
@@ -742,13 +741,19 @@ compute_FDR_from_asymmetry <- function( df ){
   
   idx_pos <- which(df_int$fold_change >= 1)
   
+  # create progress bar
+  cat("Compute FDR...\n")
+  pb <- txtProgressBar(min = 0, max = length(idx_pos), style = 3)
+  
   for (i in idx_pos){
     n_right <- length(which(df$p_val <= df$p_val[i] & 
                               df$fold_change >= df$fold_change[i]))
     n_left <- length(which(df$p_val <= df$p_val[i] & 
                              df$fold_change <= 1/df$fold_change[i]))
     FDR[i] <- n_left/(n_left + n_right)
+    setTxtProgressBar(pb, i)
   }
+  close(pb)
   df_int$FDR <- FDR 
   
   return(df_int)
@@ -1934,7 +1939,7 @@ summary_table.InteRactome <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
   #columns <- add_columns
-  columns <- setdiff(columns, c("bait","groups","conditions"))
+  columns <- setdiff(columns, c("bait","groups","conditions", "interactor"))
   
   df<-data.frame( bait=rep(res$bait, length(res$names)) )
   names_df<-"bait"
