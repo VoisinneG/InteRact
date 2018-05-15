@@ -732,29 +732,60 @@ merge_conditions <- function( res,  selected_conditions = NULL){
 }
 
 #' @export
-compute_FDR_from_asymmetry <- function( df ){
+compute_FDR_from_asymmetry <- function( df, 
+                                        c = seq(from = 0, to =4, by = 0.1),
+                                        x0 = seq(from = 0, to =3, by = 0.1)){
+  
   # Compute FDR using the asymmetry of the volcano plot
   # df : data.frame containing columns 'p_val' and 'fold_change'
+  # y = c / (x-x0) with x = log10(fold_change), y=-log10(p_value)
   
-  df_int <- df
-  FDR <- rep(1, dim(df_int)[1])
+  #FDR <- matrix(NA, nrow = length(c), ncol = length(x0))
+  #TP <- matrix(NA, nrow = length(c), ncol = length(x0))
+  #FP <- matrix(NA, nrow = length(c), ncol = length(x0))
   
-  idx_pos <- which(df_int$fold_change >= 1)
+  df_int<-df
   
-  # create progress bar
-  cat("Compute FDR...\n")
-  pb <- txtProgressBar(min = 0, max = length(idx_pos), style = 3)
+  x <- log10(df$fold_change)
+  y <- -log10(df$p_val)
   
-  for (i in idx_pos){
-    n_right <- length(which(df$p_val <= df$p_val[i] & 
-                              df$fold_change >= df$fold_change[i]))
-    n_left <- length(which(df$p_val <= df$p_val[i] & 
-                             df$fold_change <= 1/df$fold_change[i]))
-    FDR[i] <- n_left/(n_left + n_right)
-    setTxtProgressBar(pb, i)
+  FDR <- rep(1, dim(df)[1])
+    
+  for (i in 1:length(c)){
+    for (j in 1:length(x0)){
+      idx_TP <- which(x>x0[j] & y>c[i]/(x-x0[j]) )
+      idx_FP <- which(x<(-x0[j]) & y>c[i]/(-x-x0[j]) )
+      TP_int <- length(idx_TP)
+      FP_int <- length(idx_FP)
+      FDR_int <- FP_int/(FP_int + TP_int)
+      
+      FDR[idx_TP[FDR[idx_TP] >= FDR_int]] <- FDR_int
+    }
   }
-  close(pb)
-  df_int$FDR <- FDR 
+  
+  df_int$FDR <- FDR
+  
+  return(df_int)
+  
+  # df_int <- df
+  # FDR <- rep(1, dim(df_int)[1])
+  # 
+  # idx_pos <- which(df_int$fold_change >= 1)
+  # 
+  # # create progress bar
+  # cat("Compute FDR...\n")
+  # pb <- txtProgressBar(min = 0, max = length(idx_pos), style = 3)
+  # 
+  # for (i in idx_pos){
+  #   n_right <- length(which(df$p_val <= df$p_val[i] & 
+  #                             df$fold_change >= df$fold_change[i]))
+  #   n_left <- length(which(df$p_val <= df$p_val[i] & 
+  #                            df$fold_change <= 1/df$fold_change[i]))
+  #   FDR[i] <- n_left/(n_left + n_right)
+  #   setTxtProgressBar(pb, i)
+  # }
+  # close(pb)
+  # df_int$FDR <- FDR 
   
   return(df_int)
 }
@@ -1563,20 +1594,28 @@ identify_interactors <- function(res,
 }
 
 #' @export
+discretize_values <- function( x, breaks = c(1,0.1,0.05,0.01), decreasing_order = TRUE){
+  
+  breaks_order <- breaks[order(breaks, decreasing=decreasing_order)]
+  
+  x_discrete <- rep(NA, length(x));
+  
+  for( i in 1:length(breaks_order) ){
+    x_discrete[ x <= breaks_order[i] ] <- breaks_order[i];
+  }
+  
+  return(x_discrete)
+}
+
+#' @export
 get_order_discrete <- function (x, ...) {
   UseMethod("get_order_discrete", x)
 }
 
 #' @export
-get_order_discrete.InteRactome <- function( res, var_p_val = "p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
+get_order_discrete.InteRactome <- function( res, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
   
-  p_val_breaks_order <- p_val_breaks[order(p_val_breaks, decreasing=TRUE)]
-  min_var <- paste("min_", var_p_val, sep="")
-  min_p_val_discrete <- rep(1, length(res[[min_var]]));
-  
-  for( i in 1:length(p_val_breaks_order) ){
-    min_p_val_discrete[ res$max_fold_change>1 & res[[min_var]] <= p_val_breaks_order[i] ] <- p_val_breaks_order[i];
-  }
+  min_p_val_discrete <- discretize_values(res[[var_p_val]], breaks = p_val_breaks, decreasing_order = TRUE)
   
   if( "interactor" %in% names(res)){
     Ndetect<-length(res$interactor)
@@ -1675,14 +1714,8 @@ plot_volcanos.InteRactome <- function( res,
   y1 <- -log10(p_val_thresh)
   y2 <- ymax
   
-  if(!is.null(xlim) & !is.null(ylim)){
-    xrange <- xlim
-    yrange <- ylim
-  }else{
-    xrange <- c(-xmax,xmax)
-    yrange <- c(0,ymax)
-  }
-  
+  xrange <- ifelse( !is.null(xlim), xlim, c(-xmax,xmax))
+  yrange <- ifelse( !is.null(ylim), ylim, c(0,ymax))
   
   for( i in seq_along(conditions) ){
     
