@@ -1716,8 +1716,18 @@ plot_volcanos.InteRactome <- function( res,
   y1 <- -log10(p_val_thresh)
   y2 <- ymax
   
-  xrange <- ifelse( !is.null(xlim), xlim, c(-xmax,xmax))
-  yrange <- ifelse( !is.null(ylim), ylim, c(0,ymax))
+  
+  if(!is.null(xlim) ){
+    xrange <- xlim
+  }else{
+    xrange <- c(-xmax,xmax)
+  }
+  
+  if(!is.null(ylim)){
+    yrange <- ylim
+  }else{
+    yrange <- c(0,ymax)
+  }
   
   for( i in seq_along(conditions) ){
     
