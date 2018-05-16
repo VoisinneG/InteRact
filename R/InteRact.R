@@ -740,17 +740,16 @@ compute_FDR_from_asymmetry <- function( df,
   # df : data.frame containing columns 'p_val' and 'fold_change'
   # y = c / (x-x0) with x = log10(fold_change), y=-log10(p_value)
   
-  #FDR <- matrix(NA, nrow = length(c), ncol = length(x0))
-  #TP <- matrix(NA, nrow = length(c), ncol = length(x0))
-  #FP <- matrix(NA, nrow = length(c), ncol = length(x0))
-  
   df_int<-df
   
   x <- log10(df$fold_change)
   y <- -log10(df$p_val)
   
   FDR <- rep(1, dim(df)[1])
-    
+  cat("Compute FDR...\n")
+  pb <- txtProgressBar(min = 0, max = length(c)*length(x0), style = 3)
+  count <- 0
+  
   for (i in 1:length(c)){
     for (j in 1:length(x0)){
       idx_TP <- which(x>x0[j] & y>c[i]/(x-x0[j]) )
@@ -759,10 +758,13 @@ compute_FDR_from_asymmetry <- function( df,
       FP_int <- length(idx_FP)
       FDR_int <- FP_int/(FP_int + TP_int)
       
-      FDR[idx_TP[FDR[idx_TP] >= FDR_int]] <- FDR_int
+      FDR[idx_TP[ FDR[idx_TP] >= FDR_int ]] <- FDR_int
+      
+      count <- count +1
+      setTxtProgressBar(pb, count)
     }
   }
-  
+  close(pb)
   df_int$FDR <- FDR
   
   return(df_int)
@@ -1798,8 +1800,9 @@ plot.InteRactome <- function(x,
                              p_val_breaks=c(1,0.1,0.05,0.01), 
                              p_val_thresh = 0.01,
                              fold_change_thresh=2,
-                             Nmax=30, 
-                             var_p_val="p_val",
+                             Nmax = 30, 
+                             var_p_val = "min_p_val",
+                             color_var = "p_val",
                              size_var="norm_stoichio", 
                              size_range=c(0,1), 
                              save_file=NULL ){
@@ -1811,7 +1814,7 @@ plot.InteRactome <- function(x,
                       idx_rows = min(Nmax, order_list$Ndetect), 
                       size_var = size_var, 
                       size_range = size_range, 
-                      color_var = var_p_val, 
+                      color_var = color_var, 
                       color_breaks = p_val_breaks, 
                       save_file = save_file )
 }
