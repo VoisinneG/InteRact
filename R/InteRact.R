@@ -125,7 +125,10 @@ InteRact <- function(df,
                      filter_time=NULL,
                      filter_bio=NULL,
                      filter_tech=NULL,
-                     updateProgress = NULL
+                     updateProgress = NULL,
+                     pool_background = TRUE, 
+                     log = TRUE,
+                     by_conditions = TRUE
                      ){
   
   if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
@@ -228,7 +231,7 @@ InteRact <- function(df,
       res[[i]]<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait[[1]], Npep = df$Npep, 
                                    name_bait = bckg_bait, name_ctrl = bckg_ctrl,
                                    background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
-                                   by_conditions = TRUE, log_transf = TRUE)
+                                   pool_background = pool_background, log = log, by_conditions = by_conditions)
       res[[i]]$Protein.IDs <- df[[Column_ID]]
       
     }
@@ -244,7 +247,7 @@ InteRact <- function(df,
     res_mean<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait[[1]], Npep = df$Npep,
                                  name_bait = bckg_bait, name_ctrl = bckg_ctrl,
                                  background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
-                                 by_conditions = TRUE, log_transf = TRUE)
+                                 pool_background = pool_background, log = log, by_conditions = by_conditions)
     res_mean$protein_ID <- df[[Column_ID]]
   }
   
@@ -505,6 +508,11 @@ rescale_median <- function(df){
 }
 
 #' @export
+geom_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+
+#' @export
 row_sd <- function(df){
   output<-vector("double", dim(df)[1] )
   for(i in 1:dim(df)[1] ){
@@ -514,7 +522,7 @@ row_sd <- function(df){
 }
 
 #' @export
-row_ttest <- function(df, idx_group_1, idx_group_2, log_transf = TRUE){
+row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
   # compares groups of column values using a t-test for each row.
   # idx_group_1 : indexes of columns for group #1
   # idx_group_2 : indexes of columns for group #2
@@ -524,7 +532,7 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log_transf = TRUE){
   fold_change <- rep(NaN,dim(df)[1]);
   output <- data.frame(p_val=p_val, fold_change=fold_change);
   
-  if(log_transf){
+  if(log){
     df_test<-log10(df)
   }else{
     df_test<-df
@@ -534,7 +542,11 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log_transf = TRUE){
     res<-try(t.test(df_test[i, idx_group_1], df_test[i, idx_group_2]), silent=TRUE)
     if(!inherits(res,"try-error")){
       p_val[i] <- res$p.value;
-      fold_change[i] <- 10^(res$estimate[1]-res$estimate[2])
+      if(log){
+        fold_change[i] <- 10^(res$estimate[1] - res$estimate[2])
+      } else {
+        fold_change[i] <- res$estimate[1] / res$estimate[2]
+      }
     }
   }
   output$p_val <- p_val;
@@ -544,7 +556,12 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log_transf = TRUE){
 }
 
 #' @export
-row_stoichio <- function(df, idx_group_1, idx_group_2, idx_bait, Npep){
+row_stoichio <- function(df, 
+                         idx_group_1, 
+                         idx_group_2, 
+                         idx_bait, 
+                         Npep, 
+                         log = TRUE){
   # compute stoichiometry of interaction for each row (protein).
   # idx_group_1 : indexes of columns for group #1 (OST bait)
   # idx_group_2 : indexes of columns for group #2 (WT)
@@ -559,7 +576,12 @@ row_stoichio <- function(df, idx_group_1, idx_group_2, idx_bait, Npep){
   for(i in (1:dim(df)[1]) ){
     x1<-df[i, idx_group_1]
     x2<-df[i, idx_group_2]
-    stoichio[i] <- ( mean(x1)-mean(x2) ) / ( mean(xbait1)-mean(xbait2) )*Npep[idx_bait]/Npep[i]
+    if (log) {
+      stoichio[i] <- ( geom_mean(x1) - geom_mean(x2) ) / ( geom_mean(xbait1) - geom_mean(xbait2) )*Npep[idx_bait]/Npep[i]
+    } else {
+      stoichio[i] <- ( mean(x1) - mean(x2) ) / ( mean(xbait1) - mean(xbait2) )*Npep[idx_bait]/Npep[i]
+    }
+    
   }
   stoichio
 }
@@ -567,7 +589,7 @@ row_stoichio <- function(df, idx_group_1, idx_group_2, idx_bait, Npep){
 #' @export
 analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, name_ctrl, 
                                  background, conditions, replicates, 
-                                 by_conditions = TRUE, log_transf = TRUE){
+                                 by_conditions = TRUE, pool_background = TRUE, log = TRUE){
   # df :  dataframe of intensities. columns are experimental samples and rows are proteins
   # ibait : row index corresponding to the bait protein
   # Npep : vector containing the number of theoretically observable peptide per protein (same length as dim(df)[1])
@@ -590,32 +612,66 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
   p_val <- vector("list",length(cond));
   fold_change <- vector("list",length(cond));
   stoichio <- vector("list",length(cond));
+  
   names(p_val)<-as.character(cond);
   names(fold_change)<-as.character(cond);
   names(stoichio)<-as.character(cond);
   
+  ubio <- unique(replicates)
+  stoichio_bio <- vector("list",length(ubio))
+  names(stoichio_bio) <- as.character(ubio)
+  for (i_bio in 1:length(ubio)){
+    stoichio_bio[[i_bio]] <- vector("list",length(cond))
+    names(stoichio_bio[[i_bio]])<-as.character(cond)
+  }
+  
+  idx_ctrl <- which( background == name_ctrl )
+  
   for( i in seq_along(cond) ){
     
+    if(!pool_background) {
+      idx_ctrl <- which( background == name_ctrl & conds == cond[[i]] )
+    } 
+    
     ttest <- row_ttest(df, 
-                            which( background==name_bait & conds==cond[[i]]), 
-                            which( background==name_ctrl & conds==cond[[i]]), 
-                            log_transf = log_transf)
+                       idx_group_1 = which( background==name_bait & conds==cond[[i]]), 
+                       idx_group_2 = idx_ctrl, 
+                       log = log)
     p_val[[i]]<-ttest$p_val;
     fold_change[[i]]<-ttest$fold_change;
+    
+    
+    
     stoichio[[i]] <- row_stoichio(df, 
-                                  which( background==name_bait & conds==cond[[i]] ), 
-                                  which( background==name_ctrl & conds==cond[[i]]), 
+                                  idx_group_1 = which( background==name_bait & conds==cond[[i]] ), 
+                                  idx_group_2 = idx_ctrl, 
                                   idx_bait=ibait,
-                                  Npep=Npep)
+                                  Npep=Npep,
+                                  log = log )
+    for (i_bio in 1:length(ubio)){
+      
+      if(!pool_background) {
+        idx_ctrl <- which( background == name_ctrl & conds == cond[[i]] & replicates == ubio[i_bio])
+      } 
+      
+      stoichio_bio[[i_bio]][[i]] <- row_stoichio(df, 
+                                                 idx_group_1 = which( background==name_bait & conds==cond[[i]] & replicates==ubio[i_bio]), 
+                                                 idx_group_2 = idx_ctrl, 
+                                                 idx_bait=ibait,
+                                                 Npep=Npep,
+                                                 log = log)
+    }
   }
   
   res = list(bait = bait_gene_name, 
              groups = paste(name_bait," vs ", name_ctrl, sep=""), 
-             conditions= as.character(cond), 
+             conditions= as.character(cond),
+             replicates = as.character(ubio),
              names=row.names(df), 
              p_val=p_val, 
              fold_change=fold_change, 
-             stoichio=stoichio)
+             stoichio=stoichio,
+             stoichio_bio = stoichio_bio)
   
   class(res) <- 'InteRactome'
   
@@ -1644,16 +1700,30 @@ order_interactome.InteRactome <- function(res, idx_order){
     stop("Vector of ordering indexes does not have the proper length")
   }
   res_order<-res;
-  for( var in setdiff( names(res), c("bait","groups","conditions", "interactor") ) ){
-    names_var <- names(res[[var]])
-    if( length(names_var)>0 ){
-      for(i in 1:length(names_var) ){
-        res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
-      }
-    }
-    else{
+  for( var in setdiff( names(res), c("bait","groups","conditions", "interactor", "replicates") ) ){
+    
+    if(length(res[[var]]) == length(res$names)){
       res_order[[var]] <- res[[var]][idx_order]
     }
+    else{
+      names_var <- names(res[[var]])
+      if( setequal(names_var, res$conditions) ){
+        for(i in 1:length(names_var) ){
+          res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
+        }
+      }
+      else{
+        for(i in 1:length(names_var) ){
+          names_var_2 <- names(res[[var]][[i]]) 
+          if( setequal(names_var_2, res$conditions) ){
+            for(j in 1:length(names_var_2) ){
+              res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
+            }
+          }
+        }
+      }
+    }
+    
   }
   output = res_order
 }
@@ -1708,12 +1778,12 @@ plot_volcanos.InteRactome <- function( res,
     
   plist <- vector("list",length(conditions));
   
-  ymax <- -log10(min(do.call(cbind,res$p_val)))
+  ymax <- asinh(-log10(min(do.call(cbind,res$p_val))))
   xmax <- max(abs(log10(do.call(cbind,res$fold_change))))
   
   x1 <- log10(fold_change_thresh)
   x2 <- xmax
-  y1 <- -log10(p_val_thresh)
+  y1 <- asinh(-log10(p_val_thresh))
   y2 <- ymax
   
   
@@ -1735,7 +1805,7 @@ plot_volcanos.InteRactome <- function( res,
                      fold_change= res$fold_change[[conditions[i]]], 
                      names=labels)
     df$X <- log10(df$fold_change)
-    df$Y <- -log10(df$p_val)
+    df$Y <- asinh(-log10(df$p_val))
     score_print <- rep(0, dim(df)[1])
     
     if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
@@ -1985,27 +2055,60 @@ summary_table.InteRactome <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
   #columns <- add_columns
-  columns <- setdiff(columns, c("bait","groups","conditions", "interactor"))
+  columns <- setdiff(columns, c("bait","groups","conditions", "interactor", "replicates"))
   
   df<-data.frame( bait=rep(res$bait, length(res$names)) )
   names_df<-"bait"
   idx<-1
   
   for( var in columns ){
-    names_var <- names(res[[var]])
-    if( length(names_var)>0 ){
-      for(i in 1:length(names_var) ){
-        idx<-c(idx,NaN)
-        names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
-        df<-cbind(df,res[[var]][[i]])
-      }
-    }
-    else{
+    
+    if(length(res[[var]]) == length(res$names)){
       idx<-c(idx,1)
       names_df<-c(names_df, var)
       df<-cbind(df,res[[var]])
     }
+    else{
+      names_var <- names(res[[var]])
+      if( setequal(names_var, res$conditions) ){
+        for(i in 1:length(names_var) ){
+          idx<-c(idx,NaN)
+          names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
+          df<-cbind(df,res[[var]][[i]])
+        }
+      }
+      else{
+        for(i in 1:length(names_var) ){
+          names_var_2 <- names(res[[var]][[i]]) 
+          if( setequal(names_var_2, res$conditions) ){
+            for(j in 1:length(names_var_2) ){
+              idx<-c(idx,NaN)
+              names_df<-c(names_df, paste(var,"_",names(res[[var]])[i],"_",names_var_2[j],sep=""))
+              df<-cbind(df,res[[var]][[i]][[j]])
+            }
+          }
+        }
+      }
+    }
+    
   }
+  
+  
+  # for( var in columns ){
+  #   names_var <- names(res[[var]])
+  #   if( length(names_var)>0 ){
+  #     for(i in 1:length(names_var) ){
+  #       idx<-c(idx,NaN)
+  #       names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
+  #       df<-cbind(df,res[[var]][[i]])
+  #     }
+  #   }
+  #   else{
+  #     idx<-c(idx,1)
+  #     names_df<-c(names_df, var)
+  #     df<-cbind(df,res[[var]])
+  #   }
+  # }
   names(df)<-names_df
   df<-df[,order(idx)]
   
