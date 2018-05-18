@@ -47,6 +47,8 @@ load("./R/sysdata.rda")
 #' @import ggrepel
 #' @import grid
 #' @import stringr
+#' @import Hmisc
+#' @import igraph
 #' 
 #' @export
 #'
@@ -236,7 +238,7 @@ InteRact <- function(df,
       
     }
     
-    res_mean = mean_analysis(res);
+    res_mean = mean_analysis(res, log = log, na.rm = TRUE);
     
     
   }else{
@@ -900,7 +902,7 @@ filter_conditions.InteRactome <- function( res, conditions_to_filter_out ){
 }
 
 #' @export
-mean_analysis <- function( res ){
+mean_analysis <- function( res, log = TRUE, na.rm = TRUE ){
   
   # Performs the average of different interactomes
   
@@ -916,10 +918,29 @@ mean_analysis <- function( res ){
       fold_change[[i]] <- res[[i]]$fold_change[[cond]]
       stoichio[[i]] <- res[[i]]$stoichio[[cond]]
     }
-    res_mean$p_val[[cond]] <- 10^( rowMeans( log10(do.call(cbind, p_val))) )
-    #res_mean$sd_log10_p_val[[cond]] <- row_sd( log10(do.call(cbind, p_val))) 
-    res_mean$fold_change[[cond]] <- 10^( rowMeans( log10(do.call(cbind, fold_change))) )
-    res_mean$stoichio[[cond]] <- 10^ (rowMeans( log10(do.call(cbind, stoichio))) )
+    if (log){
+      res_mean$p_val[[cond]] <- 10^( rowMeans( log10(do.call(cbind, p_val)), na.rm =na.rm) )
+      res_mean$fold_change[[cond]] <- 10^( rowMeans( log10(do.call(cbind, fold_change)), na.rm =na.rm) )
+      res_mean$stoichio[[cond]] <- 10^ (rowMeans( log10(do.call(cbind, stoichio)), na.rm =na.rm) )
+    } else {
+      res_mean$p_val[[cond]] <-  rowMeans( do.call(cbind, p_val), na.rm =na.rm) 
+      res_mean$fold_change[[cond]] <- rowMeans( do.call(cbind, fold_change), na.rm =na.rm) 
+      res_mean$stoichio[[cond]] <- rowMeans( do.call(cbind, stoichio), na.rm =na.rm)
+    }
+
+    
+    for (bio in res_mean$replicates){
+      stoichio_bio <- vector("list",length(res));
+      for ( i in seq_along(res)){
+        stoichio_bio[[i]] <- res[[i]]$stoichio_bio[[bio]][[cond]]
+      }
+      if (log){
+        res_mean$stoichio_bio[[bio]][[cond]] <- 10^( rowMeans( log10(do.call(cbind, stoichio_bio)), na.rm =na.rm) )
+      } else {
+        res_mean$stoichio_bio[[bio]][[cond]] <- rowMeans( do.call(cbind, stoichio_bio), na.rm =na.rm)
+      }
+    }
+    
   }
   
   res_mean
@@ -2114,6 +2135,76 @@ summary_table.InteRactome <- function(res, add_columns = names(res) ){
   
   return(df)
   
+}
+
+#' @export
+compute_correlations <- function (x, ...) {
+  UseMethod("compute_correlations", x)
+}
+
+#' @export
+compute_correlations.InteRactome <- function(res, idx = NULL){
+  
+  # build matrix on which correlations will be computed
+  idx_selected <- 1:length(res$names)
+  if (!is.null(idx)) {
+    idx_selected <- idx
+  }
+  idx_bait <- which(res$names == res$bait)
+  idx_selected <- setdiff(idx_selected, idx_bait)
+  
+  names <- res$names[idx_selected]
+  
+  df<-NULL
+  names_df <- NULL
+  for (bio in res$replicates){
+    for (cond in res$conditions){
+      df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
+      names_df <- c(names_df, paste("stoichio_bio_",bio,"_",cond,sep=""))
+    }
+  }
+  
+  for (i in dim(df)[1]){
+    df[i, ] <- df[i, ]/max(df[i, ], na.rm=TRUE)
+  }
+  
+  M <- as.matrix(df)
+  row.names(M) <- names
+  colnames(M) <- names_df
+  
+  
+  R <- rcorr(t(M))
+  n <- dim(R$r)[1]
+  r_corr <- rep(NA, n*(n-1)/2)
+  p_corr <- rep(NA, n*(n-1)/2)
+  name_1 <- rep("", n*(n-1)/2)
+  name_2 <- rep("", n*(n-1)/2)
+  count<-0
+  for (i in 1:(n-1)){
+    for (j in (i+1):n){
+      count<-count+1
+      r_corr[count] <- R$r[i, j]
+      p_corr[count] <- R$P[i, j]
+      name_1[count] <- names[i]
+      name_2[count] <- names[j]
+    }
+  }
+  df_corr <- data.frame( name_1 = name_1, name_2 = name_2, r_corr = r_corr, p_corr = p_corr)
+  
+  return(df_corr)
+}
+
+#' @export
+plot_correlation_network <- function(df_corr, r_corr_thresh = 0.8, p_val_thresh = 0.05){
+  
+  df_corr_filtered <- df_corr[df_corr$r_corr>=0.8 & df_corr$p_corr<=0.05, ]
+  
+  net <- graph.data.frame(df_corr_filtered, directed=FALSE);
+  net.s<-igraph::simplify(net)
+  cfg <- cluster_fast_greedy(as.undirected(net.s))
+  
+  #plot(cfg, as.undirected(net.s))
+  plot(as.undirected(net.s), mark.groups = communities(cfg))
 }
 
 #' @export
