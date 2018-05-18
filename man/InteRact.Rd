@@ -10,7 +10,8 @@ InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
   bckg_ctrl = "WT", bckg = NULL, time = NULL, bio = NULL, tech = NULL,
   Column_intensity_pattern = "^Intensity.", preffix_bio = "S",
   preffix_tech = "R", preffix_time = "", filter_time = NULL,
-  filter_bio = NULL, filter_tech = NULL, updateProgress = NULL)
+  filter_bio = NULL, filter_tech = NULL, updateProgress = NULL,
+  pool_background = TRUE, log = TRUE, by_conditions = TRUE)
 }
 \arguments{
 \item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
