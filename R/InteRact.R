@@ -627,10 +627,11 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
     names(stoichio_bio[[i_bio]])<-as.character(cond)
   }
   
-  idx_ctrl <- which( background == name_ctrl )
+  
   
   for( i in seq_along(cond) ){
     
+    idx_ctrl <- which( background == name_ctrl )
     if(!pool_background) {
       idx_ctrl <- which( background == name_ctrl & conds == cond[[i]] )
     } 
@@ -652,13 +653,14 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
                                   log = log )
     for (i_bio in 1:length(ubio)){
       
+      idx_ctrl_bio <- which( background == name_ctrl & replicates == ubio[i_bio])
       if(!pool_background) {
-        idx_ctrl <- which( background == name_ctrl & conds == cond[[i]] & replicates == ubio[i_bio])
+        idx_ctrl_bio <- which( background == name_ctrl & conds == cond[[i]] & replicates == ubio[i_bio])
       } 
       
       stoichio_bio[[i_bio]][[i]] <- row_stoichio(df, 
                                                  idx_group_1 = which( background==name_bait & conds==cond[[i]] & replicates==ubio[i_bio]), 
-                                                 idx_group_2 = idx_ctrl, 
+                                                 idx_group_2 = idx_ctrl_bio, 
                                                  idx_bait=ibait,
                                                  Npep=Npep,
                                                  log = log)
