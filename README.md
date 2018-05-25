@@ -1,4 +1,7 @@
+[![Travis-CI Build Status](https://travis-ci.org/VoisinneG/InteRact.svg?branch=master)](https://travis-ci.org/VoisinneG/InteRact) 
+
 # InteRact
+
 A R package to analyze proteomics data
 
 Installation
