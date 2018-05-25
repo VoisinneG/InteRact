@@ -47,8 +47,6 @@ load("./R/sysdata.rda")
 #' @import ggrepel
 #' @import grid
 #' @import stringr
-#' @import Hmisc
-#' @import igraph
 #' 
 #' @export
 #'
