@@ -1015,7 +1015,8 @@ annotation_enrichment_analysis <- function( df,
                              "GO_cellular_component",
                              "GOslim_molecular_function",
                              "GOslim_biological_process",
-                             "GOslim_cellular_component")
+                             "GOslim_cellular_component",
+                             "Motif")
   
 
   if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) | (sum(annotation_selected %in% names(df)) != length(annotation_selected)) ){
