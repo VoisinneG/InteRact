@@ -113,15 +113,6 @@ cond <- identify_conditions(df, bckg_bait="Cbl")
 print.data.frame(cond)
 # and use it as parameters for function \\code{InteRact()}
 res <- InteRact(df, bait_gene_name = "Cbl", bckg=cond$bckg, time=cond$time, bio=cond$bio, tech=cond$tech)
-
-# You can define your own default pattern for intensity columns :
-pattern = "^iBAQ"
-cond <- identify_conditions(df, bckg_bait="Cbl", Column_intensity_pattern = pattern))
-# Let's check that these column contain numeric variables
-sapply( grep(pattern,names(df)), function(x) typeof( df[, x] ) ) 
-# Make sure to use the same pattern in function \\code{InteRact()}
-res <- InteRact(df, Column_intensity_pattern = pattern, bait_gene_name = "Cbl", bckg=cond$bckg, time=cond$time, bio=cond$bio, tech=cond$tech)
-
 }
 \author{
 Guillaume Voisinne

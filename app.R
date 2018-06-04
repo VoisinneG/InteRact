@@ -3,11 +3,12 @@ library(shiny)
 library(ggplot2)
 library(ggrepel)
 library(grid)
+library(data.table)
 
 source("./R/InteRact.R")
 
 
-options(shiny.maxRequestSize = 30*1024^2) #maximum file size is set to 30MB
+options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
 
 
 # User interface ----
@@ -16,25 +17,45 @@ ui <- fluidPage(
   
   fluidRow(
     column(3,
-          br(),
-          wellPanel(
-              h3("Import"),
-              fileInput("file", h4("ProteinGroups file :"), placeholder = "Enter file here"),
-              checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
-           ),
            br(),
            wellPanel(
              h3("Parameters"),
              textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
+             checkboxInput("pool_background", "pool_background", value = TRUE),
+             numericInput("Nrep", "# iterations (missing values replacement)", value = 3),
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
-             numericInput("Nrep", "# iterations", value = 3),
+             numericInput("n_success_min", "n_success_min", value = 1),
+             checkboxInput("consecutive_success", "consecutive_success", value = TRUE),
              verbatimTextOutput("interactors")
            )
     ),
     column(9,
            br(),
            tabsetPanel(id = "inTabset",
+                       tabPanel("Import",
+                                column(4,
+                                       br(),
+                                       wellPanel(
+                                         h3("Import"),
+                                         fileInput("file", h4("Protein intensity file :"), placeholder = "Enter file here"),
+                                         checkboxInput("dec", "Use comma as decimal separator", value = FALSE),
+                                         textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
+                                         selectInput("column_gene_name",
+                                                     "column for gene name",
+                                                     choices = list(),
+                                                     selected = NULL),
+                                         selectInput("column_ID",
+                                                     "column for protein ID",
+                                                     choices = list(),
+                                                     selected = NULL)
+                                       )
+                                ),
+                                column(8,
+                                       br(),
+                                       dataTableOutput("data_summary")
+                                )
+                       ),
                        tabPanel("Group",
 
                                 column(4,
@@ -43,13 +64,43 @@ ui <- fluidPage(
                                          h3("General"),
                                          textInput("bckg_bait", "Name of Bait background", value = "Bait"),
                                          textInput("bckg_ctrl", "Name of Control background", value = "WT")
+                                         
                                        ),
                                        br(),
                                        wellPanel(
-                                         h3("Preffix:"),
-                                         textInput("preffix_bio", "For biological replicates", value = "S"),
-                                         textInput("preffix_tech", "For technical replicates", value = "R"),
-                                         textInput("preffix_time", "For experimental conditions", value = "")
+                                         h3("Map samples"),
+                                         checkboxInput("manual_mapping", "manual mapping", value = FALSE),
+                                         conditionalPanel(
+                                           condition = "input.manual_mapping == false",
+                                           h3("Preffix for:"),
+                                           textInput("preffix_bio", "biological replicates", value = "S"),
+                                           textInput("preffix_tech", "technical replicates", value = "R"),
+                                           textInput("preffix_time", "experimental conditions", value = "")
+                                         ),
+                                         conditionalPanel(
+                                           condition = "input.manual_mapping == true",
+                                           fileInput("file_cond", h4("Import file :"), placeholder = "Enter file here"),
+                                           checkboxInput("dec_cond", "Use comma as decimal separator", value = FALSE),
+                                           checkboxInput("sample_by_rows", "Samples by rows", value = FALSE),
+                                           selectInput("manual_bckg",
+                                                              "background",
+                                                              choices = list(),
+                                                              selected = NULL),
+                                           selectInput("manual_bio",
+                                                              "biological replicates",
+                                                              choices = list(),
+                                                              selected = NULL),
+                                           selectInput("manual_tech",
+                                                              "technical replicates",
+                                                              choices = list(),
+                                                              selected = NULL),
+                                           selectInput("manual_time",
+                                                              "experimental conditions",
+                                                              choices = list(),
+                                                              selected = NULL)
+                                           
+                                         )
+                                         
                                        )
                                 ),
                                 column(8,
@@ -88,7 +139,8 @@ ui <- fluidPage(
                                        wellPanel(
                                          selectInput("volcano_cond", "Select condition",
                                                      choices = list(), selected = NULL),
-                                         numericInput("N_print", "# labels displayed (maximum) ", value = 15)
+                                         numericInput("N_print", "# labels displayed (maximum) ", value = 15),
+                                         checkboxInput("asinh_transform", "asinh_transform", value = TRUE)
 
                                        ),
                                        br(),
@@ -180,6 +232,35 @@ ui <- fluidPage(
 
 
                        ),
+                       tabPanel("Correlations",
+                                column(4,
+                                       br(),
+                                       wellPanel(
+                                         numericInput("r_corr_thresh", "Correlation Pearson R (min) ", value = 0.8),
+                                         numericInput("p_val_corr_thresh", "Associated p-value (max)", value = 0.05)
+                                       ),
+                                       br(),
+                                       wellPanel(
+                                         helpText("Drag and drop to move points around")
+                                       )
+                                ),
+                                column(8,
+                                       br(),
+                                       plotOutput("plot_corr", height = 450,
+                                                  click = clickOpts(
+                                                    id = "plot_corr_click"
+                                                  ),
+                                                  brush = brushOpts(
+                                                    id = "plot_corr_brush",
+                                                    resetOnNew = TRUE,
+                                                    opacity = 0.0
+                                                  )
+                                       )
+                                       
+                                         
+                                       
+                                )
+                       ),
                        tabPanel("Annotations",
                                 br(),
                                 column(4,
@@ -266,27 +347,116 @@ server <- function(input, output, session) {
                               enrichment_performed = NULL, 
                               enrichment_to_perform = NULL)
   
-  var_to_load <- reactiveValues(names=NULL)
-  
+  var_to_load <- reactiveValues(names = NULL)
+  df_corr_plot <- reactiveValues(names = NULL, x = NULL, y = NULL, cluster=NULL)
   
   #Main reactive functions -------------------------------------------------------------------------
   
   data <- reactive({
-    annot$imported <- FALSE
-    read.csv(input$file$datapath, 
+    
+    df <- read.csv(input$file$datapath, 
              sep="\t", fill=TRUE, 
              na.strings="", 
              dec=ifelse(input$dec,",",".") )
+    
+    gn_selected <- names(df)[grep("GENE", toupper(names(df)))[1]]
+    id_selected <- names(df)[grep("ID", toupper(names(df)))[1]]
+    
+    updateSelectInput(session, "column_gene_name",
+                      choices = as.list(names(df)),
+                      selected = gn_selected) 
+    
+    updateSelectInput(session, "column_ID",
+                      choices = as.list(names(df)),
+                      selected = id_selected) 
+    
+    df
+    
+  })
+  
+  data_cond <- reactive({
+    if(input$manual_mapping){
+      df_cond <- read.table(input$file_cond$datapath, 
+                 sep="\t", 
+                 fill=TRUE, 
+                 na.strings="",
+                 header=FALSE)
+      
+      if (input$sample_by_rows) {
+        df_cond <- transpose(df_cond)
+      }
+      
+      updateSelectInput(session, "manual_bckg",
+                               choices = as.list(df_cond[ , 1]),
+                               selected = NULL) 
+      
+      updateSelectInput(session, "manual_bio",
+                               choices = as.list(df_cond[ , 1]),
+                               selected = NULL) 
+      
+      updateSelectInput(session, "manual_tech",
+                               choices = as.list(df_cond[ , 1]),
+                               selected = NULL) 
+      
+      updateSelectInput(session, "manual_time",
+                               choices = as.list(df_cond[ , 1]),
+                               selected = NULL)
+      df_cond
+    } else {
+      cond()
+    }
+    
+    
   })
   
   cond <- reactive({
     
-    cond_int<-identify_conditions(data(),
-                        bckg_bait = input$bckg_bait,
-                        bckg_ctrl = input$bckg_ctrl,
-                        preffix_time = input$preffix_time,
-                        preffix_bio = input$preffix_bio, 
-                        preffix_tech = input$preffix_tech )
+    if(input$manual_mapping){
+      
+      df_cond <- data_cond()
+      
+      idx_cond <- grep(input$pattern, names(data()))
+      col_I <- names(data())[idx_cond]
+      
+      idx_match <- match(col_I, df_cond[1, ])
+      
+      bckg <- rep("", length(col_I))
+      bio <- rep("", length(col_I))
+      tech <- rep("", length(col_I))
+      time <- rep("", length(col_I))
+      
+      idx_bckg <- which(df_cond[, 1] == input$manual_bckg)
+      cat(idx_bckg)
+      if(length(idx_bckg)>0){
+        bckg <- factor(unlist(df_cond[idx_bckg, idx_match]))
+      }
+      idx_bio <- which(df_cond[, 1] == input$manual_bio)
+      if(length(idx_bio)>0){
+        bio <- factor(unlist(df_cond[idx_bio, idx_match]))
+      }
+      idx_tech <- which(df_cond[,1] == input$manual_tech)
+      if(length(idx_tech)>0){
+        tech <- factor(unlist(df_cond[idx_tech, idx_match]))
+      }
+      idx_time <- which(df_cond[,1] == input$manual_time)
+      if(length(idx_time)>0){
+        time <- factor(unlist(df_cond[idx_time, idx_match]))
+      } 
+      
+      cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+                      
+    } else {
+      cond_int <- identify_conditions(data(),
+                                    Column_intensity_pattern = input$pattern,
+                                    bckg_bait = input$bckg_bait,
+                                    bckg_ctrl = input$bckg_ctrl,
+                                    preffix_time = input$preffix_time,
+                                    preffix_bio = input$preffix_bio, 
+                                    preffix_tech = input$preffix_tech )
+    }
+    
+    
+    
     
     updateCheckboxGroupInput(session, "filter_bio",
                              choices = as.list(unique(cond_int$bio)),
@@ -319,38 +489,61 @@ server <- function(input, output, session) {
                       choices = as.list(setdiff( c("max", unique(cond()$time)), input$filter_time)),
                       selected = NULL)
     cond()
+    
+    input$column_gene_name
+    Column_gene_name <- input$column_gene_name #names(data())[grep("GENE", toupper(names(data())))[1]]
+    Column_ID <- input$column_ID #names(data())[grep("ID", toupper(names(data())))[1]]
+
     res_int<-InteRact(data(),
-           bait_gene_name = input$bait_gene_name,
-           N_rep=input$Nrep,
-           bckg_bait = input$bckg_bait ,
-           bckg_ctrl = input$bckg_ctrl,
-           preffix_bio = input$preffix_bio,
-           preffix_tech = input$preffix_tech,
-           preffix_time = input$preffix_time,
-           filter_bio = input$filter_bio,
-           filter_tech = input$filter_tech,
-           filter_time = input$filter_time,
-           bckg=cond()$bckg,
-           time=cond()$time,
-           bio=cond()$bio,
-           tech=cond()$tech,
-           updateProgress = updateProgress
-           )
+                      Column_intensity_pattern = input$pattern,
+                      bait_gene_name = input$bait_gene_name,
+                      Column_gene_name = Column_gene_name,
+                      Column_ID = Column_ID,
+                      N_rep=input$Nrep,
+                      bckg_bait = input$bckg_bait ,
+                      bckg_ctrl = input$bckg_ctrl,
+                      preffix_bio = input$preffix_bio,
+                      preffix_tech = input$preffix_tech,
+                      preffix_time = input$preffix_time,
+                      filter_bio = input$filter_bio,
+                      filter_tech = input$filter_tech,
+                      filter_time = input$filter_time,
+                      bckg=cond()$bckg,
+                      time=cond()$time,
+                      bio=cond()$bio,
+                      tech=cond()$tech,
+                      pool_background = input$pool_background,
+                      updateProgress = updateProgress)
+           
     res_int$Interactome <- merge_proteome(res_int$Interactome)
+    df_merge <- merge_conditions(res_int$Interactome)
+    df_FDR <- compute_FDR_from_asymmetry(df_merge)
+    res_int$Interactome <- append_FDR(res_int$Interactome, df_FDR)
     res_int
   })
 
   
   order_list <- reactive({
-    order_list_int <- get_order_discrete(res()$Interactome,
-                       p_val_thresh =input$p_val_thresh,
-                       fold_change_thresh = input$fold_change_thresh )
+    res_int <- identify_interactors (res()$Interactome,
+                                     var_p_val = "p_val", 
+                                     p_val_thresh = input$p_val_thresh, 
+                                     fold_change_thresh = input$fold_change_thresh, 
+                                     n_success_min = input$n_success_min, 
+                                     consecutive_success = input$consecutive_success)
+    order_list_int <- get_order_discrete(res_int, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01) )
     Ninteractors$x <- order_list_int$Ndetect
     order_list_int
   })
 
   ordered_Interactome <- reactive({
-      order_interactome(res()$Interactome, order_list()$idx_order)
+      res_int <- identify_interactors (res()$Interactome,
+                                     var_p_val = "p_val", 
+                                     p_val_thresh = input$p_val_thresh, 
+                                     fold_change_thresh = input$fold_change_thresh, 
+                                     n_success_min = input$n_success_min, 
+                                     consecutive_success = input$consecutive_success)
+      res_int <- order_interactome(res_int, order_list()$idx_order)
+      res_int
   })
   
   annotated_Interactome <- reactive({
@@ -365,10 +558,12 @@ server <- function(input, output, session) {
 
   #Observe functions -------------------------------------------------------------------
   
-  observe({
-    b_name <- input$bait_gene_name
-    updateTextInput(session, "bckg_bait", value =  b_name)
-  })
+  # observe({
+  #   
+  #     b_name <- input$bait_gene_name
+  #     updateTextInput(session, "bckg_bait", value =  b_name)
+  #     
+  # })
   
   observeEvent(input$launch_annot, {
     
@@ -458,10 +653,107 @@ server <- function(input, output, session) {
     }
   })
   
+  # When a double-click happens, check if there's a brush on the plot.
+  # If so, zoom to the brush bounds; if not, reset the zoom.
+  observeEvent(input$plot_corr_brush, {
+
+    brush <- input$plot_corr_brush
+    click <- input$plot_corr_click
+    df_brush <- data.frame( x=c(brush$xmin, brush$xmax), y=c(brush$ymin, brush$ymax))
+    dist_brush_x <- (click$x - df_brush$x)^2
+    idx_brush_x <- which.max(dist_brush_x)
+    dist_brush_y <- (click$y - df_brush$y)^2
+    idx_brush_y <- which.max(dist_brush_y)
+
+    dist<- (click$x - df_corr_plot$x)^2 + (click$y - df_corr_plot$y)^2
+    idx_selected <- which.min(dist)
+
+    df_corr_plot$x[idx_selected] <- df_brush$x[idx_brush_x]
+    df_corr_plot$y[idx_selected] <- df_brush$y[idx_brush_y]
+
+  })
+  
   #Reactive functions for output ---------------------------------------------------------------
   
+  df_corr <- reactive({
+    compute_correlations(ordered_Interactome(), 
+                         idx=which(ordered_Interactome()$is_interactor > 0))
+    
+  })
+  
+  df_corr_filtered <- reactive({
+    
+    df1 <- df_corr()
+    df1 <- df1[df1$r_corr>=input$r_corr_thresh & df1$p_corr<=input$p_val_corr_thresh, ]
+    
+    net <- graph.data.frame(df1, directed=FALSE);
+    net <- igraph::simplify(net)
+    layout <- layout_nicely(net)
+    cfg <- cluster_fast_greedy(as.undirected(net))
+
+    vatt <- vertex.attributes(net)
+    vertex_names <- as.character(vatt$name)
+    
+    #vertex_names <- unique( c(df1$name_1, df1$name_2) )
+    cat(vertex_names)
+    
+    #layout <- data.frame(x=rnorm(length(vertex_names)), y=rnorm(length(vertex_names)))
+    #idx_vertex <- as.numeric(vertex_names)
+    #df_corr_plot$names <- names[idx_vertex]
+    
+    df_corr_plot$names <- vertex_names
+    df_corr_plot$x <- layout[ , 1]
+    df_corr_plot$y <- layout[ , 2]
+    df_corr_plot$cluster <- as.factor(cfg$membership)
+    #df_corr_plot$cluster <- sample(10, length(vertex_names), replace = TRUE)
+    
+    df1
+  })
+  
+  corrPlot <- reactive({
+    
+    
+    
+    df2 = data.frame(x=df_corr_plot$x, y=df_corr_plot$y, label=df_corr_plot$names, cluster=df_corr_plot$cluster)
+    
+    print(head(df_corr_filtered() ))
+    
+    p<-ggplot(df2, aes(x, y, label=label, color=cluster)) +
+      geom_point(alpha=0.3, size=10) +
+      geom_text()
+    
+    for (i in 1:length(df_corr_filtered()$name_1)){
+      idx1 <- which(df_corr_plot$names == df_corr_filtered()$name_1[i])
+      idx2 <- which(df_corr_plot$names == df_corr_filtered()$name_2[i])
+      p <- p + annotate("segment",
+                        x = df_corr_plot$x[idx1],
+                        xend = df_corr_plot$x[idx2],
+                        y = df_corr_plot$y[idx1],
+                        yend = df_corr_plot$y[idx2],
+                        colour = "gray50",
+                        alpha=0.25)
+    }
+    
+    p
+  }) 
+  
+  data_summary <- reactive({
+    df <- data()
+    columns <- names(df)
+    data_class <- sapply(1:dim(df)[2], FUN=function(x){class(df[,x])})
+    data_median <- sapply(1:dim(df)[2], FUN=function(x){ 
+                                              if(is.numeric(df[,x])){
+                                                median(df[,x], na.rm=TRUE)
+                                              } else {
+                                                NA
+                                              }
+                                            })
+    
+    data.frame(columns = columns, class = data_class, median = data_median)
+  })
+  
   condTable <- reactive({
-    cond()
+    data_cond()
   })
     
   summaryTable <- reactive({
@@ -553,7 +845,8 @@ server <- function(input, output, session) {
                      fold_change_thresh = input$fold_change_thresh,
                      xlim = ranges_volcano$x,
                      ylim = ranges_volcano$y,
-                     N_print=input$N_print)[[1]]
+                     N_print=input$N_print,
+                     asinh_transform = input$asinh_transform)[[1]]
   })
 
   all_volcanos <- reactive({
@@ -575,6 +868,7 @@ server <- function(input, output, session) {
   
   output$condTable <- renderDataTable(condTable())
   output$condTable_bis <- renderDataTable(condTable())
+  output$data_summary <- renderDataTable(data_summary())
   output$summaryTable <- renderDataTable({summaryTable()[1:order_list()$Ndetect, ] })
   output$annotTable <- renderDataTable(annotTable())
   
@@ -585,7 +879,8 @@ server <- function(input, output, session) {
   output$dotPlot <- renderPlot( dotPlot() )
   output$volcano <- renderPlot( volcano() )
   output$annotPlot <- renderPlot(annotPlot())
-  
+  output$plot_corr <- renderPlot(corrPlot())
+
   #Output Download functions ---------------------------------------------------------------------
   
   output$download_summaryTable <- downloadHandler(

@@ -47,6 +47,7 @@ load("./R/sysdata.rda")
 #' @import ggrepel
 #' @import grid
 #' @import stringr
+#' @import Hmisc
 #' 
 #' @export
 #'
@@ -94,15 +95,7 @@ load("./R/sysdata.rda")
 #' print.data.frame(cond)
 #' # and use it as parameters for function \code{InteRact()}
 #' res <- InteRact(df, bait_gene_name = "Cbl", bckg=cond$bckg, time=cond$time, bio=cond$bio, tech=cond$tech)
-#' 
-#' # You can define your own default pattern for intensity columns :
-#' pattern = "^iBAQ"
-#' cond <- identify_conditions(df, bckg_bait="Cbl", Column_intensity_pattern = pattern))
-#' # Let's check that these column contain numeric variables
-#' sapply( grep(pattern,names(df)), function(x) typeof( df[, x] ) ) 
-#' # Make sure to use the same pattern in function \code{InteRact()}
-#' res <- InteRact(df, Column_intensity_pattern = pattern, bait_gene_name = "Cbl", bckg=cond$bckg, time=cond$time, bio=cond$bio, tech=cond$tech)
-#' 
+
 
 InteRact <- function(df,
                      Column_gene_name = "Gene.names",
@@ -135,6 +128,13 @@ InteRact <- function(df,
     stop("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
   }
   
+  if(! Column_ID %in% names(df)){
+    warning(paste("Column ", Column_ID, " could not be found", sep=""))
+  }
+  if(! Column_gene_name %in% names(df)){
+    stop(paste("Column ", Column_gene_name, " could not be found", sep=""))
+  }
+  
   df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
   
   df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
@@ -142,6 +142,9 @@ InteRact <- function(df,
   df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
   
   idx_col<-grep(Column_intensity_pattern, colnames(df))
+  if(length(idx_col)==0){
+    stop("Couldn't find pattern in column names")
+  }
   
   df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
   
@@ -270,6 +273,10 @@ identify_conditions <- function(df,
                                 preffix_time=""
                                 ){
   idx_col<-grep(Column_intensity_pattern,colnames(df))
+  if(length(idx_col)==0){
+    stop("Couldn't find pattern in column names")
+  }
+  
   T_int <- df[ ,idx_col];
   
   col_I <- colnames(T_int)
@@ -789,7 +796,12 @@ merge_conditions <- function( res,  selected_conditions = NULL){
   return(df_merge)
 }
 
+
 #' @export
+#' @examples
+#' df_merge <- merge_conditions(Interactome)
+#' df_FDR <- compute_FDR_from_asymmetry(df_merge)
+#' Interactome <- append_FDR(Interactome, df_FDR)
 compute_FDR_from_asymmetry <- function( df, 
                                         c = seq(from = 0, to =4, by = 0.1),
                                         x0 = seq(from = 0, to =3, by = 0.1)){
@@ -827,30 +839,13 @@ compute_FDR_from_asymmetry <- function( df,
   
   return(df_int)
   
-  # df_int <- df
-  # FDR <- rep(1, dim(df_int)[1])
-  # 
-  # idx_pos <- which(df_int$fold_change >= 1)
-  # 
-  # # create progress bar
-  # cat("Compute FDR...\n")
-  # pb <- txtProgressBar(min = 0, max = length(idx_pos), style = 3)
-  # 
-  # for (i in idx_pos){
-  #   n_right <- length(which(df$p_val <= df$p_val[i] & 
-  #                             df$fold_change >= df$fold_change[i]))
-  #   n_left <- length(which(df$p_val <= df$p_val[i] & 
-  #                            df$fold_change <= 1/df$fold_change[i]))
-  #   FDR[i] <- n_left/(n_left + n_right)
-  #   setTxtProgressBar(pb, i)
-  # }
-  # close(pb)
-  # df_int$FDR <- FDR 
-  
-  return(df_int)
 }
 
 #' @export
+#' @examples
+#' df_merge <- merge_conditions(Interactome)
+#' df_FDR <- compute_FDR_from_asymmetry(df_merge)
+#' Interactome <- append_FDR(Interactome, df_FDR)
 append_FDR <- function( res, df){
 # res : an object of class InteRactome
 # df : a data.frame containing (at least) columns 'bait', names', 'FDR' and 'conditions'
@@ -989,7 +984,8 @@ global_analysis.InteRactome <- function( res ){
 annotation_enrichment_analysis <- function( df, 
                                             idx_detect, 
                                             annotation_selected = c("Keywords", "Protein.families") , 
-                                            names = df$Gene.names...primary.., organism = "mouse",
+                                            names = df$Gene.names...primary.., 
+                                            organism = "mouse",
                                             updateProgress = NULL, 
                                             showProgress = TRUE,
                                             orderOutput = TRUE){
@@ -1794,18 +1790,21 @@ plot_volcanos.InteRactome <- function( res,
                                        save_file=NULL,
                                        xlim=NULL,
                                        ylim=NULL,
-                                       show_plot=FALSE){
+                                       show_plot=FALSE,
+                                       asinh_transform = TRUE){
   if (is.null(labels)) labels=res$names
   if (is.null(conditions)) conditions=res$conditions
     
   plist <- vector("list",length(conditions));
   
-  ymax <- asinh(-log10(min(do.call(cbind,res$p_val))))
+  ymax <- -log10(min(do.call(cbind,res$p_val)))
+  if (asinh_transform) ymax <- asinh(ymax)
   xmax <- max(abs(log10(do.call(cbind,res$fold_change))))
   
   x1 <- log10(fold_change_thresh)
   x2 <- xmax
-  y1 <- asinh(-log10(p_val_thresh))
+  y1 <- -log10(p_val_thresh)
+  if (asinh_transform) y1 <- asinh(y1)
   y2 <- ymax
   
   
@@ -1827,7 +1826,8 @@ plot_volcanos.InteRactome <- function( res,
                      fold_change= res$fold_change[[conditions[i]]], 
                      names=labels)
     df$X <- log10(df$fold_change)
-    df$Y <- asinh(-log10(df$p_val))
+    df$Y <- -log10(df$p_val)
+    if (asinh_transform) df$Y <- asinh(df$Y)
     score_print <- rep(0, dim(df)[1])
     
     if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
@@ -1853,9 +1853,14 @@ plot_volcanos.InteRactome <- function( res,
     
     df$label_color <- as.factor(score_print)
     
+    label_x <- "log10(fold_change)"
+    label_y <- "-log10(p_value)"
+    if (asinh_transform) label_y <- "asinh(-log10(p_value))"
       
     plist[[i]] <- ggplot( df , aes(x=X, y=Y ) ) +
       coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
+      xlab(label_x ) + 
+      ylab(label_y) + 
       #scale_y_continuous(limits=c(0,ymax)) +
       #scale_x_continuous(limits=c(-xmax,xmax)) +
       ggtitle(conditions[i])
@@ -2198,7 +2203,7 @@ compute_correlations.InteRactome <- function(res, idx = NULL){
 #' @export
 plot_correlation_network <- function(df_corr, r_corr_thresh = 0.8, p_val_thresh = 0.05){
   
-  df_corr_filtered <- df_corr[df_corr$r_corr>=0.8 & df_corr$p_corr<=0.05, ]
+  df_corr_filtered <- df_corr[df_corr$r_corr>=r_corr_thresh & df_corr$p_corr<=p_val_thresh, ]
   
   net <- graph.data.frame(df_corr_filtered, directed=FALSE);
   net.s<-igraph::simplify(net)
