@@ -4,6 +4,8 @@ library(ggplot2)
 library(ggrepel)
 library(grid)
 library(data.table)
+library(Hmisc)
+library(igraph)
 
 source("./R/InteRact.R")
 
@@ -712,13 +714,12 @@ server <- function(input, output, session) {
   
   corrPlot <- reactive({
     
-    
-    
     df2 = data.frame(x=df_corr_plot$x, y=df_corr_plot$y, label=df_corr_plot$names, cluster=df_corr_plot$cluster)
     
     print(head(df_corr_filtered() ))
     
     p<-ggplot(df2, aes(x, y, label=label, color=cluster)) +
+      theme_void() +
       geom_point(alpha=0.3, size=10) +
       geom_text()
     
@@ -829,7 +830,7 @@ server <- function(input, output, session) {
   Stoichio2D <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
                      condition = input$Stoichio2D_cond,
-                     N_display=min(order_list()$Ndetect, input$Nmax2D) )
+                     N_display = min(order_list()$Ndetect, input$Nmax2D) )
   })
   
   dotPlot <- reactive({

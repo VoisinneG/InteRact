@@ -2,20 +2,34 @@
 % Please edit documentation in R/InteRact.R
 \name{average_technical_replicates}
 \alias{average_technical_replicates}
-\title{Averaging of protein intensities over technical replicates}
+\title{Average protein intensities over technical replicates}
 \usage{
 average_technical_replicates(df, cond)
 }
 \arguments{
 \item{df}{A data frame of protein intensities}
 
-\item{conditions}{A data frame containing the description of df's columns (i.e "idx", bckg", "time", "bio"  and "tech")}
+\item{cond}{A data frame containing the description of df's columns (i.e "idx", bckg", "time", "bio"  and "tech") 
+as returned by function \code{identify_conditions}}
 }
 \value{
 A list containing :
+
 \code{Intensity}, a data frame of protein intensities averaged over technical replicates;
+
 \code{conditions}, a data frame containing the description of Intensity's columns
 }
 \description{
-Averaging of protein intensities over technical replicates
+Average protein intensities over technical replicates
+}
+\examples{
+#load data :
+dir<- system.file("extdata", package = "InteRact")
+path <- paste(dir,"/proteinGroups_Cbl.txt",sep="")
+df <- read.csv(path, sep="\\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
+# You can identify columns and their description separately using \\code{identify_conditions()}
+cond <- identify_conditions(df, bckg_bait="Cbl")
+print.data.frame(cond)
+Column_intensity_pattern <- "^Intensity."
+df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
 }
