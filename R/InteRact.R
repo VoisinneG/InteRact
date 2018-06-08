@@ -100,9 +100,14 @@ InteRact <- function(df,
                      bio=NULL,
                      tech=NULL,
                      Column_intensity_pattern = "^Intensity.",
-                     preffix_bio="S",
-                     preffix_tech="R",
-                     preffix_time="",
+                     # preffix_bio="S",
+                     # preffix_tech="R",
+                     # preffix_time="",
+                     split = "_",
+                     bckg_pos = 1,
+                     bio_pos = 2,
+                     time_pos = 3, 
+                     tech_pos = 4,
                      filter_time=NULL,
                      filter_bio=NULL,
                      filter_tech=NULL,
@@ -148,13 +153,23 @@ InteRact <- function(df,
   
   
   if( is.null(bckg) | is.null(time) | is.null(bio) | is.null(tech) ){
-    cond <- identify_conditions(df, 
+    # cond <- identify_conditions(df, 
+    #                             Column_intensity_pattern = Column_intensity_pattern, 
+    #                             bckg_bait = bckg_bait, 
+    #                             bckg_ctrl = bckg_ctrl,
+    #                             preffix_time = preffix_time,
+    #                             preffix_bio = preffix_bio, 
+    #                             preffix_tech = preffix_tech )
+    
+    cond <- identify_conditions_2(df, 
                                 Column_intensity_pattern = Column_intensity_pattern, 
-                                bckg_bait = bckg_bait, 
-                                bckg_ctrl = bckg_ctrl,
-                                preffix_time = preffix_time,
-                                preffix_bio = preffix_bio, 
-                                preffix_tech = preffix_tech )
+                                split = "_",
+                                bckg_pos = 1,
+                                bio_pos = 2,
+                                time_pos = 3, 
+                                tech_pos = 4 )
+    
+    
   } else {
     cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
   }
@@ -279,9 +294,10 @@ identify_conditions <- function(df,
                                 Column_intensity_pattern = "^Intensity.",
                                 bckg_bait,
                                 bckg_ctrl = "WT",
-                                preffix_bio="S",
-                                preffix_tech="R",
-                                preffix_time=""
+                                preffix_bio = "S",
+                                preffix_tech = "R",
+                                preffix_time = "",
+                                split = "_"
                                 ){
   idx_col<-grep(Column_intensity_pattern,colnames(df))
   if(length(idx_col)==0){
@@ -292,7 +308,7 @@ identify_conditions <- function(df,
   
   col_I <- colnames(T_int)
   
-  s<-unlist( strsplit(unlist(strsplit(col_I, Column_intensity_pattern)), split="_") )
+  s<-unlist( strsplit(unlist(strsplit(col_I, Column_intensity_pattern)), split=split, fixed=TRUE) )
   
   rad_number<-unique( stringr::str_match(s, "([A-z]+)[0-9]")[,2] )
   rad_number[is.na(rad_number)] <- "";
@@ -333,19 +349,53 @@ identify_conditions <- function(df,
     warning(paste("Could not find '", bckg_ctrl,"' in column names. Suggested background names are '", paste(bckg_names, collapse="'; '"),"'",sep=""))
   }
 
-  pattern_time <-paste("[._]",preffix_time,"([0-9]+)",sep="")
+  pattern_time <-paste(split, preffix_time,"([0-9]+)",sep="")
   time <- as.numeric(stringr::str_match(col_I, pattern_time)[,2] )
 
-  pattern_bio <-paste("[._]",preffix_bio,"([0-9]+)",sep="")
+  pattern_bio <-paste(split,preffix_bio,"([0-9]+)",sep="")
   bio <- as.numeric( stringr::str_match(col_I, pattern_bio)[,2] )
 
-  pattern_tech <-paste("[._]",preffix_tech,"([0-9]+)",sep="")
+  pattern_tech <-paste(split,preffix_tech,"([0-9]+)",sep="")
   tech <- as.numeric(stringr::str_match(col_I, pattern_tech)[,2] )
   
   cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
   
 }
 
+identify_conditions_2 <- function(df,
+                                  Column_intensity_pattern = "^Intensity.",
+                                  split = "_",
+                                  bckg_pos = 1,
+                                  bio_pos = 2,
+                                  time_pos = 3, 
+                                  tech_pos = 4
+                                  ){
+  idx_col<-grep(Column_intensity_pattern,colnames(df))
+  if(length(idx_col)==0){
+    stop("Couldn't find pattern in column names")
+  }
+  
+  T_int <- df[ ,idx_col];
+  
+  col_I <- colnames(T_int)
+  
+  s0 <- sapply(strsplit(col_I, Column_intensity_pattern), function(x){x[2]})
+  s <- strsplit(s0, split=split, fixed=TRUE)
+  n <- length(s[[1]])
+  
+  if(bckg_pos > n) stop("bckg_pos too large")
+  if(bio_pos > n) stop("bio_pos too large")
+  if(tech_pos > n) stop("tech_pos too large")
+  if(time_pos > n) stop("time_pos too large")
+  
+  bckg <- unlist(lapply(s, function(x){x[bckg_pos]}))
+  bio<- unlist(lapply(s, function(x){x[bio_pos]}))
+  tech <- unlist(lapply(s, function(x){x[tech_pos]}))
+  time <- unlist(lapply(s, function(x){x[time_pos]}))
+  
+  cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+
+}
 
 
 #' Average protein intensities over technical replicates
@@ -564,17 +614,17 @@ rescale_median <- function(df){
 
 #' Perform the geometric mean of a numeric vector
 #' 
-#' @param x numeric vector
+#' @param x A numeric vector
 #' @param na.rm remove NA values
 #' @return A numeric value
 geom_mean = function(x, na.rm=TRUE){
   exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
 }
 
-#' Compute the standard deviation by rows
+#' Compute the standard deviation by row
 #' 
 #' @param df a data frame
-#' @return A numeric value
+#' @return A numeric vector
 row_sd <- function(df){
   output<-vector("double", dim(df)[1] )
   for(i in 1:dim(df)[1] ){
@@ -583,12 +633,14 @@ row_sd <- function(df){
   output
 }
 
-#' @export
+#' Perform a t-test comparison between two groups by row
+#' 
+#' @param df a data frame
+#' @param idx_group_1 column indexes corresponding to the first group
+#' @param idx_group_2 column indexes corresponding to the second group
+#' @param log option to perform the t-test on log transformed data
+#' @return A data frame with columns 'p_val' and 'fold_change
 row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
-  # compares groups of column values using a t-test for each row.
-  # idx_group_1 : indexes of columns for group #1
-  # idx_group_2 : indexes of columns for group #2
-  # log_transf : if TRUE, performs the t-test on log transform data
   
   p_val <- rep(NaN,dim(df)[1]);
   fold_change <- rep(NaN,dim(df)[1]);
@@ -617,7 +669,16 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
   
 }
 
-#' @export
+#' Compute the stoichiometry of interaction using the method described in 
+#' \ref{}
+#' 
+#' @param df a data frame
+#' @param idx_group_1 column indexes corresponding to the first group (bait background)
+#' @param idx_group_2 column indexes corresponding to the second group (ctrl background)
+#' @param idx_bait row index for the bait protein
+#' @param Npep numeric vector containing the number of theoretically observable peptides for each protein
+#' @param log option to use the geometric mean instead of the arithmetic mean
+#' @return A numeric vector of interaction stoichiometries
 row_stoichio <- function(df, 
                          idx_group_1, 
                          idx_group_2, 
@@ -1967,7 +2028,8 @@ plot.InteRactome <- function(x,
                              color_var = "p_val",
                              size_var="norm_stoichio", 
                              size_range=c(0,1), 
-                             save_file=NULL ){
+                             save_file=NULL,
+                             clustering = FALSE){
   order_list <- get_order_discrete(x, 
                                    var_p_val = var_p_val, 
                                    p_val_breaks = p_val_breaks )
@@ -1978,7 +2040,8 @@ plot.InteRactome <- function(x,
                       size_range = size_range, 
                       color_var = color_var, 
                       color_breaks = p_val_breaks, 
-                      save_file = save_file )
+                      save_file = save_file,
+                      clustering = clustering)
 }
 
 #' @export
@@ -1997,8 +2060,9 @@ plot_per_conditions.InteRactome <- function( res,
                                  color_default = 1,
                                  save_file=NULL,
                                  show_plot=TRUE,
-                                 plot_width=3.5,
-                                 plot_height=length(idx_rows)/(plot_width+1) + 1 ){
+                                 plot_width=2.5 + length(res$conditions)/5,
+                                 plot_height=2 + length(idx_rows)/5,
+                                 clustering = TRUE){
   
   if(length(idx_rows)==1){
     idx_rows<-1:idx_rows
@@ -2024,8 +2088,19 @@ plot_per_conditions.InteRactome <- function( res,
     title_text <- res$groups
   }
   
-  p<-dot_plot( as.matrix(M[idx_rows, ]), 
-               as.matrix(Mcol[idx_rows,]), 
+  M <- M[idx_rows, ]
+  Mcol <- Mcol[idx_rows, ]
+  
+  if(clustering){
+    M[is.na(M)]<-0
+    d<-dist(M)
+    h<-hclust(d)
+    M <- M[h$order, ]
+    Mcol <- Mcol[h$order, ]
+  } 
+  
+  p<-dot_plot( as.matrix(M), 
+               as.matrix(Mcol), 
                title = title_text,
                size_var = size_var, 
                size_range=size_range,
@@ -2102,12 +2177,13 @@ dot_plot <- function(Dot_Size,
   
   unique_col <- unique(df$color);
   size_label_y <- max(6, 16 - (dim(M)[1] %/% 10)*1.5 )
+  size_label_x <- max(6, 16 - (dim(M)[2] %/% 5)*1.5 )
   
   p <- ggplot(df, aes(x=xpos, y=ypos, size=size, col=color ) ) +
     theme(#plot.margin=unit(c(0.2,0,0,0), "cm"),
       plot.title = element_text(size=12),
       axis.text.y= element_text(size=size_label_y), 
-      axis.text.x = element_text(size=16, angle = 90, hjust = 1,vjust=0.5) ) +
+      axis.text.x = element_text(size=size_label_x, angle = 90, hjust = 1,vjust=0.5) ) +
     ggtitle(title)+
     scale_color_manual( values=c( "red", "purple",  "blue", "black" ) , name=color_var) +
     scale_radius(limits=size_range, name=size_var) +

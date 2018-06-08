@@ -74,10 +74,16 @@ ui <- fluidPage(
                                          checkboxInput("manual_mapping", "manual mapping", value = FALSE),
                                          conditionalPanel(
                                            condition = "input.manual_mapping == false",
-                                           h3("Preffix for:"),
-                                           textInput("preffix_bio", "biological replicates", value = "S"),
-                                           textInput("preffix_tech", "technical replicates", value = "R"),
-                                           textInput("preffix_time", "experimental conditions", value = "")
+                                           textInput("split", "split character", value = "_"),
+                                           h4("Enter position of:"),
+                                           numericInput("bckg_pos", "background", value = 1),
+                                           numericInput("bio_pos", "biological replicates", value = 2),
+                                           numericInput("time_pos", "experimental conditions", value = 3),
+                                           numericInput("tech_pos", "technical replicates", value = 4)
+                                           # textInput("preffix_bio", "biological replicates", value = "S"),
+                                           # textInput("preffix_tech", "technical replicates", value = "R"),
+                                           # textInput("preffix_time", "experimental conditions", value = "")
+                                           
                                          ),
                                          conditionalPanel(
                                            condition = "input.manual_mapping == true",
@@ -136,7 +142,7 @@ ui <- fluidPage(
                                 )
                        ),
                        tabPanel("Volcano",
-                                column(3,
+                                column(4,
                                        br(),
                                        wellPanel(
                                          selectInput("volcano_cond", "Select condition",
@@ -151,7 +157,7 @@ ui <- fluidPage(
                                          helpText("Brush and double-click to zoom")
                                        )
                                 ),
-                                column(6,
+                                column(8,
                                        br(),
                                        fluidRow(
                                         downloadButton("download_volcano", "Download plot"),
@@ -168,10 +174,11 @@ ui <- fluidPage(
                                 )
                        ),
                        tabPanel("Dot Plot",
-                                column(3,
+                                column(4,
                                        br(),
                                        wellPanel(
-                                         numericInput("Nmax", "N display ", value = 30)
+                                         numericInput("Nmax", "N display ", value = 30),
+                                         checkboxInput("clustering", "Hierarchical clustering", value = FALSE)
                                        ),
                                        br(),
                                        wellPanel(
@@ -179,11 +186,11 @@ ui <- fluidPage(
                                          helpText("Brush and double-click to zoom")
                                        )
                                 ),
-                                column(6,
+                                column(8,
                                        br(),
                                        downloadButton("download_dotPlot", "Download Plot", value = FALSE),
                                        br(),
-                                       plotOutput("dotPlot",width="250",height="500",
+                                       plotOutput("dotPlot",width="300",height="500",
                                                   hover = hoverOpts(id ="dotPlot_hover"),
                                                   dblclick = "dotPlot_dblclick",
                                                   brush = brushOpts(
@@ -448,13 +455,22 @@ server <- function(input, output, session) {
       cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
                       
     } else {
-      cond_int <- identify_conditions(data(),
-                                    Column_intensity_pattern = input$pattern,
-                                    bckg_bait = input$bckg_bait,
-                                    bckg_ctrl = input$bckg_ctrl,
-                                    preffix_time = input$preffix_time,
-                                    preffix_bio = input$preffix_bio, 
-                                    preffix_tech = input$preffix_tech )
+      # cond_int <- identify_conditions(data(),
+      #                               Column_intensity_pattern = input$pattern,
+      #                               bckg_bait = input$bckg_bait,
+      #                               bckg_ctrl = input$bckg_ctrl,
+      #                               preffix_time = input$preffix_time,
+      #                               preffix_bio = input$preffix_bio, 
+      #                               preffix_tech = input$preffix_tech,
+      #                               split = input$split)
+      
+      cond_int <- identify_conditions_2(data(),
+                                      Column_intensity_pattern = input$pattern,
+                                      bckg_pos = input$bckg_pos,
+                                      bio_pos = input$bio_pos,
+                                      time_pos = input$time_pos, 
+                                      tech_pos = input$tech_pos,
+                                      split = input$split)
     }
     
     
@@ -504,9 +520,9 @@ server <- function(input, output, session) {
                       N_rep=input$Nrep,
                       bckg_bait = input$bckg_bait ,
                       bckg_ctrl = input$bckg_ctrl,
-                      preffix_bio = input$preffix_bio,
-                      preffix_tech = input$preffix_tech,
-                      preffix_time = input$preffix_time,
+                      # preffix_bio = input$preffix_bio,
+                      # preffix_tech = input$preffix_tech,
+                      # preffix_time = input$preffix_time,
                       filter_bio = input$filter_bio,
                       filter_tech = input$filter_tech,
                       filter_time = input$filter_time,
@@ -835,7 +851,8 @@ server <- function(input, output, session) {
   
   dotPlot <- reactive({
     plot_per_conditions(ordered_Interactome(),
-                        idx_rows = min(input$Nmax, order_list()$Ndetect))+
+                        idx_rows = min(input$Nmax, order_list()$Ndetect),
+                        clustering = input$clustering)+
       coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
   })
   
@@ -912,8 +929,8 @@ server <- function(input, output, session) {
   output$download_dotPlot <- downloadHandler(
     filename = "dot_plot.pdf",
     content = function(file) {
-      plot_width = 3.4
-      plot_height = input$Nmax/(plot_width+1) + 1
+      plot_width = 2.5 + length(ordered_Interactome()$conditions)/5
+      plot_height = 1.5 + input$Nmax/5
       pdf(file,plot_width,plot_height)
       print(dotPlot())
       dev.off()
@@ -964,8 +981,15 @@ server <- function(input, output, session) {
   output$info_volcano_hover <- renderPrint({
     if(!is.null(input$volcano_hover)){
       hover=input$volcano_hover
+      
       dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
                   (hover$y+log10(ordered_Interactome()$p_val[[input$volcano_cond]]) )^2)
+      
+      if(input$asinh_transform) {
+        dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
+                     (hover$y+asinh(log10(ordered_Interactome()$p_val[[input$volcano_cond]])) )^2)
+      }
+      
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
       if( min_dist1 < 0.25){
