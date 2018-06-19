@@ -7,7 +7,7 @@
 geom_mean(x, na.rm = TRUE)
 }
 \arguments{
-\item{x}{numeric vector}
+\item{x}{A numeric vector}
 
 \item{na.rm}{remove NA values}
 }

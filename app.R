@@ -6,6 +6,7 @@ library(grid)
 library(data.table)
 library(Hmisc)
 library(igraph)
+library(plotly)
 
 source("./R/InteRact.R")
 
@@ -174,7 +175,7 @@ ui <- fluidPage(
                                 )
                        ),
                        tabPanel("Dot Plot",
-                                column(4,
+                                column(3,
                                        br(),
                                        wellPanel(
                                          numericInput("Nmax", "N display ", value = 30),
@@ -186,18 +187,28 @@ ui <- fluidPage(
                                          helpText("Brush and double-click to zoom")
                                        )
                                 ),
-                                column(8,
+                                column(4,
                                        br(),
                                        downloadButton("download_dotPlot", "Download Plot", value = FALSE),
                                        br(),
-                                       plotOutput("dotPlot",width="300",height="500",
+                                       plotOutput("dotPlot",width="250",height="500",
                                                   hover = hoverOpts(id ="dotPlot_hover"),
                                                   dblclick = "dotPlot_dblclick",
+                                                  click = "dotPlot_click",
                                                   brush = brushOpts(
                                                     id = "dotPlot_brush",
                                                     resetOnNew = TRUE) ),
                                        br(),
                                        verbatimTextOutput("info_dotPlot_hover")
+                                ),
+                                column(5,
+                                       br(),
+                                       #downloadButton("download_dotPlot", "Download Plot", value = FALSE),
+                                       #br(),
+                                       plotOutput("stoichioPlot",width="250",height="200"),
+                                       br(),
+                                       plotOutput("compPlot",width="250",height="200")
+
                                 )
                        ),
                        tabPanel("2D Stoichio",
@@ -732,7 +743,7 @@ server <- function(input, output, session) {
     
     df2 = data.frame(x=df_corr_plot$x, y=df_corr_plot$y, label=df_corr_plot$names, cluster=df_corr_plot$cluster)
     
-    print(head(df_corr_filtered() ))
+    #print(head(df_corr_filtered() ))
     
     p<-ggplot(df2, aes(x, y, label=label, color=cluster)) +
       theme_void() +
@@ -882,6 +893,33 @@ server <- function(input, output, session) {
                             N_annot_min = input$N_annot_min)
   })
   
+  stoichioPlot <- eventReactive(input$dotPlot_click, {
+    
+      if(!is.null(input$dotPlot_hover)){
+        i_prot = round(-input$dotPlot_hover$y)
+        plot_stoichio(ordered_Interactome(), 
+                      name = ordered_Interactome()$names[i_prot])
+      } else {
+        NULL
+      }
+    
+   
+  })
+  
+  compPlot <- eventReactive(input$dotPlot_click, {
+    
+    if(!is.null(input$dotPlot_hover)){
+      i_prot = round(-input$dotPlot_hover$y)
+      i_cond = round(input$dotPlot_hover$x)
+      plot_comparison(ordered_Interactome(), 
+                      name = ordered_Interactome()$names[i_prot],
+                      condition = ordered_Interactome()$conditions[i_cond])
+    } else {
+      NULL
+    }
+    
+  })
+    
   #Output Table functions -------------------------------------------------------------------------
   
   output$condTable <- renderDataTable(condTable())
@@ -898,7 +936,9 @@ server <- function(input, output, session) {
   output$volcano <- renderPlot( volcano() )
   output$annotPlot <- renderPlot(annotPlot())
   output$plot_corr <- renderPlot(corrPlot())
-
+  output$stoichioPlot <- renderPlot(stoichioPlot())
+  output$compPlot <- renderPlot(compPlot())
+  
   #Output Download functions ---------------------------------------------------------------------
   
   output$download_summaryTable <- downloadHandler(

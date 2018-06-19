@@ -206,3 +206,7 @@ devtools::use_data( uniprot_data_mouse,
                     internal = TRUE, 
                     overwrite = TRUE)
 
+devtools::use_data( proteome_data,
+                    pkg=".", 
+                    internal = FALSE, 
+                    overwrite = TRUE)

@@ -365,10 +365,10 @@ identify_conditions <- function(df,
 identify_conditions_2 <- function(df,
                                   Column_intensity_pattern = "^Intensity.",
                                   split = "_",
-                                  bckg_pos = 1,
-                                  bio_pos = 2,
-                                  time_pos = 3, 
-                                  tech_pos = 4
+                                  bckg_pos = 2,
+                                  bio_pos = 3,
+                                  time_pos = 4, 
+                                  tech_pos = 5
                                   ){
   idx_col<-grep(Column_intensity_pattern,colnames(df))
   if(length(idx_col)==0){
@@ -381,6 +381,8 @@ identify_conditions_2 <- function(df,
   
   s0 <- sapply(strsplit(col_I, Column_intensity_pattern), function(x){x[2]})
   s <- strsplit(s0, split=split, fixed=TRUE)
+  
+  #s <- strsplit(col_I, split=split, fixed=TRUE)
   n <- length(s[[1]])
   
   if(bckg_pos > n) stop("bckg_pos too large")
@@ -633,6 +635,24 @@ row_sd <- function(df){
   output
 }
 
+#' Compute the mean by row
+#' 
+#' @param df a data frame
+#' @param log option to use geometric mean
+#' @return A numeric vector
+row_mean <- function(df, log = FALSE){
+  output<-vector("double", dim(df)[1] )
+  for(i in 1:dim(df)[1] ){
+    if(log){
+      output[i] <- geom_mean(df[i,],na.rm=TRUE);
+    } else{
+      output[i] <- mean(df[i,],na.rm=TRUE);
+    }
+    
+  }
+  output
+}
+
 #' Perform a t-test comparison between two groups by row
 #' 
 #' @param df a data frame
@@ -743,9 +763,21 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
   ubio <- unique(replicates)
   stoichio_bio <- vector("list",length(ubio))
   names(stoichio_bio) <- as.character(ubio)
+  
+  intensity_bait <- vector("list",length(cond))
+  names(intensity_bait) <- as.character(cond)
+  intensity_ctrl <- vector("list",length(cond))
+  names(intensity_ctrl) <- as.character(cond)
   for (i_bio in 1:length(ubio)){
     stoichio_bio[[i_bio]] <- vector("list",length(cond))
     names(stoichio_bio[[i_bio]])<-as.character(cond)
+  }
+  for (i_cond in 1:length(cond)){
+    
+    intensity_bait[[i_cond]] <- vector("list",length(ubio))
+    names(intensity_bait[[i_cond]])<-as.character(ubio)
+    intensity_ctrl[[i_cond]] <- vector("list",length(ubio))
+    names(intensity_ctrl[[i_cond]])<-as.character(ubio)
   }
   
   
@@ -779,12 +811,15 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
         idx_ctrl_bio <- which( background == name_ctrl & conds == cond[[i]] & replicates == ubio[i_bio])
       } 
       
+      idx_bait_bio <- which( background==name_bait & conds==cond[[i]] & replicates==ubio[i_bio])
       stoichio_bio[[i_bio]][[i]] <- row_stoichio(df, 
-                                                 idx_group_1 = which( background==name_bait & conds==cond[[i]] & replicates==ubio[i_bio]), 
+                                                 idx_group_1 = idx_bait_bio, 
                                                  idx_group_2 = idx_ctrl_bio, 
                                                  idx_bait=ibait,
                                                  Npep=Npep,
                                                  log = log)
+      intensity_bait[[i]][[i_bio]] <- df[ , idx_bait_bio]
+      intensity_ctrl[[i]][[i_bio]]<- df[ , idx_ctrl_bio]
     }
   }
   
@@ -796,7 +831,10 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
              p_val=p_val, 
              fold_change=fold_change, 
              stoichio=stoichio,
-             stoichio_bio = stoichio_bio)
+             stoichio_bio = stoichio_bio,
+             intensity_bait = intensity_bait,
+             intensity_ctrl = intensity_ctrl
+             )
   
   class(res) <- 'InteRactome'
   
@@ -1110,7 +1148,7 @@ annotation_enrichment_analysis <- function( df,
   # (list of indices are supported. The output will then be a list of data-frames)
   # against the background formed by all proteins in df
   # annotation_selected : set of annotation terms to consider. 
-  #Annotations supported are stored in varaiable "supported_annotations:
+  # Annotations supported are stored in varaiable "supported_annotations:
   
   supported_annotations <- c( 
                              "Protein.families",  
@@ -1126,7 +1164,8 @@ annotation_enrichment_analysis <- function( df,
                              "GOslim_molecular_function",
                              "GOslim_biological_process",
                              "GOslim_cellular_component",
-                             "Motif")
+                             "Motif",
+                             "Kinase")
   
 
   if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) | (sum(annotation_selected %in% names(df)) != length(annotation_selected)) ){
@@ -1841,7 +1880,7 @@ order_interactome.InteRactome <- function(res, idx_order){
     }
     else{
       names_var <- names(res[[var]])
-      if( setequal(names_var, res$conditions) ){
+      if( setequal(names_var, res$conditions) & !is.element(var, c("intensity_ctrl", "intensity_bait")) ){
         for(i in 1:length(names_var) ){
           res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
         }
@@ -1849,11 +1888,17 @@ order_interactome.InteRactome <- function(res, idx_order){
       else{
         for(i in 1:length(names_var) ){
           names_var_2 <- names(res[[var]][[i]]) 
-          if( setequal(names_var_2, res$conditions) ){
+          #if( setequal(names_var_2, res$conditions) ){
             for(j in 1:length(names_var_2) ){
-              res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
+              if(length(res[[var]][[i]][[j]]) == length(res$names)){
+                res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
+              } else if (dim(res[[var]][[i]][[j]])[1] == length(res$names)){
+                res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order, ]
+              } else {
+                warning(paste("Couldn't order ",var, sep=""))
+              }
             }
-          }
+          #}
         }
       }
     }
@@ -2198,6 +2243,122 @@ dot_plot <- function(Dot_Size,
                        limits= -c(dim(M)[1]+0.75, 0.25 ),
                        labels=ylabels) +
     geom_point(alpha=0.5, show.legend = TRUE)
+  
+  return(p)
+  
+}
+#' @export
+plot_stoichio <- function(Interactome, 
+                         name, 
+                         ref_condition = Interactome$conditions[1], 
+                         test="t.test", 
+                         test.args = list("paired"=TRUE),
+                         map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05)){
+  plot_title <- paste(name, " / ",test, sep = "") 
+    
+  if("paired" %in% names(test.args)){
+    if(test.args$paired){
+      plot_title <- paste(plot_title, "(paired)", sep="")
+    }
+  }
+    
+  
+  idx_match <- which(Interactome$names == name)
+  df_tot <- NULL
+  for ( bio in Interactome$replicates){
+    stoichio <- do.call(cbind, Interactome$stoichio_bio[[bio]])[idx_match, ]
+    df <- data.frame(stoichio = stoichio, cond = names(stoichio), bio = rep(bio, length(stoichio)))
+    df_tot <- rbind(df_tot, df)
+  }
+  
+  comparisons <- list()
+  cond_test <- setdiff(Interactome$conditions, ref_condition)
+  for (i in 1:length(cond_test)){
+    comparisons[[i]] <- c(ref_condition, cond_test[i])
+  }
+    
+  p <- ggplot(df_tot, aes(x=cond, y=log10(stoichio))) + 
+    theme(axis.text.x = element_text(size=10),
+          axis.text.y = element_text(size=10)) +
+    geom_point(size=0, alpha = 0) +  
+    ggtitle(plot_title) + 
+    xlab("conditions") +
+    geom_line( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), group=bio, color=bio), alpha = 0.2) +
+    geom_point( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), color=bio), size=3, alpha = 0.8) + 
+    geom_signif(comparisons = comparisons, 
+                step_increase = 0.1,
+                test = test,
+                textsize = 2.5, 
+                test.args = test.args,
+                map_signif_level = map_signif_level
+                )
+  
+  return(p)
+  
+}
+
+plot_comparison <- function(Interactome, 
+                          name, 
+                          condition, 
+                          textsize = 3,
+                          test="t.test",
+                          test.args = list("paired"=FALSE),
+                          map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
+                          position = "position_jitter",
+                          position.args = list(width=0.3, height=0)){
+  
+  plot_title <- paste(name, condition, test, sep = " / ") 
+  
+  if("paired" %in% names(test.args)){
+    if(test.args$paired){
+      plot_title <- paste(plot_title, "(paired)", sep="")
+    }
+  }
+  
+  
+  idx_match <- which(Interactome$names == name)
+  
+  df_tot <- NULL
+  for ( bio in Interactome$replicates){
+    if (is.null(dim(Interactome$intensity_bait[[condition]][[bio]])) ){
+      intensity <- Interactome$intensity_bait[[condition]][[bio]][idx_match]
+    } else {
+      intensity <- Interactome$intensity_bait[[condition]][[bio]][idx_match, ]
+    }
+    df <- data.frame(intensity = intensity, bckg = rep("bait", length(intensity)), bio = rep(bio, length(intensity)))
+    df_tot <- rbind(df_tot, df)
+  }
+  for ( bio in Interactome$replicates){
+    if (is.null(dim(Interactome$intensity_ctrl[[condition]][[bio]])) ){
+      intensity <- Interactome$intensity_ctrl[[condition]][[bio]][idx_match]
+    } else {
+      intensity <- Interactome$intensity_ctrl[[condition]][[bio]][idx_match, ]
+    }
+    df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)))
+    df_tot <- rbind(df_tot, df)
+  }
+  
+  df_tot$bckg <- factor(df_tot$bckg, levels = c("ctrl", "bait"))
+  
+  comparisons <- list(c("ctrl","bait"))
+  
+  p <- ggplot(df_tot, aes(x=bckg, y=log10(intensity))) + 
+    theme(axis.text = element_text(size=12)) +
+    geom_point(size=0, alpha = 0) + 
+    geom_violin() + 
+    ggtitle(plot_title) + 
+    geom_point( data = df_tot, 
+                mapping = aes(x=bckg, y=log10(intensity), color=bio), 
+                size=3, 
+                alpha = 0.8,
+                position = do.call(position, position.args) ) + 
+    geom_signif(comparisons = comparisons, 
+                step_increase = 0.1,
+                test = test,
+                textsize = textsize, 
+                test.args = test.args,
+                map_signif_level = map_signif_level
+    )
   
   return(p)
   

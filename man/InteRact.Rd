@@ -8,8 +8,8 @@ InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
   Column_ID = "Protein.IDs", Column_Npep = NULL, bait_gene_name,
   N_rep = 3, quantile_rep = 0.05, bckg_bait = bait_gene_name,
   bckg_ctrl = "WT", bckg = NULL, time = NULL, bio = NULL, tech = NULL,
-  Column_intensity_pattern = "^Intensity.", preffix_bio = "S",
-  preffix_tech = "R", preffix_time = "", filter_time = NULL,
+  Column_intensity_pattern = "^Intensity.", split = "_", bckg_pos = 1,
+  bio_pos = 2, time_pos = 3, tech_pos = 4, filter_time = NULL,
   filter_bio = NULL, filter_tech = NULL, updateProgress = NULL,
   pool_background = TRUE, log = TRUE, by_conditions = TRUE)
 }
@@ -48,12 +48,6 @@ InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
 
 \item{Column_intensity_pattern}{Pattern (regular exrpression) used to identfy df's columns containing protein intensity values}
 
-\item{preffix_bio}{Preffix for biological replicates in column names (i.e "S" if pattern is "_S1")}
-
-\item{preffix_tech}{Preffix for technical replicates in column names (i.e "R" if pattern is "_R3")}
-
-\item{preffix_time}{Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")}
-
 \item{filter_time}{vector of experimental conditions to exclude from analysis}
 
 \item{filter_bio}{vector of biological replicates to exclude from analysis}
@@ -67,6 +61,12 @@ InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
 \item{log}{option to perform t-test and averages on log transform intensities}
 
 \item{by_conditions}{option to perform the comparison between bait and control group for each condition}
+
+\item{preffix_time}{Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")}
+
+\item{preffix_bio}{Preffix for biological replicates in column names (i.e "S" if pattern is "_S1")}
+
+\item{preffix_tech}{Preffix for technical replicates in column names (i.e "R" if pattern is "_R3")}
 }
 \value{
 a object of class \code{Interactome}, i.e a list including the following elements :

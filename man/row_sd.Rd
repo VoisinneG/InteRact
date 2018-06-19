@@ -2,7 +2,7 @@
 % Please edit documentation in R/InteRact.R
 \name{row_sd}
 \alias{row_sd}
-\title{Compute the standard deviation by rows}
+\title{Compute the standard deviation by row}
 \usage{
 row_sd(df)
 }
@@ -10,8 +10,8 @@ row_sd(df)
 \item{df}{a data frame}
 }
 \value{
-A numeric value
+A numeric vector
 }
 \description{
-Compute the standard deviation by rows
+Compute the standard deviation by row
 }
