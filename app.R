@@ -69,7 +69,6 @@ ui <- fluidPage(
                                          textInput("bckg_ctrl", "Name of Control background", value = "WT")
                                          
                                        ),
-                                       br(),
                                        wellPanel(
                                          h3("Map samples"),
                                          checkboxInput("manual_mapping", "manual mapping", value = FALSE),
@@ -117,7 +116,7 @@ ui <- fluidPage(
                                        dataTableOutput("condTable")
                                 )
                        ),
-                       tabPanel("Filter",
+                       tabPanel("QC / Filter",
                                 column(4,
                                     br(),
                                     wellPanel(
@@ -139,7 +138,10 @@ ui <- fluidPage(
                                 ),
                                 column(8,
                                   br(),
-                                  dataTableOutput("condTable_bis")
+                                  plotOutput("QCPlot1", width="250",height="200"),
+                                  plotOutput("QCPlot2", width="250",height="200"),
+                                  plotOutput("QCPlot3", width="250",height="200")
+                                  #dataTableOutput("condTable_bis")
                                 )
                        ),
                        tabPanel("Volcano",
@@ -152,11 +154,13 @@ ui <- fluidPage(
                                          checkboxInput("asinh_transform", "asinh_transform", value = TRUE)
 
                                        ),
-                                       br(),
                                        wellPanel(
                                          helpText("Hover mouse over point to display extra info"),
+                                         helpText("Click to select protein"),
                                          helpText("Brush and double-click to zoom")
-                                       )
+                                       ),
+                                       br(),
+                                       plotOutput("compPlot_volcano",width="200",height="200")
                                 ),
                                 column(8,
                                        br(),
@@ -167,6 +171,7 @@ ui <- fluidPage(
                                        br(),
                                        plotOutput("volcano", width="400",height="400",
                                                   hover = hoverOpts(id ="volcano_hover"),
+                                                  click = "volcano_click",
                                                   dblclick = "volcano_dblclick",
                                                   brush = brushOpts(
                                                   id = "volcano_brush",
@@ -175,19 +180,23 @@ ui <- fluidPage(
                                 )
                        ),
                        tabPanel("Dot Plot",
-                                column(3,
+                                column(4,
                                        br(),
                                        wellPanel(
                                          numericInput("Nmax", "N display ", value = 30),
                                          checkboxInput("clustering", "Hierarchical clustering", value = FALSE)
                                        ),
-                                       br(),
                                        wellPanel(
                                          helpText("Hover mouse over point to display extra info"),
+                                         helpText("Click to select protein"),
                                          helpText("Brush and double-click to zoom")
-                                       )
+                                       ),
+                                       br(),
+                                       plotOutput("stoichioPlot",width="200",height="200"),
+                                       br(),
+                                       plotOutput("compPlot",width="200",height="200")
                                 ),
-                                column(4,
+                                column(8,
                                        br(),
                                        downloadButton("download_dotPlot", "Download Plot", value = FALSE),
                                        br(),
@@ -200,15 +209,6 @@ ui <- fluidPage(
                                                     resetOnNew = TRUE) ),
                                        br(),
                                        verbatimTextOutput("info_dotPlot_hover")
-                                ),
-                                column(5,
-                                       br(),
-                                       #downloadButton("download_dotPlot", "Download Plot", value = FALSE),
-                                       #br(),
-                                       plotOutput("stoichioPlot",width="250",height="200"),
-                                       br(),
-                                       plotOutput("compPlot",width="250",height="200")
-
                                 )
                        ),
                        tabPanel("2D Stoichio",
@@ -228,7 +228,6 @@ ui <- fluidPage(
                                 ),
                                 fluidRow(
                                   column(width=5,
-                                         br(),
                                          helpText("Brush to select zoom area"),
                                          downloadButton("download_Stoichio2D", "Download Plot", value = FALSE),
                                          plotOutput("Stoichio2D", width="300",height="300",
@@ -240,7 +239,6 @@ ui <- fluidPage(
 
                                   ),
                                   column(width=5,
-                                         br(),
                                          helpText("zoom on selected area"),
                                          downloadButton("download_Stoichio2D_zoom", "Download Plot", value = FALSE),
                                          plotOutput("Stoichio2D_zoom", width="300",height="300",
@@ -259,7 +257,6 @@ ui <- fluidPage(
                                          numericInput("r_corr_thresh", "Correlation Pearson R (min) ", value = 0.8),
                                          numericInput("p_val_corr_thresh", "Associated p-value (max)", value = 0.05)
                                        ),
-                                       br(),
                                        wellPanel(
                                          helpText("Drag and drop to move points around")
                                        )
@@ -369,6 +366,8 @@ server <- function(input, output, session) {
   
   var_to_load <- reactiveValues(names = NULL)
   df_corr_plot <- reactiveValues(names = NULL, x = NULL, y = NULL, cluster=NULL)
+  select_dotPlot <- reactiveValues(i_prot = 1, i_cond=1)
+  select_volcanoPlot <- reactiveValues(i_min = 1, min_dist1 = 0)
   
   #Main reactive functions -------------------------------------------------------------------------
   
@@ -501,15 +500,7 @@ server <- function(input, output, session) {
     cond_int
   })
   
-  res<- reactive({
-    
-    # Create a Progress object
-    progress <- shiny::Progress$new(min = 0, max = 100)
-    progress$set(message = "Compute interactome...", value = 0)
-    on.exit(progress$close())
-    updateProgress <- function(value = NULL, detail = NULL) {
-      progress$set(value = value, detail = detail)
-    }
+  prep_data <- reactive({
     
     updateSelectInput(session, "volcano_cond",
                       choices = as.list(setdiff(unique(cond()$time), input$filter_time) ),
@@ -517,18 +508,15 @@ server <- function(input, output, session) {
     updateSelectInput(session, "Stoichio2D_cond",
                       choices = as.list(setdiff( c("max", unique(cond()$time)), input$filter_time)),
                       selected = NULL)
-    cond()
-    
-    input$column_gene_name
+
     Column_gene_name <- input$column_gene_name #names(data())[grep("GENE", toupper(names(data())))[1]]
     Column_ID <- input$column_ID #names(data())[grep("ID", toupper(names(data())))[1]]
-
-    res_int<-InteRact(data(),
+    
+    preprocess_data(  df = data(),
                       Column_intensity_pattern = input$pattern,
                       bait_gene_name = input$bait_gene_name,
                       Column_gene_name = Column_gene_name,
                       Column_ID = Column_ID,
-                      N_rep=input$Nrep,
                       bckg_bait = input$bckg_bait ,
                       bckg_ctrl = input$bckg_ctrl,
                       # preffix_bio = input$preffix_bio,
@@ -540,7 +528,22 @@ server <- function(input, output, session) {
                       bckg=cond()$bckg,
                       time=cond()$time,
                       bio=cond()$bio,
-                      tech=cond()$tech,
+                      tech=cond()$tech)
+  })
+  
+  res<- reactive({
+    
+    # Create a Progress object
+    progress <- shiny::Progress$new(min = 0, max = 100)
+    progress$set(message = "Compute interactome...", value = 0)
+    on.exit(progress$close())
+    updateProgress <- function(value = NULL, detail = NULL) {
+      progress$set(value = value, detail = detail)
+    }
+
+    res_int<-InteRact(preprocess_df = prep_data(),
+                      bait_gene_name = input$bait_gene_name,
+                      N_rep=input$Nrep,
                       pool_background = input$pool_background,
                       updateProgress = updateProgress)
            
@@ -549,9 +552,9 @@ server <- function(input, output, session) {
     df_FDR <- compute_FDR_from_asymmetry(df_merge)
     res_int$Interactome <- append_FDR(res_int$Interactome, df_FDR)
     res_int
+    
   })
 
-  
   order_list <- reactive({
     res_int <- identify_interactors (res()$Interactome,
                                      var_p_val = "p_val", 
@@ -723,9 +726,6 @@ server <- function(input, output, session) {
     vatt <- vertex.attributes(net)
     vertex_names <- as.character(vatt$name)
     
-    #vertex_names <- unique( c(df1$name_1, df1$name_2) )
-    cat(vertex_names)
-    
     #layout <- data.frame(x=rnorm(length(vertex_names)), y=rnorm(length(vertex_names)))
     #idx_vertex <- as.numeric(vertex_names)
     #df_corr_plot$names <- names[idx_vertex]
@@ -893,31 +893,55 @@ server <- function(input, output, session) {
                             N_annot_min = input$N_annot_min)
   })
   
-  stoichioPlot <- eventReactive(input$dotPlot_click, {
+  observeEvent(input$dotPlot_click, {
+    if(!is.null(input$dotPlot_hover)){
+      select_dotPlot$i_prot <- round(-input$dotPlot_hover$y)
+      select_dotPlot$i_cond <- round(input$dotPlot_hover$x)
+    } 
+  })
+  
+  stoichioPlot <- reactive({
     
-      if(!is.null(input$dotPlot_hover)){
-        i_prot = round(-input$dotPlot_hover$y)
-        plot_stoichio(ordered_Interactome(), 
-                      name = ordered_Interactome()$names[i_prot])
-      } else {
-        NULL
-      }
-    
+    plot_stoichio(ordered_Interactome(), 
+                  name = ordered_Interactome()$names[select_dotPlot$i_prot],
+                  test = "t.test",
+                  test.args = list("paired" = FALSE))
    
   })
   
-  compPlot <- eventReactive(input$dotPlot_click, {
+  compPlot <- reactive({
     
-    if(!is.null(input$dotPlot_hover)){
-      i_prot = round(-input$dotPlot_hover$y)
-      i_cond = round(input$dotPlot_hover$x)
-      plot_comparison(ordered_Interactome(), 
-                      name = ordered_Interactome()$names[i_prot],
-                      condition = ordered_Interactome()$conditions[i_cond])
-    } else {
-      NULL
+    plot_comparison(ordered_Interactome(), 
+                    name = ordered_Interactome()$names[select_dotPlot$i_prot],
+                    condition = ordered_Interactome()$conditions[select_dotPlot$i_cond])
+  })
+  
+  observeEvent(input$volcano_click, {
+    if(!is.null(input$volcano_hover)){
+      hover=input$volcano_hover
+      
+      dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
+                   (hover$y+log10(ordered_Interactome()$p_val[[input$volcano_cond]]) )^2)
+      
+      if(input$asinh_transform) {
+        dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
+                     (hover$y+asinh(log10(ordered_Interactome()$p_val[[input$volcano_cond]])) )^2)
+      }
+      
+      select_volcanoPlot$min_dist1 <- min(dist1, na.rm=TRUE)
+      select_volcanoPlot$i_min <- which.min(dist1)
     }
+  })
+  
+  compPlot_volcano <- reactive({
     
+    plot_comparison(ordered_Interactome(), 
+                    name = ordered_Interactome()$names[select_volcanoPlot$i_min],
+                    condition = input$volcano_cond)
+  })
+  
+  QCPlot <- reactive({
+      plot_QC(prep_data())
   })
     
   #Output Table functions -------------------------------------------------------------------------
@@ -938,6 +962,10 @@ server <- function(input, output, session) {
   output$plot_corr <- renderPlot(corrPlot())
   output$stoichioPlot <- renderPlot(stoichioPlot())
   output$compPlot <- renderPlot(compPlot())
+  output$compPlot_volcano <- renderPlot(compPlot_volcano())
+  output$QCPlot1 <- renderPlot(QCPlot()[[1]])
+  output$QCPlot2 <- renderPlot(QCPlot()[[2]])
+  output$QCPlot3 <- renderPlot(QCPlot()[[3]])
   
   #Output Download functions ---------------------------------------------------------------------
   
@@ -1065,39 +1093,29 @@ server <- function(input, output, session) {
   })
 
   output$info_Stoichio2D_hover <- renderPrint({
-    if(!is.null(input$Stoichio2D_hover)){
-      hover=input$Stoichio2D_hover
-      if(input$Stoichio2D_cond == "max"){
-        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
-                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
-      }else{
-        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
-                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
-      }
-      min_dist1 <- min(dist1, na.rm=TRUE)
-      i_min <- which.min(dist1)
-
-      if(min_dist1 < 0.25){
-        s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
-        s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ i_min ],sep="")
-        s3<-paste("max_fold_change: ", ordered_Interactome()$max_fold_change[ i_min ],sep="")
+    
+        
+      if(select_volcanoPlot$min_dist1 < 0.25){
+        s1<-paste("name: ", ordered_Interactome()$names[ select_volcanoPlot$i_min ],sep="")
+        s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ select_volcanoPlot$i_min ],sep="")
+        s3<-paste("max_fold_change: ", ordered_Interactome()$max_fold_change[ select_volcanoPlot$i_min ],sep="")
         cat(s1,s2,s3,sep="\n")
       }
-    }
+    
   })
 
   output$info_dotPlot_hover <- renderPrint({
-    if(!is.null(input$dotPlot_hover)){
-      i_prot = round(-input$dotPlot_hover$y)
-      i_cond = round(input$dotPlot_hover$x)
-      s1 <- paste("Name: ", ordered_Interactome()$names[ i_prot ], sep="")
-      s2 <- paste("Condition: ", ordered_Interactome()$conditions[ i_cond ], sep="")
-      s3 <- paste("p-value: ", ordered_Interactome()$p_val[[ i_cond ]][ i_prot ], sep="")
-      s4 <- paste("fold-change: ", ordered_Interactome()$fold_change[[ i_cond ]][ i_prot ], sep="")
-      s5 <- paste("stoichio: ", ordered_Interactome()$stoichio[[ i_cond ]][ i_prot ], sep="")
-      s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ i_cond ]][ i_prot ], sep="")
+    #if(!is.null(input$dotPlot_hover)){
+    #  i_prot = round(-input$dotPlot_hover$y)
+    #  i_cond = round(input$dotPlot_hover$x)
+      s1 <- paste("Name: ", ordered_Interactome()$names[ select_dotPlot$i_prot ], sep="")
+      s2 <- paste("Condition: ", ordered_Interactome()$conditions[ select_dotPlot$i_cond ], sep="")
+      s3 <- paste("p-value: ", ordered_Interactome()$p_val[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
+      s4 <- paste("fold-change: ", ordered_Interactome()$fold_change[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
+      s5 <- paste("stoichio: ", ordered_Interactome()$stoichio[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
+      s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
       cat(s1, s2, s3, s4, s5, s6,sep="\n")
-    }
+    #}
   })
 
   

@@ -85,7 +85,8 @@ load("./R/sysdata.rda")
 #' Interactome <- append_annotations(Interactome,  annot)
 #' #Check the new summary data frame
 #' sum_tbl_2 <- summary_table(Interactome)
-InteRact <- function(df,
+InteRact <- function(preprocess_df = NULL,
+                     df,
                      Column_gene_name = "Gene.names",
                      Column_score = "Score",
                      Column_ID = "Protein.IDs",
@@ -116,93 +117,41 @@ InteRact <- function(df,
                      log = TRUE,
                      by_conditions = TRUE
                      ){
-  
-  if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
-    stop("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
-  }
-  
-  if(! Column_ID %in% names(df)){
-    warning(paste("Column ", Column_ID, " could not be found", sep=""))
-  }
-  if(! Column_gene_name %in% names(df)){
-    stop(paste("Column ", Column_gene_name, " could not be found", sep=""))
-  }
-  
-  df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
-  
-  df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
-  
-  df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
-  
-  idx_col<-grep(Column_intensity_pattern, colnames(df))
-  if(length(idx_col)==0){
-    stop("Couldn't find pattern in column names")
-  }
-  
-  df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
-  
-  T_int <- df[ ,idx_col];
-  col_I <- colnames(T_int)
-  
-  ibait <- which(df$gene_name == bait_gene_name);
-  if(length(ibait)==0){
-    stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
-  }
-  
-  # Identify conditions corresponding to intensity columns
-  
-  
-  if( is.null(bckg) | is.null(time) | is.null(bio) | is.null(tech) ){
-    # cond <- identify_conditions(df, 
-    #                             Column_intensity_pattern = Column_intensity_pattern, 
-    #                             bckg_bait = bckg_bait, 
-    #                             bckg_ctrl = bckg_ctrl,
-    #                             preffix_time = preffix_time,
-    #                             preffix_bio = preffix_bio, 
-    #                             preffix_tech = preffix_tech )
-    
-    cond <- identify_conditions_2(df, 
-                                Column_intensity_pattern = Column_intensity_pattern, 
-                                split = "_",
-                                bckg_pos = 1,
-                                bio_pos = 2,
-                                time_pos = 3, 
-                                tech_pos = 4 )
-    
-    
+  if(is.null(preprocess_df)){
+    avg <- preprocess_data(df =df,
+                    Column_gene_name = Column_gene_name,
+                    Column_score = Column_score,
+                    Column_ID = Column_ID,
+                    Column_Npep = Column_Npep,
+                    bait_gene_name = bait_gene_name,
+                    bckg_bait = bckg_bait,
+                    bckg_ctrl = bckg_ctrl,
+                    bckg = bckg,
+                    time=time,
+                    bio=bio,
+                    tech=tech,
+                    Column_intensity_pattern = Column_intensity_pattern,
+                    # preffix_bio="S",
+                    # preffix_tech="R",
+                    # preffix_time="",
+                    split = split,
+                    bckg_pos = bckg_pos,
+                    bio_pos = bio_pos,
+                    time_pos = time_pos, 
+                    tech_pos = tech_pos,
+                    filter_time = filter_time,
+                    filter_bio = filter_bio,
+                    filter_tech = filter_tech,
+                    log = log)
   } else {
-    cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+    avg <- preprocess_df
   }
   
-
-  # filter out some experimental conditions
-  
-  cond_filter <- cond
-  idx_filter <- c( unlist( lapply(filter_time, function(x) l=which(cond$time==x) ) ) , 
-                   unlist( lapply(filter_bio, function(x) l=which(cond$bio==x) ) ),
-                   unlist( lapply(filter_tech, function(x) l=which(cond$tech==x) ) ) )
-  
-  if(!is.null(idx_filter) && length(idx_filter)>0 ){
-    
-    cat("Filter following intensity columns :\n")
-    cat(idx_filter)
-    cat("\n")
-    
-    cond_filter <- cond[-idx_filter,] 
-    
-  }
-  
-  
-  #Normalize on median intensity across conditions
-  
-  T_int[T_int==0] <- NA;
-  T_int_norm <- rescale_median(T_int);
-  cat("Rescale median intensity across conditions\n")
-  
-  avg <- average_technical_replicates(T_int_norm, cond_filter)
-  
-  T_int_norm_mean = avg$Intensity
-  idx_cond = avg$conditions
+  T_int_norm_mean <- avg$Intensity
+  idx_cond <- avg$conditions
+  Npep <- avg$Npep
+  Protein.IDs <- avg$Protein.IDs
+  ibait <- which(avg$names == avg$bait)
   
   # identify missing values
   
@@ -232,13 +181,13 @@ InteRact <- function(df,
       cat(paste("Nrep=",i,"\n",sep=""));
       log10_T_int_norm_mean_rep[is.na(log10_T_int_norm_mean)] <- rnorm( n_replace, mean=q, sd=s) 
       Tfinal <- 10^log10_T_int_norm_mean_rep
-      rownames(Tfinal)<-df$gene_name
+      #rownames(Tfinal)<-df$gene_name
       
-      res[[i]]<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait[[1]], Npep = df$Npep, 
-                                   name_bait = bckg_bait, name_ctrl = bckg_ctrl,
-                                   background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
-                                   pool_background = pool_background, log = log, by_conditions = by_conditions)
-      res[[i]]$Protein.IDs <- df[[Column_ID]]
+      res[[i]]<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait, 
+                                    Npep = Npep, Protein.IDs = Protein.IDs,
+                                    name_bait = bckg_bait, name_ctrl = bckg_ctrl,
+                                    background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
+                                    pool_background = pool_background, log = log, by_conditions = by_conditions)
       
     }
     
@@ -248,21 +197,147 @@ InteRact <- function(df,
   }else{
     
     Tfinal <- 10^log10_T_int_norm_mean
-    rownames(Tfinal)<-df$gene_name
+    #rownames(Tfinal)<-df$gene_name
     
-    res_mean<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait[[1]], Npep = df$Npep,
-                                 name_bait = bckg_bait, name_ctrl = bckg_ctrl,
-                                 background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
-                                 pool_background = pool_background, log = log, by_conditions = by_conditions)
-    res_mean$protein_ID <- df[[Column_ID]]
+    res_mean<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait[[1]], 
+                                  Npep = Npep, Protein.IDs = Protein.IDs, 
+                                  name_bait = bckg_bait, name_ctrl = bckg_ctrl,
+                                  background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
+                                  pool_background = pool_background, log = log, by_conditions = by_conditions)
+
   }
   
   res_mean <- global_analysis(res_mean);
   
-  output=list( Interactome = res_mean, conditions = cond, conditions_filtered=cond_filter, mean_data = avg);
+  output=list( Interactome = res_mean, conditions = idx_cond, mean_data = avg);
   
 }
 
+#' @export
+preprocess_data <- function(df,
+                     Column_gene_name = "Gene.names",
+                     Column_score = "Score",
+                     Column_ID = "Protein.IDs",
+                     Column_Npep = NULL,
+                     bait_gene_name,
+                     bckg_bait = bait_gene_name,
+                     bckg_ctrl = "WT",
+                     bckg = NULL,
+                     time=NULL,
+                     bio=NULL,
+                     tech=NULL,
+                     Column_intensity_pattern = "^Intensity.",
+                     # preffix_bio="S",
+                     # preffix_tech="R",
+                     # preffix_time="",
+                     split = "_",
+                     bckg_pos = 1,
+                     bio_pos = 2,
+                     time_pos = 3, 
+                     tech_pos = 4,
+                     filter_time=NULL,
+                     filter_bio=NULL,
+                     filter_tech=NULL,
+                     log = TRUE
+){
+  
+  if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
+    stop("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
+  }
+  
+  if(! Column_ID %in% names(df)){
+    warning(paste("Column ", Column_ID, " could not be found", sep=""))
+  }
+  if(! Column_gene_name %in% names(df)){
+    stop(paste("Column ", Column_gene_name, " could not be found", sep=""))
+  }
+  
+  df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
+  
+  df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
+  
+  df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
+  
+  idx_col<-grep(Column_intensity_pattern, colnames(df))
+  if(length(idx_col)==0){
+    stop("Couldn't find pattern in column names")
+  }
+  
+  df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
+  
+  T_int <- df[ ,idx_col];
+  row.names(T_int) <- df$gene_name
+  col_I <- colnames(T_int)
+  
+  ibait <- which(df$gene_name == bait_gene_name);
+  if(length(ibait)==0){
+    stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
+  }
+  
+  # Identify conditions corresponding to intensity columns
+  
+  
+  if( is.null(bckg) | is.null(time) | is.null(bio) | is.null(tech) ){
+    # cond <- identify_conditions(df, 
+    #                             Column_intensity_pattern = Column_intensity_pattern, 
+    #                             bckg_bait = bckg_bait, 
+    #                             bckg_ctrl = bckg_ctrl,
+    #                             preffix_time = preffix_time,
+    #                             preffix_bio = preffix_bio, 
+    #                             preffix_tech = preffix_tech )
+    
+    cond <- identify_conditions_2(df, 
+                                  Column_intensity_pattern = Column_intensity_pattern, 
+                                  split = "_",
+                                  bckg_pos = bckg_pos,
+                                  bio_pos = bio_pos,
+                                  time_pos = time_pos, 
+                                  tech_pos = tech_pos )
+    
+    
+  } else {
+    cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+  }
+  
+  
+  # filter out some experimental conditions
+  
+  cond_filter <- cond
+  idx_filter <- c( unlist( lapply(filter_time, function(x) l=which(cond$time==x) ) ) , 
+                   unlist( lapply(filter_bio, function(x) l=which(cond$bio==x) ) ),
+                   unlist( lapply(filter_tech, function(x) l=which(cond$tech==x) ) ) )
+  
+  if(!is.null(idx_filter) && length(idx_filter)>0 ){
+    
+    cat("Filter following intensity columns :\n")
+    cat(idx_filter)
+    cat("\n")
+    
+    cond_filter <- cond[-idx_filter,] 
+    
+  }
+  
+  
+  #Normalize on median intensity across conditions
+  
+  T_int[T_int==0] <- NA;
+  T_int_norm <- rescale_median(T_int);
+  
+  cat("Rescale median intensity across conditions\n")
+  
+  avg <- average_technical_replicates(T_int_norm, cond_filter, log = log)
+  
+  avg$Npep <- df$Npep
+  avg$Protein.IDs <- df[[Column_ID]]
+  avg$names <- df$gene_name
+  avg$bait <- bait_gene_name
+  row.names(avg$Intensity) <- avg$names
+  avg$bckg_bait <- bckg_bait
+  avg$bckg_ctrl <- bckg_ctrl
+  
+  return(avg)
+  
+}
 
 #' Identify conditions (background, time of stimulation, biological and technical replicates) 
 #' from column names
@@ -419,7 +494,7 @@ identify_conditions_2 <- function(df,
 #' Column_intensity_pattern <- "^Intensity."
 #' df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
 #  avg <- average_technical_replicates(df_int, cond)
-average_technical_replicates<-function(df, cond){
+average_technical_replicates<-function(df, cond, log = TRUE){
   
   cond_group <- dplyr::group_by(cond, bckg, time, bio)
   idx_cond <-  dplyr::summarize(cond_group, idx_all=list(idx))
@@ -429,7 +504,7 @@ average_technical_replicates<-function(df, cond){
   
   for(j in 1:dim(idx_cond)[1]){
     cond_name[j] = paste( idx_cond$bckg[j], 't', idx_cond$time[j], 'rep', idx_cond$bio[j], sep="_");
-    df_mean[[j]] <- rowMeans(df[ idx_cond$idx_all[[j]] ], na.rm=TRUE);
+    df_mean[[j]] <- row_mean(df[ idx_cond$idx_all[[j]] ], na.rm=TRUE, log = log);
   }
   colnames(df_mean)=cond_name;
   
@@ -619,8 +694,17 @@ rescale_median <- function(df){
 #' @param x A numeric vector
 #' @param na.rm remove NA values
 #' @return A numeric value
-geom_mean = function(x, na.rm=TRUE){
-  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+geom_mean = function(x, na.rm = TRUE){
+  idx_na <- which(is.na(x))
+  x <- x[x>0]
+  if(sum(!is.na(x)) == 0){
+    return(NA)
+  }else if(!na.rm & sum(is.na(x)) >0){
+    return(NA)
+  }else{
+    return( exp(sum(log(x[!is.na(x)])) / sum(!is.na(x)) ))
+  }
+  
 }
 
 #' Compute the standard deviation by row
@@ -630,7 +714,7 @@ geom_mean = function(x, na.rm=TRUE){
 row_sd <- function(df){
   output<-vector("double", dim(df)[1] )
   for(i in 1:dim(df)[1] ){
-    output[i] <- sd(df[i,],na.rm=TRUE);
+    output[i] <- sd(as.numeric(df[i,]),na.rm=TRUE);
   }
   output
 }
@@ -640,13 +724,13 @@ row_sd <- function(df){
 #' @param df a data frame
 #' @param log option to use geometric mean
 #' @return A numeric vector
-row_mean <- function(df, log = FALSE){
-  output<-vector("double", dim(df)[1] )
+row_mean <- function(df, na.rm = TRUE, log = FALSE){
+  output <- vector("double", dim(df)[1] )
   for(i in 1:dim(df)[1] ){
     if(log){
-      output[i] <- geom_mean(df[i,],na.rm=TRUE);
+      output[i] <- geom_mean(as.numeric(df[i,]), na.rm = na.rm);
     } else{
-      output[i] <- mean(df[i,],na.rm=TRUE);
+      output[i] <- mean(as.numeric(df[i,]), na.rm = na.rm);
     }
     
   }
@@ -730,7 +814,7 @@ row_stoichio <- function(df,
 }
 
 #' @export
-analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, name_ctrl, 
+analyse_interactome <- function( df, ibait, bait_gene_name, Npep, Protein.IDs, name_bait, name_ctrl, 
                                  background, conditions, replicates, 
                                  by_conditions = TRUE, pool_background = TRUE, log = TRUE){
   # df :  dataframe of intensities. columns are experimental samples and rows are proteins
@@ -824,10 +908,13 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, name_bait, nam
   }
   
   res = list(bait = bait_gene_name, 
+             bckg_bait = name_bait,
+             bckg_ctrl = name_ctrl,
              groups = paste(name_bait," vs ", name_ctrl, sep=""), 
              conditions= as.character(cond),
              replicates = as.character(ubio),
              names=row.names(df), 
+             Protein.IDs = Protein.IDs,
              p_val=p_val, 
              fold_change=fold_change, 
              stoichio=stoichio,
@@ -1873,7 +1960,7 @@ order_interactome.InteRactome <- function(res, idx_order){
     stop("Vector of ordering indexes does not have the proper length")
   }
   res_order<-res;
-  for( var in setdiff( names(res), c("bait","groups","conditions", "interactor", "replicates") ) ){
+  for( var in setdiff( names(res), c("bait", "bckg_bait", "bckg_ctrl","groups","conditions", "interactor", "replicates") ) ){
     
     if(length(res[[var]]) == length(res$names)){
       res_order[[var]] <- res[[var]][idx_order]
@@ -2279,7 +2366,8 @@ plot_stoichio <- function(Interactome,
     
   p <- ggplot(df_tot, aes(x=cond, y=log10(stoichio))) + 
     theme(axis.text.x = element_text(size=10),
-          axis.text.y = element_text(size=10)) +
+          axis.text.y = element_text(size=10)
+          ) +
     geom_point(size=0, alpha = 0) +  
     ggtitle(plot_title) + 
     xlab("conditions") +
@@ -2297,6 +2385,7 @@ plot_stoichio <- function(Interactome,
   
 }
 
+#' @export
 plot_comparison <- function(Interactome, 
                           name, 
                           condition, 
@@ -2361,6 +2450,97 @@ plot_comparison <- function(Interactome,
     )
   
   return(p)
+  
+}
+#' @export
+plot_QC <- function(prep_data){
+  
+  p_list <- list()
+  
+  df <- prep_data
+  ibait <- which(df$names == df$bait)
+  
+  M <- as.matrix(df$Intensity)
+  R <- rcorr(M)
+  
+  idx_bait <- df$conditions$bckg == df$bckg_bait
+  idx_ctrl <- df$conditions$bckg == df$bckg_ctrl
+  
+  Ravg_bait <- cbind(df$conditions[idx_bait, ], Ravg = row_mean(R$r[idx_bait, idx_bait]))
+  Ravg_ctrl <- cbind(df$conditions[idx_ctrl, ], Ravg = row_mean(R$r[idx_ctrl, idx_ctrl]))
+  Ravg <- rbind(Ravg_bait, Ravg_ctrl)
+  
+  
+  
+  x <- Ravg_bait$Ravg[Ravg_bait$bckg==df$bckg_bait]
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = T)
+  
+  outlier_bio_1 <- unique(Ravg_bait$bio[x < (qnt[1] - H)])
+  if(length(outlier_bio_1)>0){
+    message_outlier_1 <- paste("outliers in", paste(outlier_bio_1, sep=", "), sep=" ")
+  }else{
+    message_outlier_1 <- "No outliers"
+  }
+  message_outlier_1 <- paste(message_outlier_1, "(in bait bckg)", sep=" ")
+  
+  p1 <- ggplot(Ravg, aes(x=bckg, y=Ravg, col=bio)) + 
+    #theme(legend.position="top") +
+    ggtitle("QC: Intensity Correlation", subtitle = message_outlier_1) +
+    ylab("average R")+
+    geom_boxplot(data=Ravg, mapping=aes(x=bckg, y=Ravg), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
+  
+  p_list[[1]] <- p1
+  
+  Ibait <- cbind(df$conditions, Ibait = as.numeric(df$Intensity[ibait, ]) )
+  x <- Ibait$Ibait[Ibait$bckg==df$bckg_bait]
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = TRUE)
+  
+  outlier_bio_2 <- unique(Ibait$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
+  if(length(outlier_bio_2)>0){
+    message_outlier_2 <- paste("outliers in", paste(outlier_bio_2, sep=", "), sep=" ")
+  }else{
+    message_outlier_2 <- "No outliers"
+  }
+  message_outlier_2 <- paste(message_outlier_2, "(in bait bckg)", sep=" ")
+  
+  p2 <- ggplot(Ibait, aes(x=bckg, y=log10(Ibait), col=bio)) + 
+    #theme(legend.position="top") +
+    ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
+    ylab("norm. Intensity (log10)") +
+    geom_boxplot(data=Ibait, mapping=aes(x=bckg, y=log10(Ibait)), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
+  
+  p_list[[2]] <- p2
+  
+  nNA <- cbind(df$conditions,
+               nNA = sapply(1:dim(df$Intensity)[2], FUN=function(x){sum(is.na(df$Intensity[,x]))})
+  )
+  
+  x <- nNA$nNA[nNA$bckg==df$bckg_bait]
+  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * IQR(x, na.rm = TRUE)
+  
+  outlier_bio_3 <- unique(nNA$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
+  if(length(outlier_bio_3)>0){
+    message_outlier_3 <- paste("outliers in", paste(outlier_bio_3, sep=", "), sep=" ")
+  }else{
+    message_outlier_3 <- "No outliers"
+  }
+  message_outlier_3 <- paste(message_outlier_3, "(in bait bckg)", sep=" ")
+  
+  p3 <- ggplot(nNA, aes(x=bckg, y=log10(nNA), col=bio)) +
+    #theme(legend.position="top") +
+    ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
+    ylab("NA counts (log10)") +
+    geom_boxplot(data=nNA, mapping=aes(x=bckg, y=log10(nNA)), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
+  
+  p_list[[3]] <- p3
+  
+  return(p_list)
   
 }
 
