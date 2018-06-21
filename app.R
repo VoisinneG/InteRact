@@ -6,7 +6,8 @@ library(grid)
 library(data.table)
 library(Hmisc)
 library(igraph)
-library(plotly)
+library(networkD3)
+library(ggsignif)
 
 source("./R/InteRact.R")
 
@@ -159,8 +160,10 @@ ui <- fluidPage(
                                          helpText("Click to select protein"),
                                          helpText("Brush and double-click to zoom")
                                        ),
+                                       
                                        br(),
                                        plotOutput("compPlot_volcano",width="200",height="200")
+                                       
                                 ),
                                 column(8,
                                        br(),
@@ -258,24 +261,16 @@ ui <- fluidPage(
                                          numericInput("p_val_corr_thresh", "Associated p-value (max)", value = 0.05)
                                        ),
                                        wellPanel(
-                                         helpText("Drag and drop to move points around")
+                                         helpText("zoom in : dbl click"),
+                                         helpText("zoom out : shift + dbl click "),
+                                         helpText("move : click + drag ")
                                        )
                                 ),
                                 column(8,
                                        br(),
-                                       plotOutput("plot_corr", height = 450,
-                                                  click = clickOpts(
-                                                    id = "plot_corr_click"
-                                                  ),
-                                                  brush = brushOpts(
-                                                    id = "plot_corr_brush",
-                                                    resetOnNew = TRUE,
-                                                    opacity = 0.0
-                                                  )
-                                       )
+                                       forceNetworkOutput("force_net")
                                        
-                                         
-                                       
+ 
                                 )
                        ),
                        tabPanel("Annotations",
@@ -543,6 +538,7 @@ server <- function(input, output, session) {
 
     res_int<-InteRact(preprocess_df = prep_data(),
                       bait_gene_name = input$bait_gene_name,
+                      bckg_bait = input$bckg_bait,
                       N_rep=input$Nrep,
                       pool_background = input$pool_background,
                       updateProgress = updateProgress)
@@ -722,48 +718,62 @@ server <- function(input, output, session) {
     net <- igraph::simplify(net)
     layout <- layout_nicely(net)
     cfg <- cluster_fast_greedy(as.undirected(net))
-
-    vatt <- vertex.attributes(net)
-    vertex_names <- as.character(vatt$name)
+    net_d3 <- igraph_to_networkD3(net, group = cfg$membership)
     
-    #layout <- data.frame(x=rnorm(length(vertex_names)), y=rnorm(length(vertex_names)))
-    #idx_vertex <- as.numeric(vertex_names)
-    #df_corr_plot$names <- names[idx_vertex]
-    
-    df_corr_plot$names <- vertex_names
-    df_corr_plot$x <- layout[ , 1]
-    df_corr_plot$y <- layout[ , 2]
-    df_corr_plot$cluster <- as.factor(cfg$membership)
-    #df_corr_plot$cluster <- sample(10, length(vertex_names), replace = TRUE)
-    
-    df1
+    # vatt <- vertex.attributes(net)
+    # vertex_names <- as.character(vatt$name)
+    # 
+    # #layout <- data.frame(x=rnorm(length(vertex_names)), y=rnorm(length(vertex_names)))
+    # #idx_vertex <- as.numeric(vertex_names)
+    # #df_corr_plot$names <- names[idx_vertex]
+    # 
+    # df_corr_plot$names <- vertex_names
+    # df_corr_plot$x <- layout[ , 1]
+    # df_corr_plot$y <- layout[ , 2]
+    # df_corr_plot$cluster <- as.factor(cfg$membership)
+    # #df_corr_plot$cluster <- sample(10, length(vertex_names), replace = TRUE)
+    # 
+    # df1
   })
   
-  corrPlot <- reactive({
+  output$force_net <- renderForceNetwork({
     
-    df2 = data.frame(x=df_corr_plot$x, y=df_corr_plot$y, label=df_corr_plot$names, cluster=df_corr_plot$cluster)
-    
-    #print(head(df_corr_filtered() ))
-    
-    p<-ggplot(df2, aes(x, y, label=label, color=cluster)) +
-      theme_void() +
-      geom_point(alpha=0.3, size=10) +
-      geom_text()
-    
-    for (i in 1:length(df_corr_filtered()$name_1)){
-      idx1 <- which(df_corr_plot$names == df_corr_filtered()$name_1[i])
-      idx2 <- which(df_corr_plot$names == df_corr_filtered()$name_2[i])
-      p <- p + annotate("segment",
-                        x = df_corr_plot$x[idx1],
-                        xend = df_corr_plot$x[idx2],
-                        y = df_corr_plot$y[idx1],
-                        yend = df_corr_plot$y[idx2],
-                        colour = "gray50",
-                        alpha=0.25)
-    }
-    
-    p
-  }) 
+    forceNetwork(Links = df_corr_filtered()$links, Nodes = df_corr_filtered()$nodes,
+                 Source = 'source', Target = 'target',
+                 fontFamily = "arial",
+                 NodeID = 'name', Group = 'group',
+                 colourScale = JS("d3.scaleOrdinal(d3.schemeCategory20);"),
+                 charge = -10, opacity = 1,
+                 linkColour = rgb(0.75, 0.75, 0.75),
+                 fontSize = 12, bounded = TRUE, zoom=TRUE, opacityNoHover = 1
+    )
+  })
+  
+  # corrPlot <- reactive({
+  #   
+  #   df2 = data.frame(x=df_corr_plot$x, y=df_corr_plot$y, label=df_corr_plot$names, cluster=df_corr_plot$cluster)
+  #   
+  #   #print(head(df_corr_filtered() ))
+  #   
+  #   p<-ggplot(df2, aes(x, y, label=label, color=cluster)) +
+  #     theme_void() +
+  #     geom_point(alpha=0.3, size=10) +
+  #     geom_text()
+  #   
+  #   for (i in 1:length(df_corr_filtered()$name_1)){
+  #     idx1 <- which(df_corr_plot$names == df_corr_filtered()$name_1[i])
+  #     idx2 <- which(df_corr_plot$names == df_corr_filtered()$name_2[i])
+  #     p <- p + annotate("segment",
+  #                       x = df_corr_plot$x[idx1],
+  #                       xend = df_corr_plot$x[idx2],
+  #                       y = df_corr_plot$y[idx1],
+  #                       yend = df_corr_plot$y[idx2],
+  #                       colour = "gray50",
+  #                       alpha=0.25)
+  #   }
+  #   
+  #   p
+  # }) 
   
   data_summary <- reactive({
     df <- data()
@@ -959,7 +969,7 @@ server <- function(input, output, session) {
   output$dotPlot <- renderPlot( dotPlot() )
   output$volcano <- renderPlot( volcano() )
   output$annotPlot <- renderPlot(annotPlot())
-  output$plot_corr <- renderPlot(corrPlot())
+  #output$plot_corr <- renderPlot(corrPlot())
   output$stoichioPlot <- renderPlot(stoichioPlot())
   output$compPlot <- renderPlot(compPlot())
   output$compPlot_volcano <- renderPlot(compPlot_volcano())
