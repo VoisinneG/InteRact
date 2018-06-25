@@ -8,6 +8,7 @@ library(Hmisc)
 library(igraph)
 library(networkD3)
 library(ggsignif)
+library(plotly)
 
 source("./R/InteRact.R")
 
@@ -31,7 +32,8 @@ ui <- fluidPage(
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
              numericInput("n_success_min", "n_success_min", value = 1),
              checkboxInput("consecutive_success", "consecutive_success", value = TRUE),
-             verbatimTextOutput("interactors")
+             verbatimTextOutput("interactors"),
+             verbatimTextOutput("plotly_print")
            )
     ),
     column(9,
@@ -139,9 +141,12 @@ ui <- fluidPage(
                                 ),
                                 column(8,
                                   br(),
-                                  plotOutput("QCPlot1", width="250",height="200"),
-                                  plotOutput("QCPlot2", width="250",height="200"),
-                                  plotOutput("QCPlot3", width="250",height="200")
+                                  # plotOutput("QCPlot1", width="250",height="200"),
+                                  # plotOutput("QCPlot2", width="250",height="200"),
+                                  # plotOutput("QCPlot3", width="250",height="200")
+                                  plotlyOutput("QCPlot1ly", width="300",height="250"),
+                                  plotlyOutput("QCPlot2ly", width="300",height="250"),
+                                  plotlyOutput("QCPlot3ly", width="300",height="250")
                                   #dataTableOutput("condTable_bis")
                                 )
                        ),
@@ -536,9 +541,7 @@ server <- function(input, output, session) {
       progress$set(value = value, detail = detail)
     }
 
-    res_int<-InteRact(preprocess_df = prep_data(),
-                      bait_gene_name = input$bait_gene_name,
-                      bckg_bait = input$bckg_bait,
+    res_int <- InteRact(preprocess_df = prep_data(),
                       N_rep=input$Nrep,
                       pool_background = input$pool_background,
                       updateProgress = updateProgress)
@@ -951,7 +954,7 @@ server <- function(input, output, session) {
   })
   
   QCPlot <- reactive({
-      plot_QC(prep_data())
+      plot_QC(prep_data()) 
   })
     
   #Output Table functions -------------------------------------------------------------------------
@@ -976,6 +979,15 @@ server <- function(input, output, session) {
   output$QCPlot1 <- renderPlot(QCPlot()[[1]])
   output$QCPlot2 <- renderPlot(QCPlot()[[2]])
   output$QCPlot3 <- renderPlot(QCPlot()[[3]])
+  output$QCPlot1ly <- renderPlotly( ggplotly(QCPlot()[[1]], source="QCPlot1ly") )
+  output$QCPlot2ly <- renderPlotly( ggplotly(QCPlot()[[2]]) )
+  output$QCPlot3ly <- renderPlotly( ggplotly(QCPlot()[[3]]) )
+  
+  
+  output$plotly_print <- renderPrint({
+    d <- event_data("plotly_hover", source = "QCPlot1ly")
+    if (is.null(d)) "Hover on a point!" else names(d)
+  })
   
   #Output Download functions ---------------------------------------------------------------------
   

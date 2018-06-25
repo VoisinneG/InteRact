@@ -4,7 +4,7 @@
 \alias{average_technical_replicates}
 \title{Average protein intensities over technical replicates}
 \usage{
-average_technical_replicates(df, cond)
+average_technical_replicates(df, cond, log = TRUE)
 }
 \arguments{
 \item{df}{A data frame of protein intensities}

@@ -86,83 +86,83 @@ load("./R/sysdata.rda")
 #' #Check the new summary data frame
 #' sum_tbl_2 <- summary_table(Interactome)
 InteRact <- function(preprocess_df = NULL,
+                     #params,
+                     # Column_gene_name = "Gene.names",
+                     # Column_score = "Score",
+                     # Column_ID = "Protein.IDs",
+                     # Column_Npep = NULL,
+                     # bait_gene_name,
+                     # bckg_bait = bait_gene_name,
+                     # bckg_ctrl = "WT",
+                     # bckg = NULL,
+                     # time=NULL,
+                     # bio=NULL,
+                     # tech=NULL,
+                     # Column_intensity_pattern = "^Intensity.",
+                     # # preffix_bio="S",
+                     # # preffix_tech="R",
+                     # # preffix_time="",
+                     # split = "_",
+                     # bckg_pos = 1,
+                     # bio_pos = 2,
+                     # time_pos = 3, 
+                     # tech_pos = 4,
+                     # filter_time=NULL,
+                     # filter_bio=NULL,
+                     # filter_tech=NULL,
                      df,
-                     Column_gene_name = "Gene.names",
-                     Column_score = "Score",
-                     Column_ID = "Protein.IDs",
-                     Column_Npep = NULL,
-                     bait_gene_name,
+                     updateProgress = NULL,
                      N_rep=3,
                      quantile_rep  = 0.05,
-                     bckg_bait = bait_gene_name,
-                     bckg_ctrl = "WT",
-                     bckg = NULL,
-                     time=NULL,
-                     bio=NULL,
-                     tech=NULL,
-                     Column_intensity_pattern = "^Intensity.",
-                     # preffix_bio="S",
-                     # preffix_tech="R",
-                     # preffix_time="",
-                     split = "_",
-                     bckg_pos = 1,
-                     bio_pos = 2,
-                     time_pos = 3, 
-                     tech_pos = 4,
-                     filter_time=NULL,
-                     filter_bio=NULL,
-                     filter_tech=NULL,
-                     updateProgress = NULL,
                      pool_background = TRUE, 
                      log = TRUE,
-                     by_conditions = TRUE
+                     by_conditions = TRUE,
+                     ...
                      ){
   if(is.null(preprocess_df)){
-    avg <- preprocess_data(df =df,
-                    Column_gene_name = Column_gene_name,
-                    Column_score = Column_score,
-                    Column_ID = Column_ID,
-                    Column_Npep = Column_Npep,
-                    bait_gene_name = bait_gene_name,
-                    bckg_bait = bckg_bait,
-                    bckg_ctrl = bckg_ctrl,
-                    bckg = bckg,
-                    time=time,
-                    bio=bio,
-                    tech=tech,
-                    Column_intensity_pattern = Column_intensity_pattern,
-                    # preffix_bio="S",
-                    # preffix_tech="R",
-                    # preffix_time="",
-                    split = split,
-                    bckg_pos = bckg_pos,
-                    bio_pos = bio_pos,
-                    time_pos = time_pos, 
-                    tech_pos = tech_pos,
-                    filter_time = filter_time,
-                    filter_bio = filter_bio,
-                    filter_tech = filter_tech,
-                    log = log)
+    avg <- preprocess_data(df=df, ...)
+      #do.call(preprocess_data, params)
+                    # df = df,
+                    # Column_gene_name = Column_gene_name,
+                    # Column_score = Column_score,
+                    # Column_ID = Column_ID,
+                    # Column_Npep = Column_Npep,
+                    # bait_gene_name = bait_gene_name,
+                    # bckg_bait = bckg_bait,
+                    # bckg_ctrl = bckg_ctrl,
+                    # bckg = bckg,
+                    # time=time,
+                    # bio=bio,
+                    # tech=tech,
+                    # Column_intensity_pattern = Column_intensity_pattern,
+                    # # preffix_bio="S",
+                    # # preffix_tech="R",
+                    # # preffix_time="",
+                    # split = split,
+                    # bckg_pos = bckg_pos,
+                    # bio_pos = bio_pos,
+                    # time_pos = time_pos, 
+                    # tech_pos = tech_pos,
+                    # filter_time = filter_time,
+                    # filter_bio = filter_bio,
+                    # filter_tech = filter_tech,
+                    # log = log
+                    #)
   } else {
     avg <- preprocess_df
   }
   
-  T_int_norm_mean <- avg$Intensity
-  idx_cond <- avg$conditions
-  Npep <- avg$Npep
-  Protein.IDs <- avg$Protein.IDs
-  ibait <- which(avg$names == avg$bait)
   
   # identify missing values
   
-  log10_T_int_norm_mean <- log10(T_int_norm_mean);
+  log10_I_norm_mean <- log10(avg$Intensity);
   
-  q <- quantile(log10_T_int_norm_mean[ , idx_cond$bckg==bckg_ctrl], na.rm=TRUE, probs=quantile_rep);
-  s <- mean( row_sd(log10_T_int_norm_mean[ ,idx_cond$bckg==bckg_ctrl]), na.rm=TRUE);
+  q <- quantile(log10_I_norm_mean[ , avg$conditions$bckg == avg$bckg_ctrl], na.rm=TRUE, probs=quantile_rep);
+  s <- mean( row_sd(log10_I_norm_mean[ , avg$conditions$bckg == avg$bckg_ctrl]), na.rm=TRUE);
   
-  log10_T_int_norm_mean_rep<-log10_T_int_norm_mean;
+  log10_I_norm_mean_rep <- log10_I_norm_mean
   
-  # replace missing values
+  # replace missing values N_rep times
   
   if(N_rep>0){
     
@@ -170,7 +170,8 @@ InteRact <- function(preprocess_df = NULL,
     names(res)<-paste( rep('Rep_',N_rep), 1:N_rep, sep="" )
     cat(paste("Replace missing values and perform interactome analysis for",N_rep,"replicates\n",sep=" "))
     
-    n_replace <- length(which(is.na(log10_T_int_norm_mean)));
+    n_replace <- length(which(is.na(log10_I_norm_mean)));
+    
     for(i in 1:N_rep){
       
       if (is.function(updateProgress)) {
@@ -179,14 +180,18 @@ InteRact <- function(preprocess_df = NULL,
       }
       
       cat(paste("Nrep=",i,"\n",sep=""));
-      log10_T_int_norm_mean_rep[is.na(log10_T_int_norm_mean)] <- rnorm( n_replace, mean=q, sd=s) 
-      Tfinal <- 10^log10_T_int_norm_mean_rep
-      #rownames(Tfinal)<-df$gene_name
-      
-      res[[i]]<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait, 
-                                    Npep = Npep, Protein.IDs = Protein.IDs,
-                                    name_bait = bckg_bait, name_ctrl = bckg_ctrl,
-                                    background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
+      log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- rnorm( n_replace, mean=q, sd=s) 
+
+      res[[i]]<-analyse_interactome(df = 10^log10_I_norm_mean_rep, 
+                                    bait_gene_name = avg$bait_gene_name, 
+                                    ibait = match(avg$bait_gene_name, avg$names), 
+                                    Npep = avg$Npep, 
+                                    Protein.IDs = avg$Protein.IDs,
+                                    name_bait = avg$bckg_bait, 
+                                    name_ctrl = avg$bckg_ctrl,
+                                    background = avg$conditions$bckg, 
+                                    conditions = avg$conditions$time, 
+                                    replicates = avg$conditions$bio , 
                                     pool_background = pool_background, log = log, by_conditions = by_conditions)
       
     }
@@ -196,20 +201,23 @@ InteRact <- function(preprocess_df = NULL,
     
   }else{
     
-    Tfinal <- 10^log10_T_int_norm_mean
-    #rownames(Tfinal)<-df$gene_name
-    
-    res_mean<-analyse_interactome(df = Tfinal, bait_gene_name = bait_gene_name, ibait = ibait[[1]], 
-                                  Npep = Npep, Protein.IDs = Protein.IDs, 
-                                  name_bait = bckg_bait, name_ctrl = bckg_ctrl,
-                                  background = idx_cond$bckg, conditions = idx_cond$time, replicates = idx_cond$bio , 
+    res_mean<-analyse_interactome(df = 10^log10_I_norm_mean, 
+                                  bait_gene_name = avg$bait_gene_name, 
+                                  ibait = match(avg$bait_gene_name, avg$names), 
+                                  Npep = avg$Npep, 
+                                  Protein.IDs = avg$Protein.IDs,
+                                  name_bait = avg$bckg_bait, 
+                                  name_ctrl = avg$bckg_ctrl,
+                                  background = avg$conditions$bckg, 
+                                  conditions = avg$conditions$time, 
+                                  replicates = avg$conditions$bio , 
                                   pool_background = pool_background, log = log, by_conditions = by_conditions)
 
   }
   
   res_mean <- global_analysis(res_mean);
   
-  output=list( Interactome = res_mean, conditions = idx_cond, mean_data = avg);
+  output=list( Interactome = res_mean, data = avg);
   
 }
 
@@ -330,10 +338,10 @@ preprocess_data <- function(df,
   avg$Npep <- df$Npep
   avg$Protein.IDs <- df[[Column_ID]]
   avg$names <- df$gene_name
-  avg$bait <- bait_gene_name
   row.names(avg$Intensity) <- avg$names
   avg$bckg_bait <- bckg_bait
   avg$bckg_ctrl <- bckg_ctrl
+  avg$bait_gene_name <- bait_gene_name
   
   return(avg)
   
@@ -437,13 +445,14 @@ identify_conditions <- function(df,
   
 }
 
+#' @export
 identify_conditions_2 <- function(df,
                                   Column_intensity_pattern = "^Intensity.",
                                   split = "_",
-                                  bckg_pos = 2,
-                                  bio_pos = 3,
-                                  time_pos = 4, 
-                                  tech_pos = 5
+                                  bckg_pos = 1,
+                                  bio_pos = 2,
+                                  time_pos = 3, 
+                                  tech_pos = 4
                                   ){
   idx_col<-grep(Column_intensity_pattern,colnames(df))
   if(length(idx_col)==0){
@@ -2105,7 +2114,7 @@ plot_volcanos.InteRactome <- function( res,
     label_y <- "-log10(p_value)"
     if (asinh_transform) label_y <- "asinh(-log10(p_value))"
       
-    plist[[i]] <- ggplot( df , aes(x=X, y=Y ) ) +
+    plist[[i]] <- ggplot( df , aes( label=names ) ) +
       coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
       xlab(label_x ) + 
       ylab(label_y) + 
@@ -2123,9 +2132,11 @@ plot_volcanos.InteRactome <- function( res,
     }
     
     plist[[i]] <- plist[[i]] + 
-      geom_point(alpha=0.2) +
+      geom_point(data=df, mapping=aes(x=X, y=Y), alpha=0.2) +
       geom_text_repel(data=df[idx_print, ],
-                      aes(label = names, colour=label_color), size=5) +
+                     aes(x=X, y=Y, label = names, colour=label_color), size=5) +
+      # geom_text(data=df[idx_print, ],
+      #                 aes(x=X, y=Y, label = names, colour=label_color), size=3) +
       scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
       theme(legend.position="none")
     
@@ -2136,9 +2147,10 @@ plot_volcanos.InteRactome <- function( res,
     multiplot(plotlist = plist, layout = layout)
   }
   if( length(save_file)>0 ){
-    pdf( save_file, 4*length(conditions), 4 )
-    layout <- matrix(1:length(conditions), nrow = 1, byrow = TRUE)
-    multiplot(plotlist = plist, layout = layout)
+    pdf( save_file, 6, 6)
+    #layout <- matrix(1:length(conditions), nrow = 1, byrow = TRUE)
+    #multiplot(plotlist = plist, layout = layout)
+    print(plist)
     dev.off()
   }
   
@@ -2182,7 +2194,8 @@ plot_per_conditions <- function (x, ...) {
 }
 
 #' @export
-plot_per_conditions.InteRactome <- function( res, 
+plot_per_conditions.InteRactome <- function( res,
+                                 idx_cols = 1:length(res$conditions),
                                  idx_rows=1:20,
                                  size_var="norm_stoichio",
                                  size_range=c(0,1),
@@ -2191,7 +2204,6 @@ plot_per_conditions.InteRactome <- function( res,
                                  #color_values=rgb(t(col2rgb(c("black", "blue","purple","red")))/255),
                                  color_default = 1,
                                  save_file=NULL,
-                                 show_plot=TRUE,
                                  plot_width=2.5 + length(res$conditions)/5,
                                  plot_height=2 + length(idx_rows)/5,
                                  clustering = TRUE){
@@ -2220,8 +2232,8 @@ plot_per_conditions.InteRactome <- function( res,
     title_text <- res$groups
   }
   
-  M <- M[idx_rows, ]
-  Mcol <- Mcol[idx_rows, ]
+  M <- M[idx_rows, idx_cols]
+  Mcol <- Mcol[idx_rows, idx_cols]
   
   if(clustering){
     M[is.na(M)]<-0
@@ -2237,10 +2249,6 @@ plot_per_conditions.InteRactome <- function( res,
                size_var = size_var, 
                size_range=size_range,
                color_var=color_var)
-  
-  if(show_plot){
-    print(p)
-  }
   
   if(!is.null(save_file)){
     pdf(save_file, plot_width, plot_height)
@@ -2336,11 +2344,13 @@ dot_plot <- function(Dot_Size,
 }
 #' @export
 plot_stoichio <- function(Interactome, 
-                         name, 
+                         name,
+                         conditions = Interactome$conditions,
                          ref_condition = Interactome$conditions[1], 
                          test="t.test", 
                          test.args = list("paired"=TRUE),
-                         map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05)){
+                         map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
+                         save_file = NULL){
   plot_title <- paste(name, " / ",test, sep = "") 
     
   if("paired" %in% names(test.args)){
@@ -2353,19 +2363,19 @@ plot_stoichio <- function(Interactome,
   idx_match <- which(Interactome$names == name)
   df_tot <- NULL
   for ( bio in Interactome$replicates){
-    stoichio <- do.call(cbind, Interactome$stoichio_bio[[bio]])[idx_match, ]
-    df <- data.frame(stoichio = stoichio, cond = names(stoichio), bio = rep(bio, length(stoichio)))
+    stoichio <- do.call(cbind, Interactome$stoichio_bio[[bio]])[idx_match, conditions]
+    df <- data.frame(stoichio = stoichio, cond = factor(names(stoichio), levels=conditions), bio = rep(bio, length(stoichio)))
     df_tot <- rbind(df_tot, df)
   }
   
   comparisons <- list()
-  cond_test <- setdiff(Interactome$conditions, ref_condition)
+  cond_test <- setdiff(conditions, ref_condition)
   for (i in 1:length(cond_test)){
     comparisons[[i]] <- c(ref_condition, cond_test[i])
   }
     
   p <- ggplot(df_tot, aes(x=cond, y=log10(stoichio))) + 
-    theme(axis.text.x = element_text(size=10),
+    theme(axis.text.x = element_text(size=10, angle = 90, hjust = 1,vjust=0.5),
           axis.text.y = element_text(size=10)
           ) +
     geom_point(size=0, alpha = 0) +  
@@ -2380,7 +2390,11 @@ plot_stoichio <- function(Interactome,
                 test.args = test.args,
                 map_signif_level = map_signif_level
                 )
-  
+  if(!is.null(save_file)){
+    pdf(save_file, 4, 4)
+    print(p)
+    dev.off()
+  }
   return(p)
   
 }
@@ -2554,7 +2568,7 @@ summary_table.InteRactome <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
   #columns <- add_columns
-  columns <- setdiff(columns, c("bait","groups","conditions", "interactor", "replicates"))
+  columns <- setdiff(columns, c("bait", "bckg_bait", "bckg_ctrl", "groups","conditions", "interactor", "replicates", "intensity_bait", "intensity_ctrl"))
   
   df<-data.frame( bait=rep(res$bait, length(res$names)) )
   names_df<-"bait"
@@ -2591,6 +2605,9 @@ summary_table.InteRactome <- function(res, add_columns = names(res) ){
     }
     
   }
+  
+  
+  
   
   names(df)<-names_df
   df<-df[,order(idx)]

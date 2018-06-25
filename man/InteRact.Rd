@@ -4,20 +4,28 @@
 \alias{InteRact}
 \title{Analysis of proteomics data}
 \usage{
-InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
-  Column_ID = "Protein.IDs", Column_Npep = NULL, bait_gene_name,
-  N_rep = 3, quantile_rep = 0.05, bckg_bait = bait_gene_name,
-  bckg_ctrl = "WT", bckg = NULL, time = NULL, bio = NULL, tech = NULL,
-  Column_intensity_pattern = "^Intensity.", split = "_", bckg_pos = 1,
-  bio_pos = 2, time_pos = 3, tech_pos = 4, filter_time = NULL,
-  filter_bio = NULL, filter_tech = NULL, updateProgress = NULL,
-  pool_background = TRUE, log = TRUE, by_conditions = TRUE)
+InteRact(preprocess_df = NULL, updateProgress = NULL, N_rep = 3,
+  quantile_rep = 0.05, pool_background = TRUE, log = TRUE,
+  by_conditions = TRUE, ...)
 }
 \arguments{
+\item{updateProgress}{function to show progress bar in shiny app}
+
+\item{N_rep}{number of iterations for the replacement of missing values
+(if \code{Nrep}=0, missing values are not replaced)}
+
+\item{quantile_rep}{Quantile of control background intensities used to replace missing values}
+
+\item{pool_background}{option to use all control background conditions as one control group for all conditions}
+
+\item{log}{option to perform t-test and averages on log transform intensities}
+
+\item{by_conditions}{option to perform the comparison between bait and control group for each condition}
+
 \item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
 (use parameter \code{Column_intensity_pattern} to change)}
 
-\item{Column_gene_name}{Column with gene names}
+\item{bait_gene_name}{The gene name of the bait}
 
 \item{Column_score}{Column with protein identification score}
 
@@ -25,12 +33,9 @@ InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
 
 \item{Column_Npep}{Column with number of theoretically observable peptides per protein}
 
-\item{bait_gene_name}{The gene name of the bait}
+\item{Column_gene_name}{Column with gene names}
 
-\item{N_rep}{number of iterations for the replacement of missing values
-(if \code{Nrep}=0, missing values are not replaced)}
-
-\item{quantile_rep}{Quantile of control background intensities used to replace missing values}
+\item{Column_intensity_pattern}{Pattern (regular exrpression) used to identfy df's columns containing protein intensity values}
 
 \item{bckg_bait}{Τhe name of the bait found in \code{bckg} (see below) or in df's names if \code{bckg} is not provided}
 
@@ -46,27 +51,17 @@ InteRact(df, Column_gene_name = "Gene.names", Column_score = "Score",
 
 \item{tech}{Vector of length equal to the number of protein intensity columns indicating technical replicates}
 
-\item{Column_intensity_pattern}{Pattern (regular exrpression) used to identfy df's columns containing protein intensity values}
+\item{preffix_time}{Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")}
+
+\item{preffix_bio}{Preffix for biological replicates in column names (i.e "S" if pattern is "_S1")}
+
+\item{preffix_tech}{Preffix for technical replicates in column names (i.e "R" if pattern is "_R3")}
 
 \item{filter_time}{vector of experimental conditions to exclude from analysis}
 
 \item{filter_bio}{vector of biological replicates to exclude from analysis}
 
 \item{filter_tech}{vector of technical replicates to exclude from analysis}
-
-\item{updateProgress}{function to show progress bar in shiny app}
-
-\item{pool_background}{option to use all control background conditions as one control group for all conditions}
-
-\item{log}{option to perform t-test and averages on log transform intensities}
-
-\item{by_conditions}{option to perform the comparison between bait and control group for each condition}
-
-\item{preffix_time}{Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")}
-
-\item{preffix_bio}{Preffix for biological replicates in column names (i.e "S" if pattern is "_S1")}
-
-\item{preffix_tech}{Preffix for technical replicates in column names (i.e "R" if pattern is "_R3")}
 }
 \value{
 a object of class \code{Interactome}, i.e a list including the following elements :
