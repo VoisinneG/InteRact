@@ -4,11 +4,14 @@
 \alias{InteRact}
 \title{Analysis of proteomics data}
 \usage{
-InteRact(preprocess_df = NULL, updateProgress = NULL, N_rep = 3,
+InteRact(preprocess_df = NULL, df, updateProgress = NULL, N_rep = 3,
   quantile_rep = 0.05, pool_background = TRUE, log = TRUE,
   by_conditions = TRUE, ...)
 }
 \arguments{
+\item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
+(use parameter \code{Column_intensity_pattern} to change)}
+
 \item{updateProgress}{function to show progress bar in shiny app}
 
 \item{N_rep}{number of iterations for the replacement of missing values
@@ -21,9 +24,6 @@ InteRact(preprocess_df = NULL, updateProgress = NULL, N_rep = 3,
 \item{log}{option to perform t-test and averages on log transform intensities}
 
 \item{by_conditions}{option to perform the comparison between bait and control group for each condition}
-
-\item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
-(use parameter \code{Column_intensity_pattern} to change)}
 
 \item{bait_gene_name}{The gene name of the bait}
 

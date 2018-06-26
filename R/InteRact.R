@@ -1527,27 +1527,39 @@ append_annotations <- function (x, ...) {
 }
 
 #' @export
-append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Protein.IDs" ){
+append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Protein.IDs", organism = "mouse"){
   
     res_int<-res
-    
+  
+    if(is.data.frame(annotations)){
+      df_annot <- annotations
+    } else{
+      
+      df_annot <- get_annotations(res, name_id = name_id, organism = organism)
+      for (annot in annotations){
+        df_annot <- switch(annot,
+                           "GO" =  add_GO_data(df_annot, GO_type = "molecular_function"))
+      }
+       
+    }
+      
     n_annot <- 0
-    for (annot_var in names(annotations)){
-      n_annot <- n_annot + length(annotations[[annot_var]])
+    for (annot_var in names(df_annot)){
+      n_annot <- n_annot + length(df_annot[[annot_var]])
     }
     
-    if( is.null(annotations) | n_annot == 0){
+    if( is.null(df_annot) | n_annot == 0){
       warning("No annotations to append")
     }
     else{
       cat("Append annotation to interactome...\n")
       idx_match<-rep(NA,length(res$names))
       for(i in 1:length(res$names) ){
-        idx_match[i] <- which(as.character(annotations[[name_id]]) == as.character(res[[name_id]][i]) )
+        idx_match[i] <- which(as.character(df_annot[[name_id]]) == as.character(res[[name_id]][i]) )
       }
       
-      for( var_names in setdiff(names(annotations), name_id) ){
-        res_int[[var_names]] <- as.character(annotations[[var_names]][idx_match])
+      for( var_names in setdiff(names(df_annot), name_id) ){
+        res_int[[var_names]] <- as.character(df_annot[[var_names]][idx_match])
       }
       cat("Done.\n")
     }
@@ -2400,9 +2412,9 @@ plot_stoichio <- function(Interactome,
 }
 
 #' @export
-plot_comparison <- function(Interactome, 
-                          name, 
-                          condition, 
+plot_comparison <- function(Interactome,
+                          name,
+                          conditions, 
                           textsize = 3,
                           test="t.test",
                           test.args = list("paired"=FALSE),
@@ -2410,7 +2422,7 @@ plot_comparison <- function(Interactome,
                           position = "position_jitter",
                           position.args = list(width=0.3, height=0)){
   
-  plot_title <- paste(name, condition, test, sep = " / ") 
+  plot_title <- paste(name, test, sep = " / ") 
   
   if("paired" %in% names(test.args)){
     if(test.args$paired){
@@ -2422,25 +2434,28 @@ plot_comparison <- function(Interactome,
   idx_match <- which(Interactome$names == name)
   
   df_tot <- NULL
-  for ( bio in Interactome$replicates){
-    if (is.null(dim(Interactome$intensity_bait[[condition]][[bio]])) ){
-      intensity <- Interactome$intensity_bait[[condition]][[bio]][idx_match]
-    } else {
-      intensity <- Interactome$intensity_bait[[condition]][[bio]][idx_match, ]
+  for( cond in conditions){
+    for ( bio in Interactome$replicates){
+      if (is.null(dim(Interactome$intensity_bait[[cond]][[bio]])) ){
+        intensity <- Interactome$intensity_bait[[cond]][[bio]][idx_match]
+      } else {
+        intensity <- Interactome$intensity_bait[[cond]][[bio]][idx_match, ]
+      }
+      df <- data.frame(intensity = intensity, bckg = rep("bait", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
+      df_tot <- rbind(df_tot, df)
     }
-    df <- data.frame(intensity = intensity, bckg = rep("bait", length(intensity)), bio = rep(bio, length(intensity)))
+  }
+  for( cond in condition){
+  for ( bio in Interactome$replicates){
+    if (is.null(dim(Interactome$intensity_ctrl[[cond]][[bio]])) ){
+      intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match]
+    } else {
+      intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match, ]
+    }
+    df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
     df_tot <- rbind(df_tot, df)
   }
-  for ( bio in Interactome$replicates){
-    if (is.null(dim(Interactome$intensity_ctrl[[condition]][[bio]])) ){
-      intensity <- Interactome$intensity_ctrl[[condition]][[bio]][idx_match]
-    } else {
-      intensity <- Interactome$intensity_ctrl[[condition]][[bio]][idx_match, ]
-    }
-    df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)))
-    df_tot <- rbind(df_tot, df)
   }
-  
   df_tot$bckg <- factor(df_tot$bckg, levels = c("ctrl", "bait"))
   
   comparisons <- list(c("ctrl","bait"))
@@ -2462,6 +2477,8 @@ plot_comparison <- function(Interactome,
                 test.args = test.args,
                 map_signif_level = map_signif_level
     )
+  
+  p <- p + facet_grid(~ cond)
   
   return(p)
   
