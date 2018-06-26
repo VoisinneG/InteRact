@@ -51,6 +51,8 @@ load("./R/sysdata.rda")
 #' @import stringr
 #' @import Hmisc
 #' @import igraph
+#' @import ggsignif
+#' @import networkD3
 #' 
 #' @export
 #'
@@ -117,6 +119,7 @@ InteRact <- function(preprocess_df = NULL,
                      pool_background = TRUE, 
                      log = TRUE,
                      by_conditions = TRUE,
+                     substract_ctrl = TRUE,
                      ...
                      ){
   if(is.null(preprocess_df)){
@@ -192,7 +195,10 @@ InteRact <- function(preprocess_df = NULL,
                                     background = avg$conditions$bckg, 
                                     conditions = avg$conditions$time, 
                                     replicates = avg$conditions$bio , 
-                                    pool_background = pool_background, log = log, by_conditions = by_conditions)
+                                    pool_background = pool_background, 
+                                    log = log, 
+                                    by_conditions = by_conditions,
+                                    substract_ctrl = substract_ctrl)
       
     }
     
@@ -211,7 +217,10 @@ InteRact <- function(preprocess_df = NULL,
                                   background = avg$conditions$bckg, 
                                   conditions = avg$conditions$time, 
                                   replicates = avg$conditions$bio , 
-                                  pool_background = pool_background, log = log, by_conditions = by_conditions)
+                                  pool_background = pool_background, 
+                                  log = log, 
+                                  by_conditions = by_conditions,
+                                  substract_ctrl = substract_ctrl)
 
   }
   
@@ -797,7 +806,8 @@ row_stoichio <- function(df,
                          idx_group_2, 
                          idx_bait, 
                          Npep, 
-                         log = TRUE){
+                         log = TRUE, 
+                         substract_ctrl = TRUE){
   # compute stoichiometry of interaction for each row (protein).
   # idx_group_1 : indexes of columns for group #1 (OST bait)
   # idx_group_2 : indexes of columns for group #2 (WT)
@@ -813,9 +823,19 @@ row_stoichio <- function(df,
     x1<-df[i, idx_group_1]
     x2<-df[i, idx_group_2]
     if (log) {
-      stoichio[i] <- ( geom_mean(x1) - geom_mean(x2) ) / ( geom_mean(xbait1) - geom_mean(xbait2) )*Npep[idx_bait]/Npep[i]
+      if (substract_ctrl){
+        stoichio[i] <- ( geom_mean(x1) - geom_mean(x2) ) / ( geom_mean(xbait1) - geom_mean(xbait2) )*Npep[idx_bait]/Npep[i]
+      } else {
+        stoichio[i] <- ( geom_mean(x1) ) / ( geom_mean(xbait1) )*Npep[idx_bait]/Npep[i]
+      }
+      
     } else {
-      stoichio[i] <- ( mean(x1) - mean(x2) ) / ( mean(xbait1) - mean(xbait2) )*Npep[idx_bait]/Npep[i]
+      if (substract_ctrl){
+        stoichio[i] <- ( mean(x1) - mean(x2) ) / ( mean(xbait1) - mean(xbait2) )*Npep[idx_bait]/Npep[i]
+      } else {
+        stoichio[i] <- ( mean(x1) ) / ( mean(xbait1)  )*Npep[idx_bait]/Npep[i]
+      }
+
     }
     
   }
@@ -825,7 +845,7 @@ row_stoichio <- function(df,
 #' @export
 analyse_interactome <- function( df, ibait, bait_gene_name, Npep, Protein.IDs, name_bait, name_ctrl, 
                                  background, conditions, replicates, 
-                                 by_conditions = TRUE, pool_background = TRUE, log = TRUE){
+                                 by_conditions = TRUE, pool_background = TRUE, log = TRUE, substract_ctrl = TRUE){
   # df :  dataframe of intensities. columns are experimental samples and rows are proteins
   # ibait : row index corresponding to the bait protein
   # Npep : vector containing the number of theoretically observable peptide per protein (same length as dim(df)[1])
@@ -896,7 +916,8 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, Protein.IDs, n
                                   idx_group_2 = idx_ctrl, 
                                   idx_bait=ibait,
                                   Npep=Npep,
-                                  log = log )
+                                  log = log,
+                                  substract_ctrl = substract_ctrl)
     for (i_bio in 1:length(ubio)){
       
       idx_ctrl_bio <- which( background == name_ctrl & replicates == ubio[i_bio])
@@ -910,7 +931,8 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, Protein.IDs, n
                                                  idx_group_2 = idx_ctrl_bio, 
                                                  idx_bait=ibait,
                                                  Npep=Npep,
-                                                 log = log)
+                                                 log = log,
+                                                 substract_ctrl = substract_ctrl)
       intensity_bait[[i]][[i_bio]] <- df[ , idx_bait_bio]
       intensity_ctrl[[i]][[i_bio]]<- df[ , idx_ctrl_bio]
     }

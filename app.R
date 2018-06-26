@@ -3,7 +3,6 @@ library(shiny)
 library(ggplot2)
 library(ggrepel)
 library(grid)
-library(data.table)
 library(Hmisc)
 library(igraph)
 library(networkD3)
@@ -27,13 +26,15 @@ ui <- fluidPage(
              h3("Parameters"),
              textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
              checkboxInput("pool_background", "pool_background", value = TRUE),
+             checkboxInput("substract_ctrl", "substract_ctrl", value = TRUE),
              numericInput("Nrep", "# iterations (missing values replacement)", value = 3),
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
              numericInput("n_success_min", "n_success_min", value = 1),
              checkboxInput("consecutive_success", "consecutive_success", value = TRUE),
              verbatimTextOutput("interactors"),
-             verbatimTextOutput("plotly_print")
+             downloadButton("download_all", "Save analysis")
+             #verbatimTextOutput("plotly_print")
            )
     ),
     column(9,
@@ -141,12 +142,12 @@ ui <- fluidPage(
                                 ),
                                 column(8,
                                   br(),
-                                  # plotOutput("QCPlot1", width="250",height="200"),
-                                  # plotOutput("QCPlot2", width="250",height="200"),
-                                  # plotOutput("QCPlot3", width="250",height="200")
-                                  plotlyOutput("QCPlot1ly", width="300",height="250"),
-                                  plotlyOutput("QCPlot2ly", width="300",height="250"),
-                                  plotlyOutput("QCPlot3ly", width="300",height="250")
+                                  plotOutput("QCPlot1", width="250",height="200"),
+                                  plotOutput("QCPlot2", width="250",height="200"),
+                                  plotOutput("QCPlot3", width="250",height="200")
+                                  # plotlyOutput("QCPlot1ly", width="300",height="250"),
+                                  # plotlyOutput("QCPlot2ly", width="300",height="250"),
+                                  # plotlyOutput("QCPlot3ly", width="300",height="250")
                                   #dataTableOutput("condTable_bis")
                                 )
                        ),
@@ -368,6 +369,7 @@ server <- function(input, output, session) {
   df_corr_plot <- reactiveValues(names = NULL, x = NULL, y = NULL, cluster=NULL)
   select_dotPlot <- reactiveValues(i_prot = 1, i_cond=1)
   select_volcanoPlot <- reactiveValues(i_min = 1, min_dist1 = 0)
+  select_stoichioPlot <- reactiveValues(i_min = 1, min_dist1 = 0)
   idx_order <- reactiveValues(cluster = NULL)
   
   #Main reactive functions -------------------------------------------------------------------------
@@ -545,7 +547,8 @@ server <- function(input, output, session) {
     res_int <- InteRact(preprocess_df = prep_data(),
                       N_rep=input$Nrep,
                       pool_background = input$pool_background,
-                      updateProgress = updateProgress)
+                      updateProgress = updateProgress,
+                      substract_ctrl = input$substract_ctrl)
            
     res_int$Interactome <- merge_proteome(res_int$Interactome)
     df_merge <- merge_conditions(res_int$Interactome)
@@ -879,7 +882,6 @@ server <- function(input, output, session) {
                         idx_rows = min(input$Nmax, order_list()$Ndetect),
                         clustering = input$clustering)
     idx_order$cluster <- p$idx_order
-    cat(idx_order$cluster)
     p$plot + coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
   })
   
@@ -934,7 +936,7 @@ server <- function(input, output, session) {
                     condition = ordered_Interactome()$conditions[select_dotPlot$i_cond])
   })
   
-  observeEvent(input$volcano_click, {
+  observe({
     if(!is.null(input$volcano_hover)){
       hover=input$volcano_hover
       
@@ -949,6 +951,25 @@ server <- function(input, output, session) {
       select_volcanoPlot$min_dist1 <- min(dist1, na.rm=TRUE)
       select_volcanoPlot$i_min <- which.min(dist1)
     }
+  })
+  
+  observe({
+    
+    if(!is.null(input$Stoichio2D_hover)){
+      hover=input$Stoichio2D_hover
+      
+      if(input$Stoichio2D_cond == "max"){
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+      }else{
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+      }
+      
+      select_stoichioPlot$min_dist1 <- min(dist1, na.rm=TRUE)
+      select_stoichioPlot$i_min <- which.min(dist1)
+    }
+    
   })
   
   compPlot_volcano <- reactive({
@@ -984,15 +1005,15 @@ server <- function(input, output, session) {
   output$QCPlot1 <- renderPlot(QCPlot()[[1]])
   output$QCPlot2 <- renderPlot(QCPlot()[[2]])
   output$QCPlot3 <- renderPlot(QCPlot()[[3]])
-  output$QCPlot1ly <- renderPlotly( ggplotly(QCPlot()[[1]], source="QCPlot1ly") )
-  output$QCPlot2ly <- renderPlotly( ggplotly(QCPlot()[[2]]) )
-  output$QCPlot3ly <- renderPlotly( ggplotly(QCPlot()[[3]]) )
+  #output$QCPlot1ly <- renderPlotly( ggplotly(QCPlot()[[1]], source="QCPlot1ly") )
+  #output$QCPlot2ly <- renderPlotly( ggplotly(QCPlot()[[2]]) )
+  #output$QCPlot3ly <- renderPlotly( ggplotly(QCPlot()[[3]]) )
   
   
-  output$plotly_print <- renderPrint({
-    d <- event_data("plotly_hover", source = "QCPlot1ly")
-    if (is.null(d)) "Hover on a point!" else names(d)
-  })
+  # output$plotly_print <- renderPrint({
+  #   d <- event_data("plotly_hover", source = "QCPlot1ly")
+  #   if (is.null(d)) "Hover on a point!" else names(d)
+  # })
   
   #Output Download functions ---------------------------------------------------------------------
   
@@ -1066,6 +1087,29 @@ server <- function(input, output, session) {
     }
   )
   
+  output$download_all <- downloadHandler(
+    filename = paste("report.tar", sep=""),
+    content = function(file) {
+      
+      #go to a temp dir to avoid permission issues
+      owd <- setwd(tempdir())
+      on.exit(setwd(owd))
+      
+      dir.create(paste(owd, "report/",sep=""))
+      setwd(paste(owd, "report", sep=""))
+      # files <- NULL;
+      cat(owd)
+      
+      pdf(paste(owd,"report/volcano.pdf", sep=""), 5, 5)
+      print(all_volcanos())
+      dev.off()
+      
+      write.table(annotTable(), paste(owd,"report/summary_table.txt", sep=""),  sep = "\t", dec = ".", row.names = FALSE)
+      
+      tar(file)
+    }
+  )
+  
   #Output Info functions -------------------------------------------------------------------------
   
   output$interactors<- renderPrint({
@@ -1122,10 +1166,10 @@ server <- function(input, output, session) {
   output$info_Stoichio2D_hover <- renderPrint({
     
         
-      if(select_volcanoPlot$min_dist1 < 0.25){
-        s1<-paste("name: ", ordered_Interactome()$names[ select_volcanoPlot$i_min ],sep="")
-        s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ select_volcanoPlot$i_min ],sep="")
-        s3<-paste("max_fold_change: ", ordered_Interactome()$max_fold_change[ select_volcanoPlot$i_min ],sep="")
+      if(select_stoichioPlot$min_dist1 < 0.25){
+        s1<-paste("name: ", ordered_Interactome()$names[ select_stoichioPlot$i_min ],sep="")
+        s2<-paste("min_p_val: ", ordered_Interactome()$min_p_val[ select_stoichioPlot$i_min ],sep="")
+        s3<-paste("max_fold_change: ", ordered_Interactome()$max_fold_change[ select_stoichioPlot$i_min ],sep="")
         cat(s1,s2,s3,sep="\n")
       }
     
