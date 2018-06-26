@@ -368,6 +368,7 @@ server <- function(input, output, session) {
   df_corr_plot <- reactiveValues(names = NULL, x = NULL, y = NULL, cluster=NULL)
   select_dotPlot <- reactiveValues(i_prot = 1, i_cond=1)
   select_volcanoPlot <- reactiveValues(i_min = 1, min_dist1 = 0)
+  idx_order <- reactiveValues(cluster = NULL)
   
   #Main reactive functions -------------------------------------------------------------------------
   
@@ -874,10 +875,12 @@ server <- function(input, output, session) {
   })
   
   dotPlot <- reactive({
-    plot_per_conditions(ordered_Interactome(),
+    p <- plot_per_conditions(ordered_Interactome(),
                         idx_rows = min(input$Nmax, order_list()$Ndetect),
-                        clustering = input$clustering)+
-      coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
+                        clustering = input$clustering)
+    idx_order$cluster <- p$idx_order
+    cat(idx_order$cluster)
+    p$plot + coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
   })
   
   volcano <- reactive({
@@ -906,17 +909,19 @@ server <- function(input, output, session) {
                             N_annot_min = input$N_annot_min)
   })
   
-  observeEvent(input$dotPlot_click, {
+  observe({
+    
     if(!is.null(input$dotPlot_hover)){
       select_dotPlot$i_prot <- round(-input$dotPlot_hover$y)
       select_dotPlot$i_cond <- round(input$dotPlot_hover$x)
-    } 
+    }
+    
   })
   
   stoichioPlot <- reactive({
     
     plot_stoichio(ordered_Interactome(), 
-                  name = ordered_Interactome()$names[select_dotPlot$i_prot],
+                  name = ordered_Interactome()$names[idx_order$cluster[select_dotPlot$i_prot]],
                   test = "t.test",
                   test.args = list("paired" = FALSE))
    
@@ -925,7 +930,7 @@ server <- function(input, output, session) {
   compPlot <- reactive({
     
     plot_comparison(ordered_Interactome(), 
-                    name = ordered_Interactome()$names[select_dotPlot$i_prot],
+                    name = ordered_Interactome()$names[ idx_order$cluster[select_dotPlot$i_prot]],
                     condition = ordered_Interactome()$conditions[select_dotPlot$i_cond])
   })
   
@@ -1130,12 +1135,15 @@ server <- function(input, output, session) {
     #if(!is.null(input$dotPlot_hover)){
     #  i_prot = round(-input$dotPlot_hover$y)
     #  i_cond = round(input$dotPlot_hover$x)
-      s1 <- paste("Name: ", ordered_Interactome()$names[ select_dotPlot$i_prot ], sep="")
-      s2 <- paste("Condition: ", ordered_Interactome()$conditions[ select_dotPlot$i_cond ], sep="")
-      s3 <- paste("p-value: ", ordered_Interactome()$p_val[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
-      s4 <- paste("fold-change: ", ordered_Interactome()$fold_change[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
-      s5 <- paste("stoichio: ", ordered_Interactome()$stoichio[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
-      s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ select_dotPlot$i_cond ]][ select_dotPlot$i_prot ], sep="")
+      prot_idx <- idx_order$cluster[select_dotPlot$i_prot]
+      cond_idx <- select_dotPlot$i_cond
+      
+      s1 <- paste("Name: ", ordered_Interactome()$names[ prot_idx ], sep="")
+      s2 <- paste("Condition: ", ordered_Interactome()$conditions[ cond_idx ], sep="")
+      s3 <- paste("p-value: ", ordered_Interactome()$p_val[[ cond_idx ]][ prot_idx ], sep="")
+      s4 <- paste("fold-change: ", ordered_Interactome()$fold_change[[ cond_idx ]][ prot_idx ], sep="")
+      s5 <- paste("stoichio: ", ordered_Interactome()$stoichio[[ cond_idx ]][ prot_idx ], sep="")
+      s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ cond_idx ]][ prot_idx ], sep="")
       cat(s1, s2, s3, s4, s5, s6,sep="\n")
     #}
   })

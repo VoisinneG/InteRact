@@ -2197,7 +2197,7 @@ plot.InteRactome <- function(x,
                       color_var = color_var, 
                       color_breaks = p_val_breaks, 
                       save_file = save_file,
-                      clustering = clustering)
+                      clustering = clustering)$plot
 }
 
 #' @export
@@ -2246,14 +2246,23 @@ plot_per_conditions.InteRactome <- function( res,
   
   M <- M[idx_rows, idx_cols]
   Mcol <- Mcol[idx_rows, idx_cols]
+  M[is.na(M)]<-0
   
-  if(clustering){
-    M[is.na(M)]<-0
-    d<-dist(M)
-    h<-hclust(d)
-    M <- M[h$order, ]
-    Mcol <- Mcol[h$order, ]
+  idx_order <- 1:length(idx_rows)
+  if(is.logical(clustering)){
+    if(clustering){
+      d<-dist(M)
+      h<-hclust(d)
+      idx_order <- h$order
+    }
+  }else if(is.numeric(clustering)){
+    if(length(clustering) == length(idx_rows)){
+      idx_order <- clustering
+    }
   } 
+  
+  M <- M[idx_order, ]
+  Mcol <- Mcol[idx_order, ]
   
   p<-dot_plot( as.matrix(M), 
                as.matrix(Mcol), 
@@ -2268,7 +2277,7 @@ plot_per_conditions.InteRactome <- function( res,
     dev.off()
   }
   
-  return(p)
+  return(list(plot = p, idx_order = idx_order))
   
 }
 
@@ -2445,16 +2454,16 @@ plot_comparison <- function(Interactome,
       df_tot <- rbind(df_tot, df)
     }
   }
-  for( cond in condition){
-  for ( bio in Interactome$replicates){
-    if (is.null(dim(Interactome$intensity_ctrl[[cond]][[bio]])) ){
-      intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match]
-    } else {
-      intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match, ]
+  for( cond in conditions){
+    for ( bio in Interactome$replicates){
+      if (is.null(dim(Interactome$intensity_ctrl[[cond]][[bio]])) ){
+        intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match]
+      } else {
+        intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match, ]
+      }
+      df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
+      df_tot <- rbind(df_tot, df)
     }
-    df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
-    df_tot <- rbind(df_tot, df)
-  }
   }
   df_tot$bckg <- factor(df_tot$bckg, levels = c("ctrl", "bait"))
   
