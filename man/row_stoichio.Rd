@@ -5,7 +5,8 @@
 \title{Compute the stoichiometry of interaction using the method described in 
 \ref{}}
 \usage{
-row_stoichio(df, idx_group_1, idx_group_2, idx_bait, Npep, log = TRUE)
+row_stoichio(df, idx_group_1, idx_group_2, idx_bait, Npep, log = TRUE,
+  substract_ctrl = TRUE)
 }
 \arguments{
 \item{df}{a data frame}

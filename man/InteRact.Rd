@@ -6,7 +6,7 @@
 \usage{
 InteRact(preprocess_df = NULL, df, updateProgress = NULL, N_rep = 3,
   quantile_rep = 0.05, pool_background = TRUE, log = TRUE,
-  by_conditions = TRUE, ...)
+  by_conditions = TRUE, substract_ctrl = TRUE, ...)
 }
 \arguments{
 \item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
