@@ -47,16 +47,16 @@
 # KEGG_human <- import_KEGG_pathway_info(organism="human")
 # 
 # # import uniprot data ------------------------------------------------------------------------------------------
-# 
-# uniprot_data_mouse <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
-#                         "Uniprot/uniprot-mus+musculus.txt", sep=""),
-#                   sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
-# 
-# # Note that only reviewd human protein are imported
+
+uniprot_data_mouse <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
+                        "Uniprot/uniprot-mus+musculus.txt", sep=""),
+                  sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
+
+# Note that only reviewd human protein are imported
 # uniprot_data_human <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
 #                                       "Uniprot/uniprot-homo+sapiens+AND+reviewed.txt", sep=""),
 #                                 sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
-# 
+
 # # import Reactome data ------------------------------------------------------------------------------------------
 # 
 # reactome <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/Reactome/",
@@ -185,15 +185,8 @@ proteome_data <- read.table(paste("~/Google_Drive/++Work/++Research/++Projects/"
                           sep="" ),
                     sep="\t",header=TRUE)
 
-devtools::use_data( proteome_data,
-                    pkg=".", 
-                    internal = FALSE, 
-                    overwrite = TRUE)
 
-devtools::use_data( proteome_data,
-                    pkg=".", 
-                    internal = TRUE, 
-                    overwrite = TRUE)
+
 
 # save in ./R/sysdata.rda  ---------------------------------------------------------------------------------------
 
@@ -216,10 +209,11 @@ devtools::use_data( proteome_data,
 #                     internal = TRUE, 
 #                     overwrite = TRUE)
 
-# devtools::use_data( uniprot_data_mouse, 
-#                     #uniprot_data_human,
-#                     pkg=".", 
-#                     internal = TRUE, 
-#                     overwrite = TRUE)
+devtools::use_data( uniprot_data_mouse,
+                    #uniprot_data_human,
+                    proteome_data,
+                    pkg=".",
+                    internal = FALSE,
+                    overwrite = TRUE)
 
 
