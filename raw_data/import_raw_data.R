@@ -190,6 +190,11 @@ devtools::use_data( proteome_data,
                     internal = FALSE, 
                     overwrite = TRUE)
 
+devtools::use_data( proteome_data,
+                    pkg=".", 
+                    internal = TRUE, 
+                    overwrite = TRUE)
+
 # save in ./R/sysdata.rda  ---------------------------------------------------------------------------------------
 
 # devtools::use_data( uniprot_data_mouse, 

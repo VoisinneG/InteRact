@@ -1782,8 +1782,6 @@ merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Entry" ){
   
       res_int <- res
       
-      load("./data/proteome_data.rda")
-      
       gene_name_prot <- proteome_data$Gene.names;
     
       ibait <- match(res$bait, res$names)
