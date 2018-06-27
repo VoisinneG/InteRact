@@ -789,8 +789,7 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
   
 }
 
-#' Compute the stoichiometry of interaction using the method described in 
-#' \ref{}
+#' Compute the stoichiometry of interaction using the method described in ...
 #' 
 #' @param df a data frame
 #' @param idx_group_1 column indexes corresponding to the first group (bait background)

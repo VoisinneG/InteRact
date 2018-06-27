@@ -2,8 +2,7 @@
 % Please edit documentation in R/InteRact.R
 \name{row_stoichio}
 \alias{row_stoichio}
-\title{Compute the stoichiometry of interaction using the method described in 
-\ref{}}
+\title{Compute the stoichiometry of interaction using the method described in ...}
 \usage{
 row_stoichio(df, idx_group_1, idx_group_2, idx_bait, Npep, log = TRUE,
   substract_ctrl = TRUE)
@@ -25,6 +24,5 @@ row_stoichio(df, idx_group_1, idx_group_2, idx_bait, Npep, log = TRUE,
 A numeric vector of interaction stoichiometries
 }
 \description{
-Compute the stoichiometry of interaction using the method described in 
-\ref{}
+Compute the stoichiometry of interaction using the method described in ...
 }
