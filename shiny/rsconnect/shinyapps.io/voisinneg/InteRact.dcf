@@ -1,0 +1,12 @@
+name: InteRact
+title: InteRact
+username:
+account: voisinneg
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 300739
+bundleId: 1452412
+url: https://voisinneg.shinyapps.io/interact/
+when: 1530107935.37074
+asMultiple: FALSE
+asStatic: FALSE
