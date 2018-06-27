@@ -10,7 +10,10 @@ Imports:
 	ggplot2, 
 	ggrepel,
 	stringr,
-	Hmisc
+	Hmisc,
+	igraph,
+	ggsignif,
+	networkD3
 LazyData: TRUE
 License: GPL-2
 RoxygenNote: 6.0.1
