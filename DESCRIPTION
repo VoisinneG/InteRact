@@ -12,8 +12,8 @@ Imports:
 	stringr,
 	Hmisc,
 	igraph,
-	ggsignif,
-	networkD3
+	networkD3,
+	ggsignif
 LazyData: TRUE
 License: GPL-2
 RoxygenNote: 6.0.1
