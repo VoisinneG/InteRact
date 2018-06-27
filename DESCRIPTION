@@ -1,6 +1,6 @@
 Package: InteRact
 Title: Analysis of Affinity Purification data
-Version: 1.0
+Version: 0.1.0
 Date: 2018-02-21
 Author: Guillaume Voisinne
 Maintainer: Guillaume Voisinne <voisinne@ciml.univ-mrs.fr>
@@ -10,6 +10,7 @@ Imports:
 	ggplot2, 
 	ggrepel,
 	stringr,
+	Hmisc
 LazyData: TRUE
 License: GPL-2
 RoxygenNote: 6.0.1
