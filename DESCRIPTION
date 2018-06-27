@@ -10,7 +10,7 @@ Imports:
 	ggplot2, 
 	ggrepel,
 	stringr,
-    	Rcpp
+LazyData: TRUE
 License: GPL-2
 RoxygenNote: 6.0.1
 Suggests: testthat
