@@ -8,8 +8,7 @@ library(igraph)
 library(networkD3)
 library(ggsignif)
 library(plotly)
-
-source("./R/InteRact.R")
+library("InteRact")
 
 
 options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
