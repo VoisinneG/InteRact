@@ -220,8 +220,7 @@ devtools::use_data( uniprot_data_mouse,
 
 proteinGroups_Cbl <- read.csv("./inst/extdata/proteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
 
-devtools::use_data(proteome_data,
-                   proteinGroups_Cbl,
+devtools::use_data(proteinGroups_Cbl,
                    pkg=".",
                    internal = FALSE,
                    overwrite = TRUE)
