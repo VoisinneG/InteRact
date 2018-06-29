@@ -17,3 +17,5 @@ Once the package is installed, run the shiny app using:
 ```
 runGitHub( "InteRact", "VoisinneG") 
 ```
+or use the version deployed on shinyapps.io using this link
+https://voisinneg.shinyapps.io/interact/

@@ -520,7 +520,7 @@ server <- function(input, output, session) {
                       bait_gene_name = input$bait_gene_name,
                       Column_gene_name = Column_gene_name,
                       Column_ID = Column_ID,
-                      bckg_bait = input$bckg_bait ,
+                      bckg_bait = input$bckg_bait,
                       bckg_ctrl = input$bckg_ctrl,
                       # preffix_bio = input$preffix_bio,
                       # preffix_tech = input$preffix_tech,
