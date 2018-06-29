@@ -14,9 +14,13 @@ filter_Proteins(df, min_score = 0, Column_gene_name = "Gene.names",
 \item{min_score}{Threshold for protein identification score}
 
 \item{Column_gene_name}{The name of df's column containing gene names}
+
+\item{Column_score}{The name of df's column containing protein identification score}
+
+\item{split_param}{Character used to split gene names into substrings.}
 }
 \value{
-A filtered data frame
+A filtered data frame. Contains an extra column with the first substring of the column \code{Column_gene_name}
 }
 \description{
 Filtering of a data frame using a threshold on protein identification score and 

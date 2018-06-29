@@ -18,7 +18,9 @@ row_stoichio(df, idx_group_1, idx_group_2, idx_bait, Npep, log = TRUE,
 
 \item{Npep}{numeric vector containing the number of theoretically observable peptides for each protein}
 
-\item{log}{option to use the geometric mean instead of the arithmetic mean}
+\item{log}{logical, use the geometric mean instead of the arithmetic mean}
+
+\item{substract_ctrl}{logical, substract ctrl intensities in the calculation of stoichiometries}
 }
 \value{
 A numeric vector of interaction stoichiometries

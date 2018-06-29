@@ -10,7 +10,9 @@ average_technical_replicates(df, cond, log = TRUE)
 \item{df}{A data frame of protein intensities}
 
 \item{cond}{A data frame containing the description of df's columns (i.e "idx", bckg", "time", "bio"  and "tech") 
-as returned by function \code{identify_conditions}}
+as returned by function \code{identify_conditions()}}
+
+\item{log}{use geometric mean}
 }
 \value{
 A list containing :
@@ -24,12 +26,8 @@ Average protein intensities over technical replicates
 }
 \examples{
 #load data :
-dir<- system.file("extdata", package = "InteRact")
-path <- paste(dir,"/proteinGroups_Cbl.txt",sep="")
-df <- read.csv(path, sep="\\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
-# You can identify columns and their description separately using \\code{identify_conditions()}
+df <- data("proteinGroups_Cbl")
 cond <- identify_conditions(df, bckg_bait="Cbl")
-print.data.frame(cond)
 Column_intensity_pattern <- "^Intensity."
 df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
 }

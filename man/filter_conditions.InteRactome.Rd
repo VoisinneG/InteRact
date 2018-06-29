@@ -2,10 +2,18 @@
 % Please edit documentation in R/InteRact.R
 \name{filter_conditions.InteRactome}
 \alias{filter_conditions.InteRactome}
-\title{Filters conditions from an interactome}
+\title{Filter conditions from an interactome}
 \usage{
 \method{filter_conditions}{InteRactome}(res, conditions_to_filter_out)
 }
+\arguments{
+\item{res}{an \code{InteRactome}}
+
+\item{conditions_to_filter_out}{character vector with names of conditions to filter out}
+}
+\value{
+an \code{InteRactome}
+}
 \description{
-Filters conditions from an interactome
+Filter conditions from an interactome
 }

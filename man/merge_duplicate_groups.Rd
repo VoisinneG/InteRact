@@ -11,7 +11,7 @@ merge_duplicate_groups(df, idx_col = NULL, merge_column = "gene_name")
 
 \item{idx_col}{idx of columns for which values will be merged across protein groups}
 
-\item{merge_column}{column for which identical values will be merged}
+\item{merge_column}{column to identify rows to be be merged}
 }
 \value{
 A merged data frame

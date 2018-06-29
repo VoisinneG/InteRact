@@ -5,9 +5,8 @@
 \title{Identify conditions (background, time of stimulation, biological and technical replicates) 
 from column names}
 \usage{
-identify_conditions(df, Column_intensity_pattern = "^Intensity.", bckg_bait,
-  bckg_ctrl = "WT", preffix_bio = "S", preffix_tech = "R",
-  preffix_time = "", split = "_")
+identify_conditions(df, Column_intensity_pattern = "^Intensity.",
+  split = "_", bckg_pos = 1, bio_pos = 2, time_pos = 3, tech_pos = 4)
 }
 \arguments{
 \item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
@@ -15,15 +14,17 @@ identify_conditions(df, Column_intensity_pattern = "^Intensity.", bckg_bait,
 
 \item{Column_intensity_pattern}{Pattern (regular exrpression) used to identfy df's columns containing protein intensity values}
 
+\item{split}{Character used to split column names into substrings.}
+
 \item{bckg_bait}{Τhe name of the bait found in \code{bckg} (see below) or in df's names if \code{bckg} is not provided}
 
 \item{bckg_ctrl}{Τhe name of the control background found in \code{bckg} (see below) or in df's names if \code{bckg} is not provided}
 
+\item{preffix_time}{Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")}
+
 \item{preffix_bio}{Preffix for biological replicates in column names (i.e "S" if pattern is "_S1")}
 
 \item{preffix_tech}{Preffix for technical replicates in column names (i.e "R" if pattern is "_R3")}
-
-\item{preffix_time}{Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")}
 }
 \value{
 a data frame describing experimental samples in terms of background, 
@@ -35,9 +36,7 @@ from column names
 }
 \examples{
 #load data :
-dir<- system.file("extdata", package = "InteRact")
-path <- paste(dir,"/proteinGroups_Cbl.txt",sep="")
-df <- read.csv(path, sep="\\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
+df <- data("proteinGroups_Cbl")
 # You can identify columns and their description separately using \\code{identify_conditions()}
 cond <- identify_conditions(df, bckg_bait="Cbl")
 print.data.frame(cond)
