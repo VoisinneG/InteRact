@@ -244,8 +244,8 @@ preprocess_data <- function(df,
     cond <- dplyr::tibble(idx = seq_along(col_I), 
                           column = col_I, 
                           bckg = condition$bckg, 
-                          bio = condition$bckg, 
-                          time = condition$bckg,
+                          bio = condition$bio, 
+                          time = condition$time,
                           tech = condition$tech)
   }
   
