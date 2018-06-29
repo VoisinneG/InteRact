@@ -528,10 +528,8 @@ server <- function(input, output, session) {
                       filter_bio = input$filter_bio,
                       filter_tech = input$filter_tech,
                       filter_time = input$filter_time,
-                      bckg=cond()$bckg,
-                      time=cond()$time,
-                      bio=cond()$bio,
-                      tech=cond()$tech)
+                      condition = cond()
+                      )
   })
   
   res<- reactive({
