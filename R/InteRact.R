@@ -1442,8 +1442,10 @@ append_annotations <- function (x, ...) {
 append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Protein.IDs", organism = "mouse"){
   
     res_int<-res
-  
-    if(is.data.frame(annotations)){
+    if(is.null(annotations)){
+      warning("No annotations to append")
+      return(res_int)
+    }else if(is.data.frame(annotations)){
       df_annot <- annotations
     } else{
       
