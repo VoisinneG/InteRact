@@ -241,7 +241,12 @@ preprocess_data <- function(df,
   } else if( length(setdiff(c("bckg", "bio", "time", "tech"), names(condition))) > 0 | dim(condition)[1] != length(col_I)) {
     stop("incorrect dimensions for data.frame condition")
   } else {
-    cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, condition[ , c("bckg", "bio", "time", "tech")])
+    cond <- dplyr::tibble(idx = seq_along(col_I), 
+                          column = col_I, 
+                          bckg = condition$bckg, 
+                          bio = condition$bckg, 
+                          time = condition$bckg,
+                          tech = condition$tech)
   }
   
   
