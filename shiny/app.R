@@ -580,8 +580,7 @@ server <- function(input, output, session) {
   })
   
   annotated_Interactome <- reactive({
-      results<-append_annotations(ordered_Interactome(), saved_df$annot )
-      
+      results <- append_annotations(ordered_Interactome(), saved_df$annot )
       names_excluded <- c("names","bait", "groups","conditions")
       updateCheckboxGroupInput(session, "columns_displayed",
                              choices = as.list( setdiff(names(results), names_excluded)),

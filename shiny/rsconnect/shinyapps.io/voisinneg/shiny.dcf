@@ -1,0 +1,12 @@
+name: shiny
+title: shiny
+username:
+account: voisinneg
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 370034
+bundleId: 1456289
+url: https://voisinneg.shinyapps.io/shiny/
+when: 1530280805.61899
+asMultiple: FALSE
+asStatic: FALSE
