@@ -16,7 +16,9 @@ analyse_interactome(df, ibait, bait_gene_name, Npep, Protein.IDs, name_bait,
 
 \item{bait_gene_name}{: The gene name of the bait}
 
-\item{Npep}{: vector containing the number of theoretically observable peptide per protein (same length as dim(df)[1])}
+\item{Npep}{: vector containing the number of theoretically observable peptide per protein (same length as \code{dim(df)[1]})}
+
+\item{Protein.IDs}{: vector containing protein IDs (same length as \code{dim(df)[1]})}
 
 \item{name_bait}{: name of the bait as appearing in the background vector}
 

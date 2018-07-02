@@ -5,8 +5,8 @@ account: voisinneg
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 370034
-bundleId: 1456289
+bundleId: 1460352
 url: https://voisinneg.shinyapps.io/shiny/
-when: 1530280805.61899
+when: 1530519814.51366
 asMultiple: FALSE
 asStatic: FALSE

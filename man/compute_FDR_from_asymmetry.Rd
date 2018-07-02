@@ -2,17 +2,13 @@
 % Please edit documentation in R/InteRact.R
 \name{compute_FDR_from_asymmetry}
 \alias{compute_FDR_from_asymmetry}
-\title{Compute the FDR (False Discovery Rate) using the asymmetry of the volcano plot.
-It uses the fonction f(x) = c / (x-x0) with x = log10(fold_change), y=-log10(p_value).
-Points with x>x0 and y>f(x) are taken as true positive (TP)
-Points with x<x0 and y>f(x) are taken as false positive (FP)
-For a given set of paarmeters (c,x0), the FDR is given by TP/(TP+FP)}
+\title{Compute the FDR from the asymmetry of the volcano plot}
 \usage{
 compute_FDR_from_asymmetry(df, c = seq(from = 0, to = 4, by = 0.1),
   x0 = seq(from = 0, to = 3, by = 0.1))
 }
 \arguments{
-\item{df}{: a data.frame containing columns 'p_val' and 'fold_change'}
+\item{df}{: a data.frame containing columns \code{p_val} and \code{fold_change}}
 
 \item{c}{: numeric vector}
 
@@ -28,10 +24,14 @@ Compute the FDR (False Discovery Rate) using the asymmetry of the volcano plot.
 It uses the fonction f(x) = c / (x-x0) with x = log10(fold_change), y=-log10(p_value).
 Points with x>x0 and y>f(x) are taken as true positive (TP)
 Points with x<x0 and y>f(x) are taken as false positive (FP)
-For a given set of paarmeters (c,x0), the FDR is given by TP/(TP+FP)
+For a given set of parameters (c,x0), the FDR is given by TP/(TP+FP)
 }
 \examples{
-df_merge <- merge_conditions(Interactome)
+#' #load data :
+data("proteinGroups_Cbl")
+#Run InteRact with default parameters
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")$Interactome
+df_merge <- merge_conditions(res)
 df_FDR <- compute_FDR_from_asymmetry(df_merge)
-Interactome <- append_FDR(Interactome, df_FDR)
+Interactome <- append_FDR(res, df_FDR)
 }

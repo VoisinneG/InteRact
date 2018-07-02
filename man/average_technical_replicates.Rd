@@ -19,15 +19,15 @@ A list containing :
 
 \code{Intensity}, a data frame of protein intensities averaged over technical replicates;
 
-\code{conditions}, a data frame containing the description of Intensity's columns
+\code{conditions}, a data frame containing the description of \code{Intensity}'s columns
 }
 \description{
 Average protein intensities over technical replicates
 }
 \examples{
 #load data :
-df <- data("proteinGroups_Cbl")
-cond <- identify_conditions(df, bckg_bait="Cbl")
+data("proteinGroups_Cbl")
+cond <- identify_conditions(proteinGroups_Cbl)
 Column_intensity_pattern <- "^Intensity."
-df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
+df_int <- proteinGroups_Cbl[ , grep(Column_intensity_pattern, colnames(df))]
 }

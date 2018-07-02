@@ -26,9 +26,3 @@ A filtered data frame. Contains an extra column with the first substring of the 
 Filtering of a data frame using a threshold on protein identification score and 
 gene names
 }
-\examples{
-#load data :
-dir<- system.file("extdata", package = "InteRact")
-path <- paste(dir,"/proteinGroups_Cbl.txt",sep="")
-df <- read.csv(path, sep="\\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
-}

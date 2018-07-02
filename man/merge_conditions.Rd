@@ -2,12 +2,12 @@
 % Please edit documentation in R/InteRact.R
 \name{merge_conditions}
 \alias{merge_conditions}
-\title{Merge different conditions from different interactomes into a single dataframe}
+\title{Merge different conditions from different interactomes into a single data.frame}
 \usage{
 merge_conditions(res, selected_conditions = NULL)
 }
 \arguments{
-\item{res}{a list of \code{InteRactome}}
+\item{res}{a list of \code{InteRactomes}}
 
 \item{selected_conditions}{a character vector containing names of conditions to merge}
 }
@@ -15,5 +15,5 @@ merge_conditions(res, selected_conditions = NULL)
 a data.frame with columns bait, names, Protein.IDs, conditions, p_val, fold_change
 }
 \description{
-Merge different conditions from different interactomes into a single dataframe
+Merge different conditions from different interactomes into a single data.frame
 }

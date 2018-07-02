@@ -1,30 +1,30 @@
 import_KEGG_pathway_info <- function( dest_dir="~/Google_Drive/++Work/++Research/Resources-Databases/KEGG/", organism="mouse"){
-
+  
   url_adres <- switch(organism,
                       "mouse" = "http://rest.kegg.jp/link/mmu/pathway",
                       "human" = "http://rest.kegg.jp/link/hsa/pathway")
-
+  
   file_name <- switch(organism,
                       "mouse" = "KEGG_mmu.txt",
                       "human" = "KEGG_hsa.txt")
-
+  
   dest_file <- paste(dest_dir, file_name, sep="")
-
+  
   if(!file.exists(dest_file)){
     download.file(url_adres, destfile = dest_file)
   }
-
+  
   KEGG <- read.table(dest_file, header=FALSE)
   names(KEGG) <- c("pathway", "id")
-
+  
   u_pathway <- unique(KEGG$pathway)
   name_pathway <- rep("", length(u_pathway))
   gene_pathway <- rep("", length(u_pathway))
-
+  
   for ( i in 1:length(u_pathway) ){
-
+    
     gene_pathway[i] <- paste(as.character(KEGG$id[which(KEGG$pathway == u_pathway[i])]), collapse=";")
-
+    
     #for ( i in 1:100 ){
     url_adres <- paste("http://rest.kegg.jp/get/", u_pathway[i],sep="")
     dest_file <- paste("~/Google_Drive/++Work/++Research/Resources-Databases/KEGG/",u_pathway[i],".txt")
@@ -36,9 +36,9 @@ import_KEGG_pathway_info <- function( dest_dir="~/Google_Drive/++Work/++Research
     s <- s[s!=""]
     name_pathway[i] <- paste(s[2:(which(s=="-")-1)], collapse=" ")
   }
-
+  
   df <- data.frame(pathway = u_pathway, name = name_pathway, IDs = gene_pathway)
-
+  
   return(df)
 }
 
@@ -49,14 +49,14 @@ KEGG_human <- import_KEGG_pathway_info(organism="human")
 # # import uniprot data ------------------------------------------------------------------------------------------
 
 uniprot_data_mouse <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
-                        "Uniprot/uniprot-mus+musculus.txt", sep=""),
-                  sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
+                                        "Uniprot/uniprot-mus+musculus.txt", sep=""),
+                                  sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
 
 # Note that only reviewd human protein are imported
 
 uniprot_data_human <- read.table( paste("~/Google_Drive/++Work/++Research/Resources-Databases/",
-                                      "Uniprot/uniprot-homo+sapiens+AND+reviewed.txt", sep=""),
-                                sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
+                                        "Uniprot/uniprot-homo+sapiens+AND+reviewed.txt", sep=""),
+                                  sep="\t", header=TRUE, fill=TRUE, quote=c("\""),comment.char="")
 
 # import Reactome data ------------------------------------------------------------------------------------------
 
@@ -181,10 +181,10 @@ GOA_human_slim$GO_name <- onto$name[idx_match]
 # import proteome data ------------------------------------------------------------------------------------------
 
 proteome_data <- read.table(paste("~/Google_Drive/++Work/++Research/++Projects/",
-                          "Proteomes/Proteome_Comparison_OST_vs_kinetics/",
-                          "Copy_number_hist_all_aligned_short.txt",
-                          sep="" ),
-                    sep="\t",header=TRUE)
+                                  "Proteomes/Proteome_Comparison_OST_vs_kinetics/",
+                                  "Copy_number_hist_all_aligned_short.txt",
+                                  sep="" ),
+                            sep="\t",header=TRUE)
 
 
 
@@ -224,4 +224,3 @@ devtools::use_data(proteinGroups_Cbl,
                    pkg=".",
                    internal = FALSE,
                    overwrite = TRUE)
-  

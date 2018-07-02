@@ -9,7 +9,9 @@ row_mean(df, na.rm = TRUE, log = FALSE)
 \arguments{
 \item{df}{a data frame}
 
-\item{log}{option to use geometric mean}
+\item{na.rm}{logical, remove NA values}
+
+\item{log}{logical, use geometric mean instead of arithmetic mean}
 }
 \value{
 A numeric vector

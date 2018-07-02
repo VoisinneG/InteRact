@@ -13,9 +13,11 @@ Imports:
 	Hmisc,
 	igraph,
 	networkD3,
-	ggsignif
+	ggsignif,
+	PSICQUIC
 LazyData: TRUE
-License: GPL-2
+License: file LICENSE
 RoxygenNote: 6.0.1
+Depends: R (>= 2.10)
 Suggests: testthat
 LinkingTo: Rcpp

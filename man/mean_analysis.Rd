@@ -3,7 +3,7 @@
 \name{mean_analysis}
 \alias{mean_analysis}
 \title{Compute the mean \code{InteRactome} (on variables 'p_val', 'fold_cahnge', 'stoichio' and 'stoichio_bio')
-from a list of \code{InteRactome}}
+from a list of \code{InteRactomes}}
 \usage{
 mean_analysis(res, log = TRUE, na.rm = TRUE)
 }
@@ -16,5 +16,5 @@ mean_analysis(res, log = TRUE, na.rm = TRUE)
 }
 \description{
 Compute the mean \code{InteRactome} (on variables 'p_val', 'fold_cahnge', 'stoichio' and 'stoichio_bio')
-from a list of \code{InteRactome}
+from a list of \code{InteRactomes}
 }

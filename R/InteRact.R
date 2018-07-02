@@ -8,35 +8,26 @@
 #' @param df A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
 #' (use parameter \code{Column_intensity_pattern} to change)
 #' @param updateProgress function to show progress bar in shiny app
+#' @param N_rep Number of iterations for the replacement of missing values
+#' @param quantile_rep Numeric value between 0 and 1. Quantile of the distribution of mean intensities 
+#' in the control background used to replace missing values.
 #' @param pool_background option to use all control background conditions as one control group for all conditions
 #' @param log_test logical, perform t-test on log transform intensities
 #' @param log_stoichio logical, use the geometric mean instead of the arithmetic mean to compute stoichiometries
+#' @param log_mean logical, use the geometric mean instead of the arithmetic mean to compute the mean \code{InteRactome}
 #' @param substract_ctrl logical, substract ctrl intensities in the calculation of stoichiometries
 #' @param by_conditions option to perform the comparison between bait and control group for each condition
 #' @param preprocess_df list obtained by  the function \code{preprocess_data()}
 #' @param ... additionnal parameters passed to functions \code{preprocess_data()} and \code{identify_conditions()}.
-#' 
 #' @return a object a list containing the preprocessed data and on object of class \code{InteRactome}, i.e a list including the following elements :
 #' @return \code{conditions} : a vector of experimental conditions.
 #' @return \code{names} : a vector of names (by default gene names are used).
 #' @return \code{p_val} : a list of vectors containing the p values associated to each experimental condition.
 #' @return \code{fold_change} : a list of vectors containing the fold change associated to each experimental condition. 
 #' @return \code{...} : other variables.
-#'
-#' @import dplyr
-#' @import ggplot2
-#' @import ggrepel
-#' @import grid
-#' @import stringr
-#' @import Hmisc
-#' @import igraph
-#' @import ggsignif
-#' @import networkD3
-#' 
+#' @importFrom stats quantile rnorm
 #' @export
-#'
 #' @author Guillaume Voisinne
-#'
 #' @examples
 #' #load data :
 #' data("proteinGroups_Cbl")
@@ -56,7 +47,7 @@
 #' res <- order_interactome(res, order_list$idx_order)
 #' 
 #' #Visualize interaction kinetics
-#' plot(res)
+#' plot_interactome(res)
 #' 
 #' # Append protein abundance information
 #' res <- merge_proteome(res)
@@ -88,7 +79,7 @@ InteRact <- function(
   # identify missing values
   
   log10_I_norm_mean <- log10(avg$Intensity);
-  q <- quantile(log10_I_norm_mean[ , avg$conditions$bckg == avg$bckg_ctrl], na.rm=TRUE, probs=quantile_rep);
+  q <- stats::quantile(log10_I_norm_mean[ , avg$conditions$bckg == avg$bckg_ctrl], na.rm=TRUE, probs=quantile_rep);
   s <- mean( row_sd(log10_I_norm_mean[ , avg$conditions$bckg == avg$bckg_ctrl]), na.rm=TRUE);
   
   log10_I_norm_mean_rep <- log10_I_norm_mean
@@ -111,7 +102,7 @@ InteRact <- function(
       }
       
       cat(paste("Nrep=",i,"\n",sep=""));
-      log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- rnorm( n_replace, mean=q, sd=s) 
+      log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- stats::rnorm( n_replace, mean=q, sd=s) 
 
       res[[i]]<-analyse_interactome(df = 10^log10_I_norm_mean_rep, 
                                     bait_gene_name = avg$bait_gene_name, 
@@ -161,23 +152,23 @@ InteRact <- function(
 }
 
 #' Preprocessing of raw data
+#' @param df Data.frame with protein intensities
 #' @param bait_gene_name The gene name of the bait
 #' @param Column_score Column with protein identification score
 #' @param Column_ID Column with protein IDs
 #' @param Column_Npep Column with number of theoretically observable peptides per protein
 #' @param Column_gene_name Column with gene names
 #' @param Column_intensity_pattern Pattern (regular exrpression) used to identfy df's columns containing protein intensity values
-#' @param bckg_bait Τhe name of the bait background as found in \code{condition$bckg} (see below)
-#' @param bckg_ctrl Τhe name of the control background as found in \code{condition$bckg} (see below)
-#' @param log logical, use geometric mean to average technical replicates
 #' @param condition data.frame with columns "sample", bckg", "bio", "time" and "tech" indicating 
 #' for each intensity column ("sample") its corresponding background ("bckg"), biologicla replicate ("bio), 
 #' experimental condition ("tine) and technical replicate ("tech).
+#' @param bckg_bait Name of the bait background as found in \code{condition$bckg} (see below)
+#' @param bckg_ctrl Name of the control background as found in \code{condition$bckg} (see below)
+#' @param log logical, use geometric mean to average technical replicates
 #' @param filter_time vector of experimental conditions to exclude from analysis
 #' @param filter_bio vector of biological replicates to exclude from analysis
 #' @param filter_tech vector of technical replicates to exclude from analysis
 #' @param ... Additional parameters passed to function \code{identify_conditions}
-#' 
 #' @export
 preprocess_data <- function(df,
                      Column_gene_name = "Gene.names",
@@ -186,10 +177,10 @@ preprocess_data <- function(df,
                      Column_Npep = NULL,
                      Column_intensity_pattern = "^Intensity.",
                      bait_gene_name,
+                     condition = NULL,
                      bckg_bait = bait_gene_name,
                      bckg_ctrl = "WT",
                      log = TRUE,
-                     condition = NULL,
                      filter_time=NULL,
                      filter_bio=NULL,
                      filter_tech=NULL,
@@ -291,29 +282,26 @@ preprocess_data <- function(df,
 
 #' Identify conditions (background, time of stimulation, biological and technical replicates) 
 #' from column names
-#'
 #' @param df A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
 #' (use parameter \code{Column_intensity_pattern} to change)
 #' @param Column_intensity_pattern Pattern (regular exrpression) used to identfy df's columns containing protein intensity values
-#' @param split Character used to split column names into substrings.
-#' @param bckg_bait Τhe name of the bait found in \code{bckg} (see below) or in df's names if \code{bckg} is not provided
-#' @param bckg_ctrl Τhe name of the control background found in \code{bckg} (see below) or in df's names if \code{bckg} is not provided
-#' @param preffix_time Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")
-#' @param preffix_bio Preffix for biological replicates in column names (i.e "S" if pattern is "_S1")
-#' @param preffix_tech Preffix for technical replicates in column names (i.e "R" if pattern is "_R3")
+#' @param split Character used to split column names into substrings
+#' @param bckg_pos Position of the sample background in splitted column names
+#' @param bio_pos Position of the sample biological replicate in splitted column names
+#' @param time_pos Position of the sample experimental condition in splitted column names
+#' @param tech_pos Position of the sample technical replicate in splitted column names
 #' @return a data frame describing experimental samples in terms of background, 
 #' biological and technical replicates, and experimental conditions
-#' @import dplyr
-#' @import stringr
+#' @importFrom dplyr tibble
 #' @export
 #' @examples
 #' #load data :
-#' df <- data("proteinGroups_Cbl")
+#' data("proteinGroups_Cbl")
 #' # You can identify columns and their description separately using \code{identify_conditions()}
-#' cond <- identify_conditions(df, bckg_bait="Cbl")
+#' cond <- identify_conditions(proteinGroups_Cbl)
 #' print.data.frame(cond)
-#' # and use it as parameters for function \code{InteRact()}
-#' res <- InteRact(df, bait_gene_name = "Cbl", bckg=cond$bckg, time=cond$time, bio=cond$bio, tech=cond$tech)
+#' # and use it as parameters for function InteRact()
+#' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl", condition = cond)$Interactome
 identify_conditions <- function(df,
                                   Column_intensity_pattern = "^Intensity.",
                                   split = "_",
@@ -353,20 +341,20 @@ identify_conditions <- function(df,
 
 
 #' Average protein intensities over technical replicates
-#' 
 #' @param df A data frame of protein intensities
 #' @param cond A data frame containing the description of df's columns (i.e "idx", bckg", "time", "bio"  and "tech") 
 #' as returned by function \code{identify_conditions()}
 #' @param log use geometric mean
 #' @return A list containing :
 #' @return \code{Intensity}, a data frame of protein intensities averaged over technical replicates;
-#' @return \code{conditions}, a data frame containing the description of Intensity's columns
+#' @return \code{conditions}, a data frame containing the description of \code{Intensity}'s columns
+#' @importFrom dplyr group_by summarize
 #' @examples
 #' #load data :
-#' df <- data("proteinGroups_Cbl")
-#' cond <- identify_conditions(df, bckg_bait="Cbl")
+#' data("proteinGroups_Cbl")
+#' cond <- identify_conditions(proteinGroups_Cbl)
 #' Column_intensity_pattern <- "^Intensity."
-#' df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
+#' df_int <- proteinGroups_Cbl[ , grep(Column_intensity_pattern, colnames(df))]
 #  avg <- average_technical_replicates(df_int, cond)
 average_technical_replicates<-function(df, cond, log = TRUE){
   
@@ -388,18 +376,12 @@ average_technical_replicates<-function(df, cond, log = TRUE){
 
 #' Filtering of a data frame using a threshold on protein identification score and 
 #' gene names
-#' 
 #' @param df A data frame
 #' @param min_score Threshold for protein identification score
 #' @param Column_gene_name The name of df's column containing gene names
 #' @param Column_score The name of df's column containing protein identification score
 #' @param split_param Character used to split gene names into substrings. 
 #' @return A filtered data frame. Contains an extra column with the first substring of the column \code{Column_gene_name}
-#' @examples
-#' #load data :
-#' dir<- system.file("extdata", package = "InteRact")
-#' path <- paste(dir,"/proteinGroups_Cbl.txt",sep="")
-#' df <- read.csv(path, sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
 filter_Proteins <- function( df, min_score=0, Column_gene_name = "Gene.names", Column_score= "Score", split_param=";"){
 
   idx_row = 1:dim(df)[1]
@@ -437,7 +419,6 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name = "Gene.names", C
 }
 
 #' Merge protein groups with the same gene name.
-#' 
 #' @param df A data frame
 #' @param idx_col idx of columns for which values will be merged across protein groups
 #' @param merge_column column to identify rows to be be merged
@@ -482,7 +463,6 @@ merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name
 }
 
 #' Get the number of theoretically observable peptides per protein
-#' 
 #' @param df A data frame
 #' @param Column_Npep column containing the number of theoretically observable peptides per protein.
 #' If NULL try to compute the number of theoretically observable peptides using iBAQ values, 
@@ -509,8 +489,8 @@ estimate_Npep <- function(df, Column_Npep = NULL){
 }
 
 #' Normalize data frame by columns using the median
-#' 
 #' @param df A data frame
+#' @importFrom stats median
 #' @return A normalized data frame
 rescale_median <- function(df){
   df_out<-df;
@@ -521,7 +501,6 @@ rescale_median <- function(df){
 }
 
 #' Perform the geometric mean of a numeric vector
-#' 
 #' @param x A numeric vector
 #' @param na.rm remove NA values
 #' @return A numeric value
@@ -539,8 +518,8 @@ geom_mean = function(x, na.rm = TRUE){
 }
 
 #' Compute the standard deviation by row
-#' 
 #' @param df a data frame
+#' @importFrom stats sd
 #' @return A numeric vector
 row_sd <- function(df){
   output<-vector("double", dim(df)[1] )
@@ -551,9 +530,9 @@ row_sd <- function(df){
 }
 
 #' Compute the mean by row
-#' 
 #' @param df a data frame
-#' @param log option to use geometric mean
+#' @param log logical, use geometric mean instead of arithmetic mean
+#' @param na.rm logical, remove NA values
 #' @return A numeric vector
 row_mean <- function(df, na.rm = TRUE, log = FALSE){
   output <- vector("double", dim(df)[1] )
@@ -574,6 +553,7 @@ row_mean <- function(df, na.rm = TRUE, log = FALSE){
 #' @param idx_group_1 column indexes corresponding to the first group
 #' @param idx_group_2 column indexes corresponding to the second group
 #' @param log option to perform the t-test on log transformed data
+#' @importFrom stats t.test
 #' @return A data frame with columns 'p_val' and 'fold_change
 row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
   
@@ -660,7 +640,8 @@ row_stoichio <- function(df,
 #' @param df a data frame of protein intensities. columns are experimental samples and rows are proteins
 #' @param ibait : row index corresponding to the bait protein
 #' @param bait_gene_name : The gene name of the bait
-#' @param Npep : vector containing the number of theoretically observable peptide per protein (same length as dim(df)[1])
+#' @param Npep : vector containing the number of theoretically observable peptide per protein (same length as \code{dim(df)[1]})
+#' @param Protein.IDs : vector containing protein IDs (same length as \code{dim(df)[1]})
 #' @param name_bait : name of the bait as appearing in the background vector
 #' @param name_ctrl : name of the control as appearing in the background vector
 #' @param background : vector of background names for each experimental sample
@@ -671,15 +652,22 @@ row_stoichio <- function(df,
 #' @param log_stoichio logical, use the geometric mean instead of the arithmetic mean to compute stoichiometries
 #' @param substract_ctrl logical, substract ctrl intensities in the calculation of stoichiometries
 #' @param by_conditions option to perform the comparison between bait and control group for each condition
-#' 
 #' @return an object of class \code{InteRactome}, i.e a list including the following elements :
 #' @return \code{conditions} : a vector of experimental conditions.
 #' @return \code{names} : a vector of names (by default gene names are used).
 #' @return \code{p_val} : a list of vectors containing the p values associated to each experimental condition.
 #' @return \code{fold_change} : a list of vectors containing the fold change associated to each experimental condition. 
 #' @return \code{...} : other variables.
-analyse_interactome <- function( df, ibait, bait_gene_name, Npep, Protein.IDs, name_bait, name_ctrl, 
-                                 background, conditions, replicates, 
+analyse_interactome <- function( df, 
+                                 ibait, 
+                                 bait_gene_name, 
+                                 Npep, 
+                                 Protein.IDs, 
+                                 name_bait, 
+                                 name_ctrl, 
+                                 background, 
+                                 conditions, 
+                                 replicates, 
                                  by_conditions = TRUE, pool_background = TRUE, 
                                  log_test = TRUE, log_stoichio = TRUE,
                                  substract_ctrl = TRUE){
@@ -788,11 +776,9 @@ analyse_interactome <- function( df, ibait, bait_gene_name, Npep, Protein.IDs, n
 }
 
 #' Performs a running average on a numeric vector
-#'
 #' @param x a numeric vector
 #' @param n integer, radius of the moving avergae (number of points extending on each side of the 
 #' center point on which the average is computed)
-#' 
 #' @return a smoothed numeric vector
 moving_average <- function(x, n){
   
@@ -807,23 +793,14 @@ moving_average <- function(x, n){
 }
 
 #' Smooth, using a moving average across conditions, selected variables of an \code{InteRactome}
-#' @export
-smooth <- function (x, ...) {
-  UseMethod("smooth", x)
-}
-
-#' Smooth, using a moving average across conditions, selected variables of an \code{InteRactome}
-#' 
 #' @param res an \code{InteRactome}
 #' @param n integer, radius of the moving avergae (number of points extending on each side of the 
 #' center point on which the average is computed)
 #' @param order_conditions a numeric vector ordering conditions in \code{res$conditions}
 #' @param var_smooth variables on which the moving average will be computed
-#' 
 #' @return an smoothed \code{InteRactome}
-#' 
 #' @export
-smooth.InteRactome <- function( res,  n = 1, order_conditions = NULL, var_smooth = c("fold_change","p_val") ){
+smooth_interactome <- function( res,  n = 1, order_conditions = NULL, var_smooth = c("fold_change","p_val") ){
   
   res_smooth <- res
   
@@ -854,13 +831,10 @@ smooth.InteRactome <- function( res,  n = 1, order_conditions = NULL, var_smooth
   return(res_smooth)
 }
 
-#' Merge different conditions from different interactomes into a single dataframe 
-#' 
-#' @param res a list of \code{InteRactome}
+#' Merge different conditions from different interactomes into a single data.frame 
+#' @param res a list of \code{InteRactomes}
 #' @param selected_conditions a character vector containing names of conditions to merge
-#' 
 #' @return a data.frame with columns bait, names, Protein.IDs, conditions, p_val, fold_change
-#' 
 #' @export
 merge_conditions <- function( res,  selected_conditions = NULL){
 
@@ -919,25 +893,27 @@ merge_conditions <- function( res,  selected_conditions = NULL){
   return(df_merge)
 }
 
-#' Compute the FDR (False Discovery Rate) using the asymmetry of the volcano plot.
+#' Compute the FDR from the asymmetry of the volcano plot
+#' @description Compute the FDR (False Discovery Rate) using the asymmetry of the volcano plot.
 #' It uses the fonction f(x) = c / (x-x0) with x = log10(fold_change), y=-log10(p_value).
 #' Points with x>x0 and y>f(x) are taken as true positive (TP)
 #' Points with x<x0 and y>f(x) are taken as false positive (FP)
-#' For a given set of paarmeters (c,x0), the FDR is given by TP/(TP+FP)
-#' 
-#' @param df : a data.frame containing columns 'p_val' and 'fold_change'
+#' For a given set of parameters (c,x0), the FDR is given by TP/(TP+FP)
+#' @param df : a data.frame containing columns \code{p_val} and \code{fold_change}
 #' @param c : numeric vector
 #' @param x0 : numeric vector
-#'
 #' @return a data.frame with a extra column \code{FDR}. 
 #' @return If parameters \code{c} and \code{x0} are vectors, \code{FDR} is taken as the minimum FDR value across all sets of parameters
-#' 
+#' @import utils
 #' @export
-#' 
 #' @examples
-#' df_merge <- merge_conditions(Interactome)
+#' #' #load data :
+#' data("proteinGroups_Cbl")
+#' #Run InteRact with default parameters
+#' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")$Interactome
+#' df_merge <- merge_conditions(res)
 #' df_FDR <- compute_FDR_from_asymmetry(df_merge)
-#' Interactome <- append_FDR(Interactome, df_FDR)
+#' Interactome <- append_FDR(res, df_FDR)
 compute_FDR_from_asymmetry <- function( df, 
                                         c = seq(from = 0, to =4, by = 0.1),
                                         x0 = seq(from = 0, to =3, by = 0.1)){
@@ -973,25 +949,21 @@ compute_FDR_from_asymmetry <- function( df,
   
 }
 
-#' Append a FDR column to an \code{InteRactome}
-#' @export
-append_FDR <- function (x, ...) {
-  UseMethod("append_FDR", x)
-}
 
 #' Append a FDR column to an \code{InteRactome}
-#' 
 #' @param res an \code{InteRactome}
 #' @param df a data.frame containing (at least) columns 'bait', names', 'FDR' and 'conditions'
-#' 
 #' @return an \code{InteRactome}
-#' 
 #' @export
 #' @examples
-#' df_merge <- merge_conditions(Interactome)
+#' #' #load data :
+#' data("proteinGroups_Cbl")
+#' #Run InteRact with default parameters
+#' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")$Interactome
+#' df_merge <- merge_conditions(res)
 #' df_FDR <- compute_FDR_from_asymmetry(df_merge)
-#' Interactome <- append_FDR(Interactome, df_FDR)
-append_FDR.InteRactome <- function( res, df){
+#' Interactome <- append_FDR(res, df_FDR)
+append_FDR <- function(res, df){
 
   
   res_int <- res
@@ -1016,20 +988,12 @@ append_FDR.InteRactome <- function( res, df){
   
 }
 
-#' Filters conditions from an interactome
-#' @export
-filter_conditions <- function (x, ...) {
-  UseMethod("filter_conditions", x)
-}
-
 #' Filter conditions from an interactome
-#' 
 #' @param res an \code{InteRactome}
 #' @param conditions_to_filter_out character vector with names of conditions to filter out
-#' 
 #' @return an \code{InteRactome}
 #' @export
-filter_conditions.InteRactome <- function( res, conditions_to_filter_out ){
+filter_conditions <- function( res, conditions_to_filter_out ){
   
   idx_conditions <- which(is.element(res$conditions, conditions_to_filter_out ))
   res_filter<-res
@@ -1047,8 +1011,7 @@ filter_conditions.InteRactome <- function( res, conditions_to_filter_out ){
 }
 
 #' Compute the mean \code{InteRactome} (on variables 'p_val', 'fold_cahnge', 'stoichio' and 'stoichio_bio')
-#' from a list of \code{InteRactome}
-#' 
+#' from a list of \code{InteRactomes}
 #' @param res a list of \code{InteRactome}
 #' @param log logical, use the geometric mean instead of the arithmetic mean
 #' @param na.rm logical, remove NA values
@@ -1099,20 +1062,12 @@ mean_analysis <- function(res, log = TRUE, na.rm = TRUE ){
   
 }
 
-#' @export
-global_analysis <- function (x, ...) {
-  UseMethod("global_analysis", x)
-}
-
 #' Adds global variables by analysing values
 #' across all conditions of an \code{InteRactome}
-#' 
 #' @param res an \code{InteRactome}
-#' 
 #' @return an \code{InteRactome} with global varaiables
-#' 
 #' @export
-global_analysis.InteRactome <- function( res ){
+global_analysis <- function( res ){
   
   res_int <- res;
   max_stoichio<- apply( do.call(cbind, res$stoichio), 1, function(x)  ifelse( sum(!is.na(x))>0, max(x,na.rm=TRUE),NaN) )
@@ -1142,6 +1097,18 @@ global_analysis.InteRactome <- function( res ){
   
 }
 
+#' Perform enrichment analysis
+#' @description Perform enrichment analysis for protein annotations stored in a formatted data.frame
+#' @param df a formatted data.frame with annoations corresponding to each row. Types of annotations are organized by columns.
+#' @param idx_select indexes of the foreground set.
+#' @param names row names. Used in the output data.frame
+#' @param organism organism for which the analysis is to be performed ("mouse" or "human")
+#' @param updateProgress logical, function to show progress in shiny app
+#' @param showProgress logical, show progress in console
+#' @param orderOutput logical, order annotations by enrichment p-values in the output data.frame
+#' @return a data.frame
+#' @import utils
+#' @importFrom stats phyper p.adjust
 #' @export
 annotation_enrichment_analysis <- function( df, 
                                             idx_detect, 
@@ -1391,6 +1358,13 @@ annotation_enrichment_analysis <- function( df,
   
 }
 
+#' Plot the result of the annotation enrichment analysis
+#' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
+#' @param p_val_max threshold for the enrichment p-value
+#' @param method_adjust_p_val method to adjust p-value for multiple comparisons
+#' @param fold_change_min threshold for the enrichment fold-change
+#' @param N_annot_min minimum number of elements that are annotated in the foreground set
+#' @return a plot
 #' @export
 plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "fdr", fold_change_min =2, N_annot_min=2){
   
@@ -1433,13 +1407,14 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "f
   
 }
 
+#' Append annotations to an \code{InteRactome}
+#' @param res an \code{InteRactome}
+#' @param annotations type of annotations to append
+#' @param name_id column name used to map protein identifiers
+#' @param organism organism for which the annotations have to be appended
+#' @return an \code{InteRactome}
 #' @export
-append_annotations <- function (x, ...) {
-  UseMethod("append_annotations", x)
-}
-
-#' @export
-append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Protein.IDs", organism = "mouse"){
+append_annotations <- function( res, annotations=NULL, name_id = "Protein.IDs", organism = "mouse"){
   
     res_int<-res
     if(is.null(annotations)){
@@ -1452,7 +1427,8 @@ append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Pr
       df_annot <- get_annotations(res, name_id = name_id, organism = organism)
       for (annot in annotations){
         df_annot <- switch(annot,
-                           "GO" =  add_GO_data(df_annot, GO_type = "molecular_function"))
+                           "GO" =  add_GO_data(df_annot, GO_type = "molecular_function")
+                           )
       }
        
     }
@@ -1482,6 +1458,19 @@ append_annotations.InteRactome <- function( res, annotations=NULL, name_id = "Pr
     
 }
 
+#' Get annotations from uniprot for a set of protein identifiers
+#' @description Get annotations from uniprot for a set of protein identifiers.
+#' From a set of IDs, keep the first that correspond to a "reviewed" protein, 
+#' or by default the first ID of the set
+#' name_id : column containing the set of protein identifiers separated by "split_param"
+#' organism = c("mouse", "human")
+#' @param data a data.frame with protein IDs in column \code{name_id}
+#' @param name_id column name used to map protein identifiers
+#' @param split_param split character used to separate different protein IDs
+#' @param organism organism for which the annotations have to be appended
+#' @param updateProgress logical, function to show progress in shiny app
+#' @return an \code{InteRactome}
+#' @import utils
 #' @export
 get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", organism = "mouse", updateProgress = NULL ){
 # Get annotations from uniprot for a set of protein identifiers
@@ -1553,6 +1542,7 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
   
 }
 
+#' @import utils
 #' @export
 add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", organism = "mouse", slim = FALSE, updateProgress = NULL){
 # GO_type = "molecular_function", biological_process" or "cellular_component"
@@ -1601,6 +1591,7 @@ add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", orga
   return(df_int)
 }
 
+#' @import utils
 #' @export
 add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse", updateProgress = NULL){
   
@@ -1631,6 +1622,7 @@ add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse
   return(df_int)
 }
 
+#' @import utils
 #' @export
 add_Hallmark_data <- function(df, map_id="Gene.names...primary..", updateProgress = NULL){
   
@@ -1668,12 +1660,7 @@ add_Hallmark_data <- function(df, map_id="Gene.names...primary..", updateProgres
 }
 
 #' @export
-merge_proteome <- function (x, ...) {
-  UseMethod("merge_proteome", x)
-}
-
-#' @export
-merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Entry" ){
+merge_proteome <- function( res, Interactome_ID_name = "Entry" ){
   
       res_int <- res
       
@@ -1728,13 +1715,10 @@ merge_proteome.InteRactome <- function( res, Interactome_ID_name = "Entry" ){
       output=res_int
 }
 
+#' @import ggplot2
+#' @import ggrepel
 #' @export
-plot_2D_stoichio <- function (x, ...) {
-  UseMethod("plot_2D_stoichio", x)
-}
-
-#' @export
-plot_2D_stoichio.InteRactome <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_display=30){
+plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_display=30){
   
   df<- data.frame( Y=log10(res$stoch_abundance), 
                    label_tot=res$names
@@ -1861,12 +1845,7 @@ discretize_values <- function( x, breaks = c(1,0.1,0.05,0.01), decreasing_order 
 }
 
 #' @export
-get_order_discrete <- function (x, ...) {
-  UseMethod("get_order_discrete", x)
-}
-
-#' @export
-get_order_discrete.InteRactome <- function( res, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
+get_order_discrete <- function( res, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
   
   min_p_val_discrete <- discretize_values(res[[var_p_val]], breaks = p_val_breaks, decreasing_order = TRUE)
   
@@ -1884,12 +1863,7 @@ get_order_discrete.InteRactome <- function( res, var_p_val = "min_p_val", p_val_
 }
 
 #' @export
-order_interactome <- function (x, ...) {
-  UseMethod("order_interactome", x)
-}
-
-#' @export
-order_interactome.InteRactome <- function(res, idx_order){
+order_interactome <- function(res, idx_order){
   
   if(length(idx_order)!=length(res$names)){
     stop("Vector of ordering indexes does not have the proper length")
@@ -1929,6 +1903,8 @@ order_interactome.InteRactome <- function(res, idx_order){
   output = res_order
 }
 
+#' @importFrom grDevices dev.off pdf rgb
+#' @importFrom graphics hist lines plot
 #' @export
 plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
     # plot histogram of intensities for all columns in two different datasets 
@@ -1958,13 +1934,11 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
   
 }
 
+#' @importFrom grDevices dev.off pdf rgb
+#' @import ggplot2
+#' @import ggrepel
 #' @export
-plot_volcanos <- function (x, ...) {
-  UseMethod("plot_volcanos", x)
-}
-
-#' @export
-plot_volcanos.InteRactome <- function( res, 
+plot_volcanos <- function( res, 
                                        labels=NULL, 
                                        N_print=15, 
                                        conditions=NULL, 
@@ -2084,12 +2058,7 @@ plot_volcanos.InteRactome <- function( res,
 }
 
 #' @export
-plot <- function (x, ...) {
-  UseMethod("plot", x)
-}
-
-#' @export
-plot.InteRactome <- function(x, 
+plot_interactome <- function(x, 
                              p_val_breaks=c(1,0.1,0.05,0.01), 
                              p_val_thresh = 0.01,
                              fold_change_thresh=2,
@@ -2114,13 +2083,10 @@ plot.InteRactome <- function(x,
                       clustering = clustering)$plot
 }
 
+#' @importFrom grDevices dev.off pdf rgb
+#' @importFrom stats dist hclust
 #' @export
-plot_per_conditions <- function (x, ...) {
-  UseMethod("plot_per_conditions", x)
-}
-
-#' @export
-plot_per_conditions.InteRactome <- function( res,
+plot_per_conditions <- function( res,
                                  idx_cols = 1:length(res$conditions),
                                  idx_rows=1:20,
                                  size_var="norm_stoichio",
@@ -2194,7 +2160,7 @@ plot_per_conditions.InteRactome <- function( res,
   return(list(plot = p, idx_order = idx_order))
   
 }
-
+#' @import ggplot2
 #' @export
 dot_plot <- function(Dot_Size, 
                      Dot_Color=NULL, 
@@ -2277,6 +2243,10 @@ dot_plot <- function(Dot_Size,
   return(p)
   
 }
+
+#' @import ggplot2
+#' @import ggsignif
+#' @importFrom grDevices dev.off pdf rgb
 #' @export
 plot_stoichio <- function(Interactome, 
                          name,
@@ -2333,7 +2303,8 @@ plot_stoichio <- function(Interactome,
   return(p)
   
 }
-
+#' @import ggplot2
+#' @import ggsignif
 #' @export
 plot_comparison <- function(Interactome,
                           name,
@@ -2406,6 +2377,9 @@ plot_comparison <- function(Interactome,
   return(p)
   
 }
+
+#' @import ggplot2
+#' @importFrom stats quantile IQR
 #' @export
 plot_QC <- function(prep_data){
   
@@ -2427,8 +2401,8 @@ plot_QC <- function(prep_data){
   
   
   x <- Ravg_bait$Ravg[Ravg_bait$bckg==df$bckg_bait]
-  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
-  H <- 1.5 * IQR(x, na.rm = T)
+  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * stats::IQR(x, na.rm = T)
   
   outlier_bio_1 <- unique(Ravg_bait$bio[x < (qnt[1] - H)])
   if(length(outlier_bio_1)>0){
@@ -2449,8 +2423,8 @@ plot_QC <- function(prep_data){
   
   Ibait <- cbind(df$conditions, Ibait = as.numeric(df$Intensity[ibait, ]) )
   x <- Ibait$Ibait[Ibait$bckg==df$bckg_bait]
-  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
-  H <- 1.5 * IQR(x, na.rm = TRUE)
+  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * stats::IQR(x, na.rm = TRUE)
   
   outlier_bio_2 <- unique(Ibait$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
   if(length(outlier_bio_2)>0){
@@ -2474,8 +2448,8 @@ plot_QC <- function(prep_data){
   )
   
   x <- nNA$nNA[nNA$bckg==df$bckg_bait]
-  qnt <- quantile(x, probs=c(.25, .75), na.rm = TRUE)
-  H <- 1.5 * IQR(x, na.rm = TRUE)
+  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * stats::IQR(x, na.rm = TRUE)
   
   outlier_bio_3 <- unique(nNA$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
   if(length(outlier_bio_3)>0){
@@ -2498,13 +2472,9 @@ plot_QC <- function(prep_data){
   
 }
 
-#' @export
-summary_table <- function (x, ...) {
-  UseMethod("summary_table", x)
-}
 
 #' @export
-summary_table.InteRactome <- function(res, add_columns = names(res) ){
+summary_table <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
   #columns <- add_columns
@@ -2546,9 +2516,6 @@ summary_table.InteRactome <- function(res, add_columns = names(res) ){
     
   }
   
-  
-  
-  
   names(df)<-names_df
   df<-df[,order(idx)]
   
@@ -2556,13 +2523,9 @@ summary_table.InteRactome <- function(res, add_columns = names(res) ){
   
 }
 
+#' @importFrom Hmisc rcorr
 #' @export
-compute_correlations <- function (x, ...) {
-  UseMethod("compute_correlations", x)
-}
-
-#' @export
-compute_correlations.InteRactome <- function(res, idx = NULL){
+compute_correlations <- function(res, idx = NULL){
   
   # build matrix on which correlations will be computed
   idx_selected <- 1:length(res$names)
@@ -2592,7 +2555,7 @@ compute_correlations.InteRactome <- function(res, idx = NULL){
   colnames(M) <- names_df
   
   
-  R <- rcorr(t(M))
+  R <- Hmisc::rcorr(t(M))
   n <- dim(R$r)[1]
   r_corr <- rep(NA, n*(n-1)/2)
   p_corr <- rep(NA, n*(n-1)/2)
@@ -2613,31 +2576,47 @@ compute_correlations.InteRactome <- function(res, idx = NULL){
   return(df_corr)
 }
 
+#' @import igraph
+#' @import networkD3
 #' @export
 plot_correlation_network <- function(df_corr, r_corr_thresh = 0.8, p_val_thresh = 0.05){
   
   df_corr_filtered <- df_corr[df_corr$r_corr>=r_corr_thresh & df_corr$p_corr<=p_val_thresh, ]
   
-  net <- graph.data.frame(df_corr_filtered, directed=FALSE);
-  net.s<-igraph::simplify(net)
-  cfg <- cluster_fast_greedy(as.undirected(net.s))
+  net <- igraph::graph.data.frame(df_corr_filtered, directed=FALSE);
+  net <- igraph::simplify(net)
+  cfg <- igraph::cluster_fast_greedy(as.undirected(net))
   
   #plot(cfg, as.undirected(net.s))
-  plot(as.undirected(net.s), mark.groups = communities(cfg))
+  #plot(igraph::as.undirected(net.s), mark.groups = igraph::communities(cfg))
+  
+  net_d3 <- networkD3::igraph_to_networkD3(net, group = igraph::communities(cfg))
+  
+  forceNetwork(Links = net_d3$links, Nodes = net_d3$nodes,
+               Source = 'source', Target = 'target',
+               fontFamily = "arial",
+               NodeID = 'name', Group = 'group',
+               colourScale = JS("d3.scaleOrdinal(d3.schemeCategory20);"),
+               charge = -10, opacity = 1,
+               linkColour = rgb(0.75, 0.75, 0.75),
+               fontSize = 12, bounded = TRUE, zoom=TRUE, opacityNoHover = 1
+  )
+  
 }
 
+#' @import PSICQUIC
 #' @export
 get_PPI_from_psicquic <- function( gene_name, tax_ID = c(9606,10090) , provider = c("IntAct","MINT") ){
   
-  library(PSICQUIC)
-  psicquic <- PSICQUIC()
+  psicquic <- PSICQUIC::PSICQUIC()
   
   for (k in 1:length(tax_ID) ){
     
-    tbl <- interactions(psicquic, 
-                        gene_name, 
-                        species = tax_ID[k] , 
-                        provider = provider )
+    tbl <- PSICQUIC::interactions(psicquic, 
+                                  gene_name, 
+                                  species = tax_ID[k] , 
+                                  provider = provider )
+                        
     
     s<-strsplit(tbl$aliasA, split="|", fixed = TRUE);
     gene_name_A <- rep("",length(s))
@@ -2811,6 +2790,7 @@ get_PPI_from_HPRD <- function( gene_name ){
   
 }
 
+#' @import utils
 #' @export
 create_summary_table_PPI <- function(gene_name){
   
@@ -2869,12 +2849,7 @@ create_summary_table_PPI <- function(gene_name){
 }
 
 #' @export
-append_PPI <- function (x, ...) {
-  UseMethod("append_PPI", x)
-}
-
-#' @export
-append_PPI.InteRactome <- function( res, mapping = "names"){
+append_PPI <- function( res, mapping = "names"){
   
   res_int <- res
   

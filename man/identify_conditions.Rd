@@ -14,17 +14,15 @@ identify_conditions(df, Column_intensity_pattern = "^Intensity.",
 
 \item{Column_intensity_pattern}{Pattern (regular exrpression) used to identfy df's columns containing protein intensity values}
 
-\item{split}{Character used to split column names into substrings.}
+\item{split}{Character used to split column names into substrings}
 
-\item{bckg_bait}{Τhe name of the bait found in \code{bckg} (see below) or in df's names if \code{bckg} is not provided}
+\item{bckg_pos}{Position of the sample background in splitted column names}
 
-\item{bckg_ctrl}{Τhe name of the control background found in \code{bckg} (see below) or in df's names if \code{bckg} is not provided}
+\item{bio_pos}{Position of the sample biological replicate in splitted column names}
 
-\item{preffix_time}{Preffix for experimental conditions in column names (i.e "t" if pattern is "_t300")}
+\item{time_pos}{Position of the sample experimental condition in splitted column names}
 
-\item{preffix_bio}{Preffix for biological replicates in column names (i.e "S" if pattern is "_S1")}
-
-\item{preffix_tech}{Preffix for technical replicates in column names (i.e "R" if pattern is "_R3")}
+\item{tech_pos}{Position of the sample technical replicate in splitted column names}
 }
 \value{
 a data frame describing experimental samples in terms of background, 
@@ -36,10 +34,10 @@ from column names
 }
 \examples{
 #load data :
-df <- data("proteinGroups_Cbl")
+data("proteinGroups_Cbl")
 # You can identify columns and their description separately using \\code{identify_conditions()}
-cond <- identify_conditions(df, bckg_bait="Cbl")
+cond <- identify_conditions(proteinGroups_Cbl)
 print.data.frame(cond)
-# and use it as parameters for function \\code{InteRact()}
-res <- InteRact(df, bait_gene_name = "Cbl", bckg=cond$bckg, time=cond$time, bio=cond$bio, tech=cond$tech)
+# and use it as parameters for function InteRact()
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl", condition = cond)$Interactome
 }

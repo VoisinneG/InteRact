@@ -3,11 +3,12 @@
 library(shiny)
 library(ggplot2)
 library(ggrepel)
+library(ggsignif)
 library(grid)
 library(Hmisc)
 library(igraph)
 library(networkD3)
-library(ggsignif)
+
 library("InteRact")
 
 #source("./R/InteRact.R")
@@ -581,7 +582,7 @@ server <- function(input, output, session) {
   
   annotated_Interactome <- reactive({
       results <- append_annotations(ordered_Interactome(), saved_df$annot )
-      names_excluded <- c("names","bait", "groups","conditions")
+      names_excluded <- c("names","bait", "groups", "conditions")
       updateCheckboxGroupInput(session, "columns_displayed",
                              choices = as.list( setdiff(names(results), names_excluded)),
                              selected=c("max_stoichio", "max_fold_change", "min_p_val") )
@@ -718,11 +719,11 @@ server <- function(input, output, session) {
     df1 <- df_corr()
     df1 <- df1[df1$r_corr>=input$r_corr_thresh & df1$p_corr<=input$p_val_corr_thresh, ]
     
-    net <- graph.data.frame(df1, directed=FALSE);
+    net <- igraph::graph.data.frame(df1, directed=FALSE);
     net <- igraph::simplify(net)
-    layout <- layout_nicely(net)
-    cfg <- cluster_fast_greedy(as.undirected(net))
-    net_d3 <- igraph_to_networkD3(net, group = cfg$membership)
+    layout <- igraph::layout_nicely(net)
+    cfg <- igraph::cluster_fast_greedy(as.undirected(net))
+    net_d3 <- networkD3::igraph_to_networkD3(net, group = cfg$membership)
     
     # vatt <- vertex.attributes(net)
     # vertex_names <- as.character(vatt$name)

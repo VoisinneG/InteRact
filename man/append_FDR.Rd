@@ -4,8 +4,25 @@
 \alias{append_FDR}
 \title{Append a FDR column to an \code{InteRactome}}
 \usage{
-append_FDR(x, ...)
+append_FDR(res, df)
+}
+\arguments{
+\item{res}{an \code{InteRactome}}
+
+\item{df}{a data.frame containing (at least) columns 'bait', names', 'FDR' and 'conditions'}
+}
+\value{
+an \code{InteRactome}
 }
 \description{
 Append a FDR column to an \code{InteRactome}
+}
+\examples{
+#' #load data :
+data("proteinGroups_Cbl")
+#Run InteRact with default parameters
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")$Interactome
+df_merge <- merge_conditions(res)
+df_FDR <- compute_FDR_from_asymmetry(df_merge)
+Interactome <- append_FDR(res, df_FDR)
 }

@@ -7,11 +7,13 @@
 preprocess_data(df, Column_gene_name = "Gene.names", Column_score = "Score",
   Column_ID = "Protein.IDs", Column_Npep = NULL,
   Column_intensity_pattern = "^Intensity.", bait_gene_name,
-  bckg_bait = bait_gene_name, bckg_ctrl = "WT", log = TRUE,
-  condition = NULL, filter_time = NULL, filter_bio = NULL,
-  filter_tech = NULL, ...)
+  condition = NULL, bckg_bait = bait_gene_name, bckg_ctrl = "WT",
+  log = TRUE, filter_time = NULL, filter_bio = NULL, filter_tech = NULL,
+  ...)
 }
 \arguments{
+\item{df}{Data.frame with protein intensities}
+
 \item{Column_gene_name}{Column with gene names}
 
 \item{Column_score}{Column with protein identification score}
@@ -24,15 +26,15 @@ preprocess_data(df, Column_gene_name = "Gene.names", Column_score = "Score",
 
 \item{bait_gene_name}{The gene name of the bait}
 
-\item{bckg_bait}{Τhe name of the bait background as found in \code{condition$bckg} (see below)}
-
-\item{bckg_ctrl}{Τhe name of the control background as found in \code{condition$bckg} (see below)}
-
-\item{log}{logical, use geometric mean to average technical replicates}
-
 \item{condition}{data.frame with columns "sample", bckg", "bio", "time" and "tech" indicating 
 for each intensity column ("sample") its corresponding background ("bckg"), biologicla replicate ("bio), 
 experimental condition ("tine) and technical replicate ("tech).}
+
+\item{bckg_bait}{Name of the bait background as found in \code{condition$bckg} (see below)}
+
+\item{bckg_ctrl}{Name of the control background as found in \code{condition$bckg} (see below)}
+
+\item{log}{logical, use geometric mean to average technical replicates}
 
 \item{filter_time}{vector of experimental conditions to exclude from analysis}
 
