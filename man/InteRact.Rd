@@ -67,15 +67,12 @@ class(res)
 names(res)
 #Generate volcano plots
 plot_volcanos(res)
+
 #Identify specific interactors
 res <- identify_interactors(res, p_val_thresh = 0.05, fold_change_thresh = 2)
 
-# Order proteins in Interactome
-order_list <- get_order_discrete(res)
-res <- order_interactome(res, order_list$idx_order)
-
 #Visualize interaction kinetics
-plot_interactome(res)
+plot_per_condition(res)
 
 # Append protein abundance information
 res <- merge_proteome(res)

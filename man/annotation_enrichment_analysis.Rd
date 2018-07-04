@@ -12,6 +12,10 @@ annotation_enrichment_analysis(df, idx_detect,
 \arguments{
 \item{df}{a formatted data.frame with annoations corresponding to each row. Types of annotations are organized by columns.}
 
+\item{idx_detect}{indexes of the foreground set.}
+
+\item{annotation_selected}{set of annotations on which to perform the analysis}
+
 \item{names}{row names. Used in the output data.frame}
 
 \item{organism}{organism for which the analysis is to be performed ("mouse" or "human")}
@@ -21,8 +25,6 @@ annotation_enrichment_analysis(df, idx_detect,
 \item{showProgress}{logical, show progress in console}
 
 \item{orderOutput}{logical, order annotations by enrichment p-values in the output data.frame}
-
-\item{idx_select}{indexes of the foreground set.}
 }
 \value{
 a data.frame

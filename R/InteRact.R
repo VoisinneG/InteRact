@@ -39,15 +39,12 @@
 #' names(res)
 #' #Generate volcano plots
 #' plot_volcanos(res)
+#' 
 #' #Identify specific interactors
 #' res <- identify_interactors(res, p_val_thresh = 0.05, fold_change_thresh = 2)
 #' 
-#' # Order proteins in Interactome
-#' order_list <- get_order_discrete(res)
-#' res <- order_interactome(res, order_list$idx_order)
-#' 
 #' #Visualize interaction kinetics
-#' plot_interactome(res)
+#' plot_per_condition(res)
 #' 
 #' # Append protein abundance information
 #' res <- merge_proteome(res)
@@ -146,7 +143,6 @@ InteRact <- function(
   }
   
   res_mean <- global_analysis(res_mean);
-  
   output=list( Interactome = res_mean, data = avg);
   
 }
@@ -1015,7 +1011,6 @@ filter_conditions <- function( res, conditions_to_filter_out ){
 #' @param res a list of \code{InteRactome}
 #' @param log logical, use the geometric mean instead of the arithmetic mean
 #' @param na.rm logical, remove NA values
-#' 
 #' @export
 mean_analysis <- function(res, log = TRUE, na.rm = TRUE ){
   
@@ -1097,10 +1092,204 @@ global_analysis <- function( res ){
   
 }
 
+#' Add protein abundance to an \code{InteRactome}
+#' @description Add protein abundance to an \code{InteRactome}. 
+#' Protein abundance are obtained from CD4+ effector T cells.
+#' @param res an \code{InteRactome}
+#' @export
+merge_proteome <- function( res ){
+  
+  res_int <- res
+  
+  gene_name_prot <- proteome_data$Gene.names;
+  
+  ibait <- match(res$bait, res$names)
+  
+  ######### Retrieve protein abundance and compute related quantities
+  
+  Copy_Number <- rep(0, length(res$names));
+  
+  for( i in 1:length(res$names) ){
+    idx_prot <- which(gene_name_prot==as.character(res$names[i]));
+    idx_ID_x <-  which(proteome_data$Protein.IDs.x==as.character(res$Protein.IDs[i]));
+    idx_ID_y <-  which(proteome_data$Protein.IDs.y==as.character(res$Protein.IDs[i]));
+    
+    #idx_ID_x <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.x), fixed=TRUE);
+    #idx_ID_y <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.y), fixed=TRUE);
+    # 
+    abund_x <- NA;
+    abund_y <- NA;
+    if( length(idx_ID_x)>0 ){ 
+      abund_x <- proteome_data$mean.x[idx_ID_x] 
+    }
+    if( length(idx_ID_y)>0 ){ 
+      abund_y <- proteome_data$mean.y[idx_ID_y] 
+    }
+    
+    #Copy_Number[i] <- mean(c(abund_x, abund_y), na.rm = TRUE)
+    
+    if(length(idx_prot)>0){
+      Copy_Number[i] = proteome_data$mean[ idx_prot[1] ];
+    }else if( length(idx_ID_x)>0 || length(idx_ID_y)>0 ){
+      Copy_Number[i] = mean( c(abund_x, abund_y), na.rm=TRUE);
+    }else{
+      Copy_Number[i] = NA;
+    }
+    
+  }
+  res_int$Copy_Number = Copy_Number
+  res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
+  
+  #res_int$N_complex= Tsum$max_stoch*Copy_Number[ibait]
+  #res_int$percentage_prey_in_complex = Tsum$max_stoch*Copy_Number[ibait]/Copy_Number;
+  
+  # Tsum$Perc_t_0 = Tsum$Stoch_t_0*Copy_Number[ibait]/Copy_Number;
+  # Tsum$Perc_t_30 = Tsum$Stoch_t_30*Copy_Number[ibait]/Copy_Number;
+  # Tsum$Perc_t_120 = Tsum$Stoch_t_120*Copy_Number[ibait]/Copy_Number;
+  # Tsum$Perc_t_300 = Tsum$Stoch_t_300*Copy_Number[ibait]/Copy_Number;
+  # Tsum$Perc_t_600 = Tsum$Stoch_t_600*Copy_Number[ibait]/Copy_Number;
+  
+  output=res_int
+}
+
+#' Identify specific interactors in an \code{InteRactome}
+#' @param res an \code{InteRactome}
+#' @param var_p_val name of the p-value variable
+#' @param p_val_thresh p-value threshold
+#' @param fold_change_thresh fold-change threshold
+#' @param n_success_min minimal number of conditions in which the interactor 
+#' must pass the the p-value and the fold-change thresholds
+#' @param consecutive_success logical, impose that the interactor must pass selection thresholds 
+#' in \code{n_success_min} consecutive conditions.
+#' @param ... additionnal paramters passed to function \code{order_interactome()}
+#' @return an \code{InteRactome} with extra variables \code{is_interactor}, 
+#' \code{n_success} and \code{interactor}
+#' @export
+identify_interactors <- function(res, 
+                                 var_p_val = "p_val", 
+                                 p_val_thresh = 0.05, 
+                                 fold_change_thresh = 2, 
+                                 n_success_min = 1, 
+                                 consecutive_success = FALSE,
+                                 ...){
+  
+  res_int <- res
+  
+  n_cond <- length(res$conditions)
+  is_interactor <- rep(0, length(res$names))
+  n_success <- rep(0, length(res$names))
+  
+  M <- do.call(cbind, res[[var_p_val]]) < p_val_thresh & do.call(cbind, res[["fold_change"]]) > fold_change_thresh
+  
+  for (i in 1:length(res$names)){
+    
+    M_test <- M[i, ]
+    n_success[i] <- sum( M_test )
+    
+    if (consecutive_success & n_success_min > 1){
+      for (k in 1:(n_success_min-1)){
+        idx_mod <- ((1:n_cond) + k) %% n_cond
+        idx_mod[ idx_mod == 0] <- n_cond
+        M_test <- rbind(M_test, M[i, idx_mod])
+      }
+      is_interactor[i] <- sum( colMeans( M_test ) == 1 ) > 0
+    } else {
+      is_interactor[i] <- n_success[i] >= n_success_min
+    }
+    
+  }
+  
+  res_int$is_interactor <- is_interactor
+  res_int$n_success <- n_success
+  res_int$interactor <- res$names[is_interactor>0]
+  
+  res_int <- order_interactome(res_int, ...)
+  
+  return(res_int)
+  
+}
+
+#' Discretize values in a vector based on a finite set of values
+#' @param x numeric vector
+#' @param breaks numeric vector. Set of discrete values on which \code{x} values will be mapped. 
+#' Non-mapped values will be set to NA
+#' @param decreasing_order logical. Map \code{beaks} values from the greatest to the smallest
+#' @return a numeric vector
+#' @export
+discretize_values <- function( x, breaks = c(1,0.1,0.05,0.01), decreasing_order = TRUE){
+  
+  breaks_order <- breaks[order(breaks, decreasing=decreasing_order)]
+  
+  x_discrete <- rep(NA, length(x));
+  
+  for( i in 1:length(breaks_order) ){
+    x_discrete[ x <= breaks_order[i] ] <- breaks_order[i];
+  }
+  
+  return(x_discrete)
+}
+
+#' Order proteins within an \code{InteRactome}
+#' @param res an \code{InteRactome}
+#' @param var_p_val name of the p-value variable
+#' @param p_val_breaks numeric vector to discretize p-value
+#' @return an \code{InteRactome}
+#' @export
+order_interactome <- function(res, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
+  
+  min_p_val_discrete <- discretize_values(res[[var_p_val]], breaks = p_val_breaks, decreasing_order = TRUE)
+  
+  if( "interactor" %in% names(res)){
+    Ndetect<-length(res$interactor)
+    idx_order<-order(res$is_interactor, 1/min_p_val_discrete, res$max_stoichio, decreasing = TRUE)
+  } else {
+    stop("Interactors have not been identified")
+  }
+  
+  
+  if(length(idx_order)!=length(res$names)){
+    stop("Vector of ordering indexes does not have the proper length")
+  }
+  res_order<-res;
+  for( var in setdiff( names(res), c("bait", "bckg_bait", "bckg_ctrl","groups","conditions", "interactor", "replicates") ) ){
+    
+    if(length(res[[var]]) == length(res$names)){
+      res_order[[var]] <- res[[var]][idx_order]
+    }
+    else{
+      names_var <- names(res[[var]])
+      if( setequal(names_var, res$conditions) & !is.element(var, c("intensity_ctrl", "intensity_bait")) ){
+        for(i in 1:length(names_var) ){
+          res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
+        }
+      }
+      else{
+        for(i in 1:length(names_var) ){
+          names_var_2 <- names(res[[var]][[i]]) 
+          #if( setequal(names_var_2, res$conditions) ){
+          for(j in 1:length(names_var_2) ){
+            if(length(res[[var]][[i]][[j]]) == length(res$names)){
+              res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
+            } else if (dim(res[[var]][[i]][[j]])[1] == length(res$names)){
+              res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order, ]
+            } else {
+              warning(paste("Couldn't order ",var, sep=""))
+            }
+          }
+          #}
+        }
+      }
+    }
+    
+  }
+  output = res_order
+}
+
 #' Perform enrichment analysis
 #' @description Perform enrichment analysis for protein annotations stored in a formatted data.frame
 #' @param df a formatted data.frame with annoations corresponding to each row. Types of annotations are organized by columns.
-#' @param idx_select indexes of the foreground set.
+#' @param idx_detect indexes of the foreground set.
+#' @param annotation_selected set of annotations on which to perform the analysis
 #' @param names row names. Used in the output data.frame
 #' @param organism organism for which the analysis is to be performed ("mouse" or "human")
 #' @param updateProgress logical, function to show progress in shiny app
@@ -1358,54 +1547,6 @@ annotation_enrichment_analysis <- function( df,
   
 }
 
-#' Plot the result of the annotation enrichment analysis
-#' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
-#' @param p_val_max threshold for the enrichment p-value
-#' @param method_adjust_p_val method to adjust p-value for multiple comparisons
-#' @param fold_change_min threshold for the enrichment fold-change
-#' @param N_annot_min minimum number of elements that are annotated in the foreground set
-#' @return a plot
-#' @export
-plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "fdr", fold_change_min =2, N_annot_min=2){
-  
-  if(length(df) == 0 ){
-    warning("Empty input...")
-  }else if( dim(df)[1] == 0){
-    warning("Empty input...")
-  }
-    
-  name_p_val <- switch(method_adjust_p_val,
-                       "none" = "p_value",
-                       "fdr" = "p_value_adjust_fdr",
-                       "bonferroni" = "p_value_adjust_bonferroni")
-  
-  df$p_value_adjusted <- df[[name_p_val]]
-  
-  idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
-                       df$fold_change >= fold_change_min & 
-                       df$N_annot >= N_annot_min)
-  if(length(idx_filter) == 0){
-    warning("No annotation left after filtering. You might want to change input parameters")
-    return(NULL)
-  }
-  df_filter <- df[ idx_filter, ]
-  df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
-  df_filter$order <- 1:dim(df_filter)[1]
-  
-  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjusted) )) + 
-    theme(
-      axis.text.y = element_text(size=14),
-      axis.text.x = element_text(size=14, angle = 90, hjust = 1,vjust=0.5),
-      axis.title.x = element_text(size=14)
-    ) +
-    scale_x_continuous(name = NULL, breaks=df_filter$order, labels=df_filter$annot_names) +
-    scale_y_continuous(name = paste("-log10(",name_p_val,")",sep="")) +
-    geom_col()+
-    coord_flip()
-  
-  return(p)
-  
-}
 
 #' Append annotations to an \code{InteRactome}
 #' @param res an \code{InteRactome}
@@ -1542,6 +1683,15 @@ get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", o
   
 }
 
+#' Add GO annotations
+#' @description Add GO annotations corresponding to a set of protein identifiers
+#' @param df a data.frame with protein IDs in column \code{map_id}
+#' @param map_id column name used to map protein identifiers
+#' @param GO_type type of GO term ("molecular_function", "biological_process" or "cellular_component")
+#' @param organism organism for which the annotations have to be mapped
+#' @param slim logical, use GO_slim annotations
+#' @param updateProgress logical, function to show progress in shiny app
+#' @return a data.frame with an additional GO annotation column
 #' @import utils
 #' @export
 add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", organism = "mouse", slim = FALSE, updateProgress = NULL){
@@ -1591,6 +1741,13 @@ add_GO_data <- function(df, map_id = "Entry", GO_type="molecular_function", orga
   return(df_int)
 }
 
+#' Add KEGG pathway annotations
+#' @description Add KEGG pathway annotations corresponding to a set of KEGG IDs
+#' @param df a data.frame with KEGG IDs in column \code{map_id}
+#' @param map_id column name used to map KEGG IDs
+#' @param organism organism for which the annotations have to be mapped
+#' @param updateProgress logical, function to show progress in shiny app
+#' @return a data.frame with an additional KEGG pathway annotation column
 #' @import utils
 #' @export
 add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse", updateProgress = NULL){
@@ -1622,6 +1779,12 @@ add_KEGG_data <- function(df, map_id = "Cross.reference..KEGG.", organism="mouse
   return(df_int)
 }
 
+#' Add Hallmark annotations
+#' @description Add Hallmark annotations corresponding to a set of protein identifiers
+#' @param df a data.frame with protein IDs in column \code{map_id}
+#' @param map_id column name used to map protein identifiers
+#' @param updateProgress logical, function to show progress in shiny app
+#' @return a data.frame with an additional Hallmark annotation column
 #' @import utils
 #' @export
 add_Hallmark_data <- function(df, map_id="Gene.names...primary..", updateProgress = NULL){
@@ -1659,953 +1822,12 @@ add_Hallmark_data <- function(df, map_id="Gene.names...primary..", updateProgres
   return(df_int)
 }
 
-#' @export
-merge_proteome <- function( res, Interactome_ID_name = "Entry" ){
-  
-      res_int <- res
-      
-      gene_name_prot <- proteome_data$Gene.names;
-    
-      ibait <- match(res$bait, res$names)
-      
-      ######### Retrieve protein abundance and compute related quantities
-      
-      Copy_Number <- rep(0, length(res$names));
-    
-      for( i in 1:length(res$names) ){
-        idx_prot <- which(gene_name_prot==as.character(res$names[i]));
-        idx_ID_x <-  which(proteome_data$Protein.IDs.x==as.character(res$Protein.IDs[i]));
-        idx_ID_y <-  which(proteome_data$Protein.IDs.y==as.character(res$Protein.IDs[i]));
-        
-        #idx_ID_x <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.x), fixed=TRUE);
-        #idx_ID_y <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.y), fixed=TRUE);
-        # 
-        abund_x <- NA;
-        abund_y <- NA;
-        if( length(idx_ID_x)>0 ){ 
-          abund_x <- proteome_data$mean.x[idx_ID_x] 
-        }
-        if( length(idx_ID_y)>0 ){ 
-          abund_y <- proteome_data$mean.y[idx_ID_y] 
-        }
-        
-        #Copy_Number[i] <- mean(c(abund_x, abund_y), na.rm = TRUE)
-        
-        if(length(idx_prot)>0){
-         Copy_Number[i] = proteome_data$mean[ idx_prot[1] ];
-        }else if( length(idx_ID_x)>0 || length(idx_ID_y)>0 ){
-         Copy_Number[i] = mean( c(abund_x, abund_y), na.rm=TRUE);
-        }else{
-         Copy_Number[i] = NA;
-        }
-        
-      }
-      res_int$Copy_Number = Copy_Number
-      res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
-      
-      #res_int$N_complex= Tsum$max_stoch*Copy_Number[ibait]
-      #res_int$percentage_prey_in_complex = Tsum$max_stoch*Copy_Number[ibait]/Copy_Number;
-      
-      # Tsum$Perc_t_0 = Tsum$Stoch_t_0*Copy_Number[ibait]/Copy_Number;
-      # Tsum$Perc_t_30 = Tsum$Stoch_t_30*Copy_Number[ibait]/Copy_Number;
-      # Tsum$Perc_t_120 = Tsum$Stoch_t_120*Copy_Number[ibait]/Copy_Number;
-      # Tsum$Perc_t_300 = Tsum$Stoch_t_300*Copy_Number[ibait]/Copy_Number;
-      # Tsum$Perc_t_600 = Tsum$Stoch_t_600*Copy_Number[ibait]/Copy_Number;
-  
-      output=res_int
-}
-
-#' @import ggplot2
-#' @import ggrepel
-#' @export
-plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_display=30){
-  
-  df<- data.frame( Y=log10(res$stoch_abundance), 
-                   label_tot=res$names
-                   )
-  if(condition=="max"){
-    df$X <- log10(res$max_stoichio)
-    df$size <- res$max_fold_change
-  }else if(condition %in% res$conditions){
-    df$X <- log10(res$stoichio[[condition]])
-    df$size <- res$fold_change[[condition]]
-  }else{
-    stop("Condition is not defined")
-  }
-  
-  
-  df<-df[1:min(N_display, dim(df)[1]), ]
-  
-  xc <- -0.5
-  yc <- 0
-  rc<-1
-  
-  ylow <- -3
-  
-  if(is.null(xlim) & is.null(ylim)){
-    max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
-    center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
-    center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
-  }else{
-    max_range <- max( xlim[2] - xlim[1],  ylim[2] - ylim[1] )
-    center_x <- ( xlim[2] + xlim[1] )/2
-    center_y <- ( ylim[2] + ylim[1] )/2
-  }
-  xmin<-center_x - max_range/1.9
-  xmax<-center_x + max_range/1.9
-  ymin<-center_y - max_range/1.9
-  ymax<-center_y + max_range/1.9
-  
-  ylow_plot <- max(ylow,ymin)
-  
-  df$size_prey <- log10(df$size)/max_range*20
-  df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
-  df$sat_max_fold_t0 <- rep(1,dim(df)[1])
-  
-  idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
-  df <- df[idx_plot, ]
-  
-  p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
-    theme(aspect.ratio=1) +
-    scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
-    geom_polygon(data=data.frame(x=c(ylow_plot,xmax,xmax),y=c(ylow_plot,ylow_plot,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
-    annotate("path",
-             x=xc+rc*cos(seq(0,2*pi,length.out=100)),
-             y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
-    annotate("segment", x = ylow_plot, xend = xmax, y = ylow_plot, yend = xmax, colour = rgb(0,0,0,0.5) ) +
-    annotate("segment", x = xmin, xend = xmax, y = ylow_plot, yend = ylow_plot, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
-    xlab("log10(Interaction Stoichiometry)") +
-    ylab("log10(Abundance Stoichiometry)") +
-    geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
-    coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
-    #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
-    geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
-                    segment.size = 0.1,
-                    min.segment.length = unit(0.15, "lines"), 
-                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
-  return(p)
-  #print(p)
-  #output=p
-}
-
-#' @export
-identify_interactors <- function(res, 
-                                var_p_val = "p_val", 
-                                p_val_thresh = 0.05, 
-                                fold_change_thresh = 2, 
-                                n_success_min = 1, 
-                                consecutive_success = FALSE){
-  
-  res_int <- res
-  
-  n_cond <- length(res$conditions)
-  is_interactor <- rep(0, length(res$names))
-  n_success <- rep(0, length(res$names))
-  
-  M <- do.call(cbind, res[[var_p_val]]) < p_val_thresh & do.call(cbind, res[["fold_change"]]) > fold_change_thresh
-  
-  for (i in 1:length(res$names)){
-    
-    M_test <- M[i, ]
-    n_success[i] <- sum( M_test )
-    
-    if (consecutive_success & n_success_min > 1){
-      for (k in 1:(n_success_min-1)){
-        idx_mod <- ((1:n_cond) + k) %% n_cond
-        idx_mod[ idx_mod == 0] <- n_cond
-        M_test <- rbind(M_test, M[i, idx_mod])
-      }
-      is_interactor[i] <- sum( colMeans( M_test ) == 1 ) > 0
-    } else {
-      is_interactor[i] <- n_success[i] >= n_success_min
-    }
-    
-  }
-  
-  res_int$is_interactor <- is_interactor
-  res_int$n_success <- n_success
-  res_int$interactor <- res$names[is_interactor>0]
-  
-  return(res_int)
-  
-}
-
-#' @export
-discretize_values <- function( x, breaks = c(1,0.1,0.05,0.01), decreasing_order = TRUE){
-  
-  breaks_order <- breaks[order(breaks, decreasing=decreasing_order)]
-  
-  x_discrete <- rep(NA, length(x));
-  
-  for( i in 1:length(breaks_order) ){
-    x_discrete[ x <= breaks_order[i] ] <- breaks_order[i];
-  }
-  
-  return(x_discrete)
-}
-
-#' @export
-get_order_discrete <- function( res, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
-  
-  min_p_val_discrete <- discretize_values(res[[var_p_val]], breaks = p_val_breaks, decreasing_order = TRUE)
-  
-  if( "interactor" %in% names(res)){
-    Ndetect<-length(res$interactor)
-    idx_order<-order(res$is_interactor, res$n_success, 1/min_p_val_discrete, res$max_stoichio, decreasing = TRUE)
-  } else {
-    Ndetect<-length(which(min_p_val_discrete<=0.05))
-    idx_order<-order(1/min_p_val_discrete, res$max_stoichio, decreasing = TRUE)
-  }
-  
-  output = list(idx_order=idx_order, Ndetect= Ndetect, min_p_val_discrete = min_p_val_discrete)
-  
-  return(output)
-}
-
-#' @export
-order_interactome <- function(res, idx_order){
-  
-  if(length(idx_order)!=length(res$names)){
-    stop("Vector of ordering indexes does not have the proper length")
-  }
-  res_order<-res;
-  for( var in setdiff( names(res), c("bait", "bckg_bait", "bckg_ctrl","groups","conditions", "interactor", "replicates") ) ){
-    
-    if(length(res[[var]]) == length(res$names)){
-      res_order[[var]] <- res[[var]][idx_order]
-    }
-    else{
-      names_var <- names(res[[var]])
-      if( setequal(names_var, res$conditions) & !is.element(var, c("intensity_ctrl", "intensity_bait")) ){
-        for(i in 1:length(names_var) ){
-          res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
-        }
-      }
-      else{
-        for(i in 1:length(names_var) ){
-          names_var_2 <- names(res[[var]][[i]]) 
-          #if( setequal(names_var_2, res$conditions) ){
-            for(j in 1:length(names_var_2) ){
-              if(length(res[[var]][[i]][[j]]) == length(res$names)){
-                res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
-              } else if (dim(res[[var]][[i]][[j]])[1] == length(res$names)){
-                res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order, ]
-              } else {
-                warning(paste("Couldn't order ",var, sep=""))
-              }
-            }
-          #}
-        }
-      }
-    }
-    
-  }
-  output = res_order
-}
-
-#' @importFrom grDevices dev.off pdf rgb
-#' @importFrom graphics hist lines plot
-#' @export
-plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
-    # plot histogram of intensities for all columns in two different datasets 
-    # (1st dataset is in in black, 2nd dataset is in red)
-    if(!is.null(save_file)){
-      pdf( save_file, 4, 4 )
-    }
-    
-    
-    for( j in seq_along(I) ){
-      h<-hist( I[[j]] , breaks=breaks, plot=FALSE);
-      if(j>1){
-        lines(h$mids,h$density,col=rgb(0,0,0,0.2));
-      }else{
-        plot(h$mids, h$density, type="l",col=rgb(0,0,0,0.2),ylim=c(0,1), xlim=range(I_rep));
-      }
-    }
-    
-    for( j in seq_along(I_rep) ){
-      h<-hist( I_rep[[j]] , breaks=breaks, plot=FALSE);
-      lines(h$mids,h$density,col=rgb(1,0,0,0.2));
-    }
-    
-    if(!is.null(save_file)){
-      dev.off()
-    }
-  
-}
-
-#' @importFrom grDevices dev.off pdf rgb
-#' @import ggplot2
-#' @import ggrepel
-#' @export
-plot_volcanos <- function( res, 
-                                       labels=NULL, 
-                                       N_print=15, 
-                                       conditions=NULL, 
-                                       p_val_thresh=0.05, 
-                                       fold_change_thresh=2, 
-                                       save_file=NULL,
-                                       xlim=NULL,
-                                       ylim=NULL,
-                                       show_plot=FALSE,
-                                       asinh_transform = TRUE){
-  if (is.null(labels)) labels=res$names
-  if (is.null(conditions)) conditions=res$conditions
-    
-  plist <- vector("list",length(conditions));
-  
-  ymax <- -log10(min(do.call(cbind,res$p_val)))
-  if (asinh_transform) ymax <- asinh(ymax)
-  xmax <- max(abs(log10(do.call(cbind,res$fold_change))))
-  
-  x1 <- log10(fold_change_thresh)
-  x2 <- xmax
-  y1 <- -log10(p_val_thresh)
-  if (asinh_transform) y1 <- asinh(y1)
-  y2 <- ymax
-  
-  
-  if(!is.null(xlim) ){
-    xrange <- xlim
-  }else{
-    xrange <- c(-xmax,xmax)
-  }
-  
-  if(!is.null(ylim)){
-    yrange <- ylim
-  }else{
-    yrange <- c(0,ymax)
-  }
-  
-  for( i in seq_along(conditions) ){
-    
-    df <- data.frame(p_val=res$p_val[[conditions[i]]], 
-                     fold_change= res$fold_change[[conditions[i]]], 
-                     names=labels)
-    df$X <- log10(df$fold_change)
-    df$Y <- -log10(df$p_val)
-    if (asinh_transform) df$Y <- asinh(df$Y)
-    score_print <- rep(0, dim(df)[1])
-    
-    if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
-      is_above_thresh <- rep(0, dim(df)[1])
-      is_in_frame <- rep(0, dim(df)[1])
-      is_above_thresh[ which(df$p_val <= p_val_thresh & df$fold_change >= fold_change_thresh ) ] <- 1
-      is_in_frame[ which(df$X >= xrange[1] & df$X <= xrange[2] & df$Y >= yrange[1] & df$Y <= yrange[2]) ] <- 1
-      score_print<- is_above_thresh + is_in_frame
-      score_print[is_in_frame==0]<-0
-      N_show <- min(N_print, sum(score_print>0))
-      if( N_show>0 ){
-        idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
-      }else{
-        idx_print <- NULL
-      }
-    }else{
-      if( N_print>0 ){
-        idx_print <- order(df$fold_change, decreasing = TRUE)[ 1:N_print ]
-      }else{
-        idx_print <- NULL
-      }
-    }
-    
-    df$label_color <- as.factor(score_print)
-    
-    label_x <- "log10(fold_change)"
-    label_y <- "-log10(p_value)"
-    if (asinh_transform) label_y <- "asinh(-log10(p_value))"
-      
-    plist[[i]] <- ggplot( df , aes( label=names ) ) +
-      coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
-      xlab(label_x ) + 
-      ylab(label_y) + 
-      #scale_y_continuous(limits=c(0,ymax)) +
-      #scale_x_continuous(limits=c(-xmax,xmax)) +
-      ggtitle(conditions[i])
-      
-    
-    if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
-      plist[[i]] <- plist[[i]] +
-        geom_polygon(data=data.frame(x=c(x1,x2,x2,x1),y=c(y1,y1,y2,y2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
-        annotate("segment", x = -x2, xend = x2, y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
-        annotate("segment", x = -x1, xend = -x1, y = 0, yend = y2, colour = rgb(1,0,0,0.5) ) +
-        annotate("segment", x = x1, xend = x1, y = 0, yend = y2, colour = rgb(1,0,0,0.5) )
-    }
-    
-    plist[[i]] <- plist[[i]] + 
-      geom_point(data=df, mapping=aes(x=X, y=Y), alpha=0.2) +
-      geom_text_repel(data=df[idx_print, ],
-                     aes(x=X, y=Y, label = names, colour=label_color), size=5) +
-      # geom_text(data=df[idx_print, ],
-      #                 aes(x=X, y=Y, label = names, colour=label_color), size=3) +
-      scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
-      theme(legend.position="none")
-    
-  }
-  
-  if(show_plot){
-    layout <- matrix(1:length(conditions), nrow = 1, byrow = TRUE)
-    multiplot(plotlist = plist, layout = layout)
-  }
-  if( length(save_file)>0 ){
-    pdf( save_file, 6, 6)
-    #layout <- matrix(1:length(conditions), nrow = 1, byrow = TRUE)
-    #multiplot(plotlist = plist, layout = layout)
-    print(plist)
-    dev.off()
-  }
-  
-  return(plist)
-}
-
-#' @export
-plot_interactome <- function(x, 
-                             p_val_breaks=c(1,0.1,0.05,0.01), 
-                             p_val_thresh = 0.01,
-                             fold_change_thresh=2,
-                             Nmax = 30, 
-                             var_p_val = "min_p_val",
-                             color_var = "p_val",
-                             size_var="norm_stoichio", 
-                             size_range=c(0,1), 
-                             save_file=NULL,
-                             clustering = FALSE){
-  order_list <- get_order_discrete(x, 
-                                   var_p_val = var_p_val, 
-                                   p_val_breaks = p_val_breaks )
-  Interactome_order <- order_interactome(x, order_list$idx_order)
-  plot_per_conditions(Interactome_order, 
-                      idx_rows = min(Nmax, order_list$Ndetect), 
-                      size_var = size_var, 
-                      size_range = size_range, 
-                      color_var = color_var, 
-                      color_breaks = p_val_breaks, 
-                      save_file = save_file,
-                      clustering = clustering)$plot
-}
-
-#' @importFrom grDevices dev.off pdf rgb
-#' @importFrom stats dist hclust
-#' @export
-plot_per_conditions <- function( res,
-                                 idx_cols = 1:length(res$conditions),
-                                 idx_rows=1:20,
-                                 size_var="norm_stoichio",
-                                 size_range=c(0,1),
-                                 color_var="p_val", 
-                                 color_breaks=c(1,0.1,0.05,0.01), 
-                                 #color_values=rgb(t(col2rgb(c("black", "blue","purple","red")))/255),
-                                 color_default = 1,
-                                 save_file=NULL,
-                                 plot_width=2.5 + length(res$conditions)/5,
-                                 plot_height=2 + length(idx_rows)/5,
-                                 clustering = TRUE){
-  
-  if(length(idx_rows)==1){
-    idx_rows<-1:idx_rows
-  }
-  
-  M<-do.call(cbind, res[[size_var]])
-  M1<-do.call(cbind, res[[color_var]])
-    
-  row.names(M) <- unlist(lapply(res$names, function(x) substr(x,1,min(8,nchar(x))) ) )
-  Mcol<-M
-  Mcol[!is.null(M)]<-color_default
-  
-   if(!is.null(color_var)){
-     idx_order_col <- order(color_breaks, decreasing = TRUE);
-     for(i in seq_along(color_breaks)){
-       Mcol[M1<color_breaks[idx_order_col[i]]]<-color_breaks[idx_order_col[i]]
-     }
-   }
-  
-  if("interactor" %in% names(res)){
-    title_text <- paste(res$groups," (n=",length(res$interactor),")",sep="")
-  } else {
-    title_text <- res$groups
-  }
-  
-  M <- M[idx_rows, idx_cols]
-  Mcol <- Mcol[idx_rows, idx_cols]
-  M[is.na(M)]<-0
-  
-  idx_order <- 1:length(idx_rows)
-  if(is.logical(clustering)){
-    if(clustering){
-      d<-dist(M)
-      h<-hclust(d)
-      idx_order <- h$order
-    }
-  }else if(is.numeric(clustering)){
-    if(length(clustering) == length(idx_rows)){
-      idx_order <- clustering
-    }
-  } 
-  
-  M <- M[idx_order, ]
-  Mcol <- Mcol[idx_order, ]
-  
-  p<-dot_plot( as.matrix(M), 
-               as.matrix(Mcol), 
-               title = title_text,
-               size_var = size_var, 
-               size_range=size_range,
-               color_var=color_var)
-  
-  if(!is.null(save_file)){
-    pdf(save_file, plot_width, plot_height)
-    print(p)
-    dev.off()
-  }
-  
-  return(list(plot = p, idx_order = idx_order))
-  
-}
-#' @import ggplot2
-#' @export
-dot_plot <- function(Dot_Size, 
-                     Dot_Color=NULL, 
-                     title="Dot Plot", 
-                     size_range=range(Dot_Size) , 
-                     size_var ="size", 
-                     color_var="color"){
-
-  # Dot_Size: matrix of dot size
-  
-  M<-Dot_Size
-  Mcol <- Dot_Color
-  
-  ylabels <- row.names(M)
-  if(length(ylabels)==0){
-    ylabels <- 1:dim(M)[1]
-  }
-  
-  xlabels <- colnames(M)
-  if(length(xlabels)==0){
-    xlabels <- 1:dim(M)[2]
-  }
-  
-  xpos <- vector("list", dim(M)[2] );
-  ypos <- vector("list", dim(M)[2] );
-  size <- vector("list", dim(M)[2] );
-  if(length(Dot_Color)>0){
-    if( sum(dim(M) != dim(M))==0 ){
-      color <- vector("list", dim(M)[2] );
-    }else{
-      stop("Dimensions of size and color matrix do not match")
-    }
-  }
-  
-  #pos <- 1+dim(M)[1] - ( 1:dim(M)[1] )
-  pos <-  - ( 1:dim(M)[1] )
-  
-  for( k in 1:dim(M)[2] ){
-    xpos[[k]] <- rep(k, dim(M)[1] )
-    ypos[[k]] <- pos
-    size[[k]] <- as.numeric(M[,k]);
-    if(length(Dot_Color)>0){
-      color[[k]] <- Mcol[,k];
-    }
-  }
-  
-  df<-data.frame( xpos=unlist(xpos), ypos=unlist(ypos), size=unlist(size) );
-  if(length(Dot_Color)>0){
-    df$color = unlist(color)
-  }else{
-    df$color = rep( 1, dim(df)[1] )
-  }
-  
-  df$color<-as.factor(df$color)
-  
-  unique_col <- unique(df$color);
-  size_label_y <- max(6, 16 - (dim(M)[1] %/% 10)*1.5 )
-  size_label_x <- max(6, 16 - (dim(M)[2] %/% 5)*1.5 )
-  
-  p <- ggplot(df, aes(x=xpos, y=ypos, size=size, col=color ) ) +
-    theme(#plot.margin=unit(c(0.2,0,0,0), "cm"),
-      plot.title = element_text(size=12),
-      axis.text.y= element_text(size=size_label_y), 
-      axis.text.x = element_text(size=size_label_x, angle = 90, hjust = 1,vjust=0.5) ) +
-    ggtitle(title)+
-    scale_color_manual( values=c( "red", "purple",  "blue", "black" ) , name=color_var) +
-    scale_radius(limits=size_range, name=size_var) +
-    #scale_colour_manual(values=setNames(unique_col, c( "red", "purple",  "blue", "black" ) )) +
-    xlab("") +
-    ylab("") +
-    scale_x_continuous(breaks=1:dim(M)[2],
-                       limits=c(0.5, dim(M)[2]+0.5),
-                       labels=xlabels) +
-    scale_y_continuous(breaks=pos,
-                       #limits= -c(0.25, dim(M)[1]+0.75),
-                       limits= -c(dim(M)[1]+0.75, 0.25 ),
-                       labels=ylabels) +
-    geom_point(alpha=0.5, show.legend = TRUE)
-  
-  return(p)
-  
-}
-
-#' @import ggplot2
-#' @import ggsignif
-#' @importFrom grDevices dev.off pdf rgb
-#' @export
-plot_stoichio <- function(Interactome, 
-                         name,
-                         conditions = Interactome$conditions,
-                         ref_condition = Interactome$conditions[1], 
-                         test="t.test", 
-                         test.args = list("paired"=TRUE),
-                         map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
-                         save_file = NULL){
-  plot_title <- paste(name, " / ",test, sep = "") 
-    
-  if("paired" %in% names(test.args)){
-    if(test.args$paired){
-      plot_title <- paste(plot_title, "(paired)", sep="")
-    }
-  }
-    
-  
-  idx_match <- which(Interactome$names == name)
-  df_tot <- NULL
-  for ( bio in Interactome$replicates){
-    stoichio <- do.call(cbind, Interactome$stoichio_bio[[bio]])[idx_match, conditions]
-    df <- data.frame(stoichio = stoichio, cond = factor(names(stoichio), levels=conditions), bio = rep(bio, length(stoichio)))
-    df_tot <- rbind(df_tot, df)
-  }
-  
-  comparisons <- list()
-  cond_test <- setdiff(conditions, ref_condition)
-  for (i in 1:length(cond_test)){
-    comparisons[[i]] <- c(ref_condition, cond_test[i])
-  }
-    
-  p <- ggplot(df_tot, aes(x=cond, y=log10(stoichio))) + 
-    theme(axis.text.x = element_text(size=10, angle = 90, hjust = 1,vjust=0.5),
-          axis.text.y = element_text(size=10)
-          ) +
-    geom_point(size=0, alpha = 0) +  
-    ggtitle(plot_title) + 
-    xlab("conditions") +
-    geom_line( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), group=bio, color=bio), alpha = 0.2) +
-    geom_point( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), color=bio), size=3, alpha = 0.8) + 
-    geom_signif(comparisons = comparisons, 
-                step_increase = 0.1,
-                test = test,
-                textsize = 2.5, 
-                test.args = test.args,
-                map_signif_level = map_signif_level
-                )
-  if(!is.null(save_file)){
-    pdf(save_file, 4, 4)
-    print(p)
-    dev.off()
-  }
-  return(p)
-  
-}
-#' @import ggplot2
-#' @import ggsignif
-#' @export
-plot_comparison <- function(Interactome,
-                          name,
-                          conditions, 
-                          textsize = 3,
-                          test="t.test",
-                          test.args = list("paired"=FALSE),
-                          map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
-                          position = "position_jitter",
-                          position.args = list(width=0.3, height=0)){
-  
-  plot_title <- paste(name, test, sep = " / ") 
-  
-  if("paired" %in% names(test.args)){
-    if(test.args$paired){
-      plot_title <- paste(plot_title, "(paired)", sep="")
-    }
-  }
-  
-  
-  idx_match <- which(Interactome$names == name)
-  
-  df_tot <- NULL
-  for( cond in conditions){
-    for ( bio in Interactome$replicates){
-      if (is.null(dim(Interactome$intensity_bait[[cond]][[bio]])) ){
-        intensity <- Interactome$intensity_bait[[cond]][[bio]][idx_match]
-      } else {
-        intensity <- Interactome$intensity_bait[[cond]][[bio]][idx_match, ]
-      }
-      df <- data.frame(intensity = intensity, bckg = rep("bait", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
-      df_tot <- rbind(df_tot, df)
-    }
-  }
-  for( cond in conditions){
-    for ( bio in Interactome$replicates){
-      if (is.null(dim(Interactome$intensity_ctrl[[cond]][[bio]])) ){
-        intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match]
-      } else {
-        intensity <- Interactome$intensity_ctrl[[cond]][[bio]][idx_match, ]
-      }
-      df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
-      df_tot <- rbind(df_tot, df)
-    }
-  }
-  df_tot$bckg <- factor(df_tot$bckg, levels = c("ctrl", "bait"))
-  
-  comparisons <- list(c("ctrl","bait"))
-  
-  p <- ggplot(df_tot, aes(x=bckg, y=log10(intensity))) + 
-    theme(axis.text = element_text(size=12)) +
-    geom_point(size=0, alpha = 0) + 
-    geom_violin() + 
-    ggtitle(plot_title) + 
-    geom_point( data = df_tot, 
-                mapping = aes(x=bckg, y=log10(intensity), color=bio), 
-                size=3, 
-                alpha = 0.8,
-                position = do.call(position, position.args) ) + 
-    geom_signif(comparisons = comparisons, 
-                step_increase = 0.1,
-                test = test,
-                textsize = textsize, 
-                test.args = test.args,
-                map_signif_level = map_signif_level
-    )
-  
-  p <- p + facet_grid(~ cond)
-  
-  return(p)
-  
-}
-
-#' @import ggplot2
-#' @importFrom stats quantile IQR
-#' @export
-plot_QC <- function(prep_data){
-  
-  p_list <- list()
-  
-  df <- prep_data
-  ibait <- which(df$names == df$bait)
-  
-  M <- as.matrix(df$Intensity)
-  R <- rcorr(M)
-  
-  idx_bait <- df$conditions$bckg == df$bckg_bait
-  idx_ctrl <- df$conditions$bckg == df$bckg_ctrl
-  
-  Ravg_bait <- cbind(df$conditions[idx_bait, ], Ravg = row_mean(R$r[idx_bait, idx_bait]))
-  Ravg_ctrl <- cbind(df$conditions[idx_ctrl, ], Ravg = row_mean(R$r[idx_ctrl, idx_ctrl]))
-  Ravg <- rbind(Ravg_bait, Ravg_ctrl)
-  
-  
-  
-  x <- Ravg_bait$Ravg[Ravg_bait$bckg==df$bckg_bait]
-  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
-  H <- 1.5 * stats::IQR(x, na.rm = T)
-  
-  outlier_bio_1 <- unique(Ravg_bait$bio[x < (qnt[1] - H)])
-  if(length(outlier_bio_1)>0){
-    message_outlier_1 <- paste("outliers in", paste(outlier_bio_1, sep=", "), sep=" ")
-  }else{
-    message_outlier_1 <- "No outliers"
-  }
-  message_outlier_1 <- paste(message_outlier_1, "(in bait bckg)", sep=" ")
-  
-  p1 <- ggplot(Ravg, aes(x=bckg, y=Ravg, col=bio)) + 
-    #theme(legend.position="top") +
-    ggtitle("QC: Intensity Correlation", subtitle = message_outlier_1) +
-    ylab("average R")+
-    geom_boxplot(data=Ravg, mapping=aes(x=bckg, y=Ravg), inherit.aes = FALSE, outlier.alpha = 0) +
-    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
-  
-  p_list[[1]] <- p1
-  
-  Ibait <- cbind(df$conditions, Ibait = as.numeric(df$Intensity[ibait, ]) )
-  x <- Ibait$Ibait[Ibait$bckg==df$bckg_bait]
-  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
-  H <- 1.5 * stats::IQR(x, na.rm = TRUE)
-  
-  outlier_bio_2 <- unique(Ibait$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
-  if(length(outlier_bio_2)>0){
-    message_outlier_2 <- paste("outliers in", paste(outlier_bio_2, sep=", "), sep=" ")
-  }else{
-    message_outlier_2 <- "No outliers"
-  }
-  message_outlier_2 <- paste(message_outlier_2, "(in bait bckg)", sep=" ")
-  
-  p2 <- ggplot(Ibait, aes(x=bckg, y=log10(Ibait), col=bio)) + 
-    #theme(legend.position="top") +
-    ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
-    ylab("norm. Intensity (log10)") +
-    geom_boxplot(data=Ibait, mapping=aes(x=bckg, y=log10(Ibait)), inherit.aes = FALSE, outlier.alpha = 0) +
-    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
-  
-  p_list[[2]] <- p2
-  
-  nNA <- cbind(df$conditions,
-               nNA = sapply(1:dim(df$Intensity)[2], FUN=function(x){sum(is.na(df$Intensity[,x]))})
-  )
-  
-  x <- nNA$nNA[nNA$bckg==df$bckg_bait]
-  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
-  H <- 1.5 * stats::IQR(x, na.rm = TRUE)
-  
-  outlier_bio_3 <- unique(nNA$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
-  if(length(outlier_bio_3)>0){
-    message_outlier_3 <- paste("outliers in", paste(outlier_bio_3, sep=", "), sep=" ")
-  }else{
-    message_outlier_3 <- "No outliers"
-  }
-  message_outlier_3 <- paste(message_outlier_3, "(in bait bckg)", sep=" ")
-  
-  p3 <- ggplot(nNA, aes(x=bckg, y=log10(nNA), col=bio)) +
-    #theme(legend.position="top") +
-    ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
-    ylab("NA counts (log10)") +
-    geom_boxplot(data=nNA, mapping=aes(x=bckg, y=log10(nNA)), inherit.aes = FALSE, outlier.alpha = 0) +
-    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
-  
-  p_list[[3]] <- p3
-  
-  return(p_list)
-  
-}
-
-
-#' @export
-summary_table <- function(res, add_columns = names(res) ){
-  
-  columns <- unique( c("names", add_columns) )
-  #columns <- add_columns
-  columns <- setdiff(columns, c("bait", "bckg_bait", "bckg_ctrl", "groups","conditions", "interactor", "replicates", "intensity_bait", "intensity_ctrl"))
-  
-  df<-data.frame( bait=rep(res$bait, length(res$names)) )
-  names_df<-"bait"
-  idx<-1
-  
-  for( var in columns ){
-    
-    if(length(res[[var]]) == length(res$names)){
-      idx<-c(idx,1)
-      names_df<-c(names_df, var)
-      df<-cbind(df,res[[var]])
-    }
-    else{
-      names_var <- names(res[[var]])
-      if( setequal(names_var, res$conditions) ){
-        for(i in 1:length(names_var) ){
-          idx<-c(idx,NaN)
-          names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
-          df<-cbind(df,res[[var]][[i]])
-        }
-      }
-      else{
-        for(i in 1:length(names_var) ){
-          names_var_2 <- names(res[[var]][[i]]) 
-          if( setequal(names_var_2, res$conditions) ){
-            for(j in 1:length(names_var_2) ){
-              idx<-c(idx,NaN)
-              names_df<-c(names_df, paste(var,"_",names(res[[var]])[i],"_",names_var_2[j],sep=""))
-              df<-cbind(df,res[[var]][[i]][[j]])
-            }
-          }
-        }
-      }
-    }
-    
-  }
-  
-  names(df)<-names_df
-  df<-df[,order(idx)]
-  
-  return(df)
-  
-}
-
-#' @importFrom Hmisc rcorr
-#' @export
-compute_correlations <- function(res, idx = NULL){
-  
-  # build matrix on which correlations will be computed
-  idx_selected <- 1:length(res$names)
-  if (!is.null(idx)) {
-    idx_selected <- idx
-  }
-  idx_bait <- which(res$names == res$bait)
-  idx_selected <- setdiff(idx_selected, idx_bait)
-  
-  names <- res$names[idx_selected]
-  
-  df<-NULL
-  names_df <- NULL
-  for (bio in res$replicates){
-    for (cond in res$conditions){
-      df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
-      names_df <- c(names_df, paste("stoichio_bio_",bio,"_",cond,sep=""))
-    }
-  }
-  
-  for (i in dim(df)[1]){
-    df[i, ] <- df[i, ]/max(df[i, ], na.rm=TRUE)
-  }
-  
-  M <- as.matrix(df)
-  row.names(M) <- names
-  colnames(M) <- names_df
-  
-  
-  R <- Hmisc::rcorr(t(M))
-  n <- dim(R$r)[1]
-  r_corr <- rep(NA, n*(n-1)/2)
-  p_corr <- rep(NA, n*(n-1)/2)
-  name_1 <- rep("", n*(n-1)/2)
-  name_2 <- rep("", n*(n-1)/2)
-  count<-0
-  for (i in 1:(n-1)){
-    for (j in (i+1):n){
-      count<-count+1
-      r_corr[count] <- R$r[i, j]
-      p_corr[count] <- R$P[i, j]
-      name_1[count] <- names[i]
-      name_2[count] <- names[j]
-    }
-  }
-  df_corr <- data.frame( name_1 = name_1, name_2 = name_2, r_corr = r_corr, p_corr = p_corr)
-  
-  return(df_corr)
-}
-
-#' @import igraph
-#' @import networkD3
-#' @export
-plot_correlation_network <- function(df_corr, r_corr_thresh = 0.8, p_val_thresh = 0.05){
-  
-  df_corr_filtered <- df_corr[df_corr$r_corr>=r_corr_thresh & df_corr$p_corr<=p_val_thresh, ]
-  
-  net <- igraph::graph.data.frame(df_corr_filtered, directed=FALSE);
-  net <- igraph::simplify(net)
-  cfg <- igraph::cluster_fast_greedy(as.undirected(net))
-  
-  #plot(cfg, as.undirected(net.s))
-  #plot(igraph::as.undirected(net.s), mark.groups = igraph::communities(cfg))
-  
-  net_d3 <- networkD3::igraph_to_networkD3(net, group = igraph::communities(cfg))
-  
-  forceNetwork(Links = net_d3$links, Nodes = net_d3$nodes,
-               Source = 'source', Target = 'target',
-               fontFamily = "arial",
-               NodeID = 'name', Group = 'group',
-               colourScale = JS("d3.scaleOrdinal(d3.schemeCategory20);"),
-               charge = -10, opacity = 1,
-               linkColour = rgb(0.75, 0.75, 0.75),
-               fontSize = 12, bounded = TRUE, zoom=TRUE, opacityNoHover = 1
-  )
-  
-}
-
+#' Retrieve protein-protein interaction information using PSICQUIC
+#' @param gene_name the gene name for which to retrieve PPI
+#' @param tax_ID taxon ID for which to retrieve PPI
+#' @param provider database from which to retrieve PPI
+#' @return a data.frame PPI information
 #' @import PSICQUIC
-#' @export
 get_PPI_from_psicquic <- function( gene_name, tax_ID = c(9606,10090) , provider = c("IntAct","MINT") ){
   
   psicquic <- PSICQUIC::PSICQUIC()
@@ -2616,7 +1838,7 @@ get_PPI_from_psicquic <- function( gene_name, tax_ID = c(9606,10090) , provider 
                                   gene_name, 
                                   species = tax_ID[k] , 
                                   provider = provider )
-                        
+    
     
     s<-strsplit(tbl$aliasA, split="|", fixed = TRUE);
     gene_name_A <- rep("",length(s))
@@ -2715,13 +1937,16 @@ get_PPI_from_psicquic <- function( gene_name, tax_ID = c(9606,10090) , provider 
   return(df1)
 }
 
-#' @export
+#' Retrieve protein-protein interaction information from BioGRID
+#' @param gene_name the gene name for which to retrieve PPI
+#' @param tax_ID taxon ID for which to retrieve PPI
+#' @return a data.frame PPI information
 get_PPI_from_BioGRID <- function( gene_name, tax_ID = c(9606,10090) ){
   
   access_key <- "7ad36061b7644111aa9f5b3948429fb2"
   
   for (k in 1:length(tax_ID) ){
-  
+    
     url_adress <- paste("http://webservice.thebiogrid.org/interactions?searchNames=true&geneList=",
                         gene_name,"&includeInteractors=true&format=tab2&includeHeader=true&taxId=",
                         tax_ID[k],"&accesskey=",
@@ -2773,23 +1998,28 @@ get_PPI_from_BioGRID <- function( gene_name, tax_ID = c(9606,10090) ){
   
 }
 
-#' @export
+#' Retrieve protein-protein interaction information from HPRD
+#' @param gene_name the gene name for which to retrieve PPI
 get_PPI_from_HPRD <- function( gene_name ){
-    
-    THPRD <- THPRD[which(THPRD$Gene_symbol_1 == toupper(gene_name) | THPRD$Gene_symbol_2 == toupper(gene_name)), ]
-    
-    df_HPRD <- data.frame(gene_name_A = THPRD$Gene_symbol_1, 
-                          gene_name_B = THPRD$Gene_symbol_2, 
-                          taxon = rep(9606, dim(THPRD)[1] ), 
-                          Int_type = rep("NA", dim(THPRD)[1] ), 
-                          Detection_method = THPRD$Experiment_type, 
-                          Author = rep("NA", dim(THPRD)[1] ), 
-                          Pubmed_ID = THPRD$Pubmed_id, 
-                          Database = rep("HPRD", dim(THPRD)[1] ));
-    return(df_HPRD)
+  
+  THPRD <- THPRD[which(THPRD$Gene_symbol_1 == toupper(gene_name) | THPRD$Gene_symbol_2 == toupper(gene_name)), ]
+  
+  df_HPRD <- data.frame(gene_name_A = THPRD$Gene_symbol_1, 
+                        gene_name_B = THPRD$Gene_symbol_2, 
+                        taxon = rep(9606, dim(THPRD)[1] ), 
+                        Int_type = rep("NA", dim(THPRD)[1] ), 
+                        Detection_method = THPRD$Experiment_type, 
+                        Author = rep("NA", dim(THPRD)[1] ), 
+                        Pubmed_ID = THPRD$Pubmed_id, 
+                        Database = rep("HPRD", dim(THPRD)[1] ));
+  return(df_HPRD)
   
 }
 
+#' Retrieve protein-protein interaction information from databses 
+#' IntAct, MINT, BioGRID and HPRD
+#' @param gene_name the gene name for which to retrieve PPI
+#' @return a data.frame PPI information
 #' @import utils
 #' @export
 create_summary_table_PPI <- function(gene_name){
@@ -2848,6 +2078,12 @@ create_summary_table_PPI <- function(gene_name){
   return(df_summary)
 }
 
+#' Append protein-protein interaction 
+#' @description Append protein-protein interaction information to an \code{InteRactome}.
+#' PPI are retrieved from databases IntAct, MINT, BioGRID and HPRD
+#' @param res an \code{InteRactome}
+#' @param mapping name of the \code{InteRactome}'s variable containing gene names
+#' @return an \code{InteRactome}
 #' @export
 append_PPI <- function( res, mapping = "names"){
   
@@ -2898,5 +2134,885 @@ append_PPI <- function( res, mapping = "names"){
   res_int$Database <- Database
   
   return(res_int)
+  
+}
+
+#' Compute correlation in protein recruitment
+#' @description Compute correlation in protein recruitment from interaction stoichiometries 
+#' computed across all conditions for each biological replicate. Pearson correlations are used.
+#' @param res an \code{InteRactome}
+#' @param idx indexes of the set of proteins for which correlations will be computed
+#' @return a data.frame with protein correlation information 
+#' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
+#' @importFrom Hmisc rcorr
+#' @export
+compute_correlations <- function(res, idx = NULL){
+  
+  # build matrix on which correlations will be computed
+  idx_selected <- 1:length(res$names)
+  if (!is.null(idx)) {
+    idx_selected <- idx
+  }
+  idx_bait <- which(res$names == res$bait)
+  idx_selected <- setdiff(idx_selected, idx_bait)
+  
+  names <- res$names[idx_selected]
+  
+  df<-NULL
+  names_df <- NULL
+  for (bio in res$replicates){
+    for (cond in res$conditions){
+      df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
+      names_df <- c(names_df, paste("stoichio_bio_",bio,"_",cond,sep=""))
+    }
+  }
+  
+  for (i in dim(df)[1]){
+    df[i, ] <- df[i, ]/max(df[i, ], na.rm=TRUE)
+  }
+  
+  M <- as.matrix(df)
+  row.names(M) <- names
+  colnames(M) <- names_df
+  
+  
+  R <- Hmisc::rcorr(t(M))
+  n <- dim(R$r)[1]
+  r_corr <- rep(NA, n*(n-1)/2)
+  p_corr <- rep(NA, n*(n-1)/2)
+  name_1 <- rep("", n*(n-1)/2)
+  name_2 <- rep("", n*(n-1)/2)
+  count<-0
+  for (i in 1:(n-1)){
+    for (j in (i+1):n){
+      count<-count+1
+      r_corr[count] <- R$r[i, j]
+      p_corr[count] <- R$P[i, j]
+      name_1[count] <- names[i]
+      name_2[count] <- names[j]
+    }
+  }
+  df_corr <- data.frame( name_1 = name_1, name_2 = name_2, r_corr = r_corr, p_corr = p_corr)
+  
+  return(df_corr)
+}
+
+#' Create a summary table for an \code{InteRactome}
+#' @param res an \code{InteRactome}
+#' @param add_columns names of the variables to display in the summary table 
+#' @return a data.frame 
+#' @export
+summary_table <- function(res, add_columns = names(res) ){
+  
+  columns <- unique( c("names", add_columns) )
+  #columns <- add_columns
+  columns <- setdiff(columns, c("bait", "bckg_bait", "bckg_ctrl", "groups","conditions", "interactor", "replicates", "intensity_bait", "intensity_ctrl"))
+  
+  df<-data.frame( bait=rep(res$bait, length(res$names)) )
+  names_df<-"bait"
+  idx<-1
+  
+  for( var in columns ){
+    
+    if(length(res[[var]]) == length(res$names)){
+      idx<-c(idx,1)
+      names_df<-c(names_df, var)
+      df<-cbind(df,res[[var]])
+    }
+    else{
+      names_var <- names(res[[var]])
+      if( setequal(names_var, res$conditions) ){
+        for(i in 1:length(names_var) ){
+          idx<-c(idx,NaN)
+          names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
+          df<-cbind(df,res[[var]][[i]])
+        }
+      }
+      else{
+        for(i in 1:length(names_var) ){
+          names_var_2 <- names(res[[var]][[i]]) 
+          if( setequal(names_var_2, res$conditions) ){
+            for(j in 1:length(names_var_2) ){
+              idx<-c(idx,NaN)
+              names_df<-c(names_df, paste(var,"_",names(res[[var]])[i],"_",names_var_2[j],sep=""))
+              df<-cbind(df,res[[var]][[i]][[j]])
+            }
+          }
+        }
+      }
+    }
+    
+  }
+  
+  names(df)<-names_df
+  df<-df[,order(idx)]
+  
+  return(df)
+  
+}
+
+
+#' Plot the result of the annotation enrichment analysis
+#' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
+#' @param p_val_max threshold for the enrichment p-value
+#' @param method_adjust_p_val method to adjust p-value for multiple comparisons
+#' @param fold_change_min threshold for the enrichment fold-change
+#' @param N_annot_min minimum number of elements that are annotated in the foreground set
+#' @return a plot
+#' @export
+plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "fdr", fold_change_min =2, N_annot_min=2){
+  
+  if(length(df) == 0 ){
+    warning("Empty input...")
+  }else if( dim(df)[1] == 0){
+    warning("Empty input...")
+  }
+  
+  name_p_val <- switch(method_adjust_p_val,
+                       "none" = "p_value",
+                       "fdr" = "p_value_adjust_fdr",
+                       "bonferroni" = "p_value_adjust_bonferroni")
+  
+  df$p_value_adjusted <- df[[name_p_val]]
+  
+  idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
+                         df$fold_change >= fold_change_min & 
+                         df$N_annot >= N_annot_min)
+  if(length(idx_filter) == 0){
+    warning("No annotation left after filtering. You might want to change input parameters")
+    return(NULL)
+  }
+  df_filter <- df[ idx_filter, ]
+  df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
+  df_filter$order <- 1:dim(df_filter)[1]
+  
+  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjusted) )) + 
+    theme(
+      axis.text.y = element_text(size=14),
+      axis.text.x = element_text(size=14, angle = 90, hjust = 1,vjust=0.5),
+      axis.title.x = element_text(size=14)
+    ) +
+    scale_x_continuous(name = NULL, breaks=df_filter$order, labels=df_filter$annot_names) +
+    scale_y_continuous(name = paste("-log10(",name_p_val,")",sep="")) +
+    geom_col()+
+    coord_flip()
+  
+  return(p)
+  
+}
+
+#' Plot abundance versus interaction stoichiometries
+#' @param res an \code{InteRactome}
+#' @param condition condition selected. If "max", the maximum stoichiometry across conditions will be used.
+#' @param xlim range of x values
+#' @param ylim range of y values
+#' @param N_display maximum number of protein to display
+#' @return a plot
+#' @import ggplot2
+#' @import ggrepel
+#' @export
+plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_display=30){
+  
+  df<- data.frame( Y=log10(res$stoch_abundance), 
+                   label_tot=res$names
+  )
+  if(condition=="max"){
+    df$X <- log10(res$max_stoichio)
+    df$size <- res$max_fold_change
+  }else if(condition %in% res$conditions){
+    df$X <- log10(res$stoichio[[condition]])
+    df$size <- res$fold_change[[condition]]
+  }else{
+    stop("Condition is not defined")
+  }
+  
+  
+  df<-df[1:min(N_display, dim(df)[1]), ]
+  
+  xc <- -0.5
+  yc <- 0
+  rc<-1
+  
+  ylow <- -3
+  
+  if(is.null(xlim) & is.null(ylim)){
+    max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
+    center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
+    center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
+  }else{
+    max_range <- max( xlim[2] - xlim[1],  ylim[2] - ylim[1] )
+    center_x <- ( xlim[2] + xlim[1] )/2
+    center_y <- ( ylim[2] + ylim[1] )/2
+  }
+  xmin<-center_x - max_range/1.9
+  xmax<-center_x + max_range/1.9
+  ymin<-center_y - max_range/1.9
+  ymax<-center_y + max_range/1.9
+  
+  ylow_plot <- max(ylow,ymin)
+  
+  df$size_prey <- log10(df$size)/max_range*20
+  df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
+  df$sat_max_fold_t0 <- rep(1,dim(df)[1])
+  
+  idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
+  df <- df[idx_plot, ]
+  
+  p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
+    theme(aspect.ratio=1) +
+    scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
+    geom_polygon(data=data.frame(x=c(ylow_plot,xmax,xmax),y=c(ylow_plot,ylow_plot,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+    annotate("path",
+             x=xc+rc*cos(seq(0,2*pi,length.out=100)),
+             y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
+    annotate("segment", x = ylow_plot, xend = xmax, y = ylow_plot, yend = xmax, colour = rgb(0,0,0,0.5) ) +
+    annotate("segment", x = xmin, xend = xmax, y = ylow_plot, yend = ylow_plot, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
+    xlab("log10(Interaction Stoichiometry)") +
+    ylab("log10(Abundance Stoichiometry)") +
+    geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
+    coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
+    #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
+    geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
+                    segment.size = 0.1,
+                    min.segment.length = unit(0.15, "lines"), 
+                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
+  return(p)
+  #print(p)
+  #output=p
+}
+
+
+#' @importFrom grDevices dev.off pdf rgb
+#' @importFrom graphics hist lines plot
+plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
+    # plot histogram of intensities for all columns in two different datasets 
+    # (1st dataset is in in black, 2nd dataset is in red)
+    if(!is.null(save_file)){
+      pdf( save_file, 4, 4 )
+    }
+    
+    
+    for( j in seq_along(I) ){
+      h<-hist( I[[j]] , breaks=breaks, plot=FALSE);
+      if(j>1){
+        lines(h$mids,h$density,col=rgb(0,0,0,0.2));
+      }else{
+        plot(h$mids, h$density, type="l",col=rgb(0,0,0,0.2),ylim=c(0,1), xlim=range(I_rep));
+      }
+    }
+    
+    for( j in seq_along(I_rep) ){
+      h<-hist( I_rep[[j]] , breaks=breaks, plot=FALSE);
+      lines(h$mids,h$density,col=rgb(1,0,0,0.2));
+    }
+    
+    if(!is.null(save_file)){
+      dev.off()
+    }
+  
+}
+
+#' Plot protein enrichement fold-change versus p-value
+#' @param res an \code{InteRactome}
+#' @param N_print maximum of protein labels to display
+#' @param labels labels for proteins in plot. Must the same length as \code{res$names}
+#' @param conditions conditions to plot
+#' @param p_val_thresh threshold on p-value to display
+#' @param fold_change_thresh threshold on fold-change to display
+#' @param save_file path of output file (.pdf)
+#' @param xlim range of x values
+#' @param ylim range of y values
+#' @param asinh_transform logical, display asinh(log10(p-value)) on the y-axis
+#' @return a plot
+#' @importFrom grDevices dev.off pdf rgb
+#' @import ggplot2
+#' @import ggrepel
+#' @export
+plot_volcanos <- function( res,
+                           labels=NULL, 
+                           N_print=15, 
+                           conditions=NULL, 
+                           p_val_thresh=0.05, 
+                           fold_change_thresh=2, 
+                           save_file=NULL,
+                           xlim=NULL,
+                           ylim=NULL,
+                           asinh_transform = TRUE){
+  if (is.null(labels)) labels=res$names
+  if (is.null(conditions)) conditions=res$conditions
+    
+  plist <- vector("list",length(conditions));
+  
+  ymax <- -log10(min(do.call(cbind,res$p_val)))
+  if (asinh_transform) ymax <- asinh(ymax)
+  xmax <- max(abs(log10(do.call(cbind,res$fold_change))))
+  
+  x1 <- log10(fold_change_thresh)
+  x2 <- xmax
+  y1 <- -log10(p_val_thresh)
+  if (asinh_transform) y1 <- asinh(y1)
+  y2 <- ymax
+  
+  
+  if(!is.null(xlim) ){
+    xrange <- xlim
+  }else{
+    xrange <- c(-xmax,xmax)
+  }
+  
+  if(!is.null(ylim)){
+    yrange <- ylim
+  }else{
+    yrange <- c(0,ymax)
+  }
+  
+  for( i in seq_along(conditions) ){
+    
+    df <- data.frame(p_val=res$p_val[[conditions[i]]], 
+                     fold_change= res$fold_change[[conditions[i]]], 
+                     names=labels)
+    df$X <- log10(df$fold_change)
+    df$Y <- -log10(df$p_val)
+    if (asinh_transform) df$Y <- asinh(df$Y)
+    score_print <- rep(0, dim(df)[1])
+    
+    if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
+      is_above_thresh <- rep(0, dim(df)[1])
+      is_in_frame <- rep(0, dim(df)[1])
+      is_above_thresh[ which(df$p_val <= p_val_thresh & df$fold_change >= fold_change_thresh ) ] <- 1
+      is_in_frame[ which(df$X >= xrange[1] & df$X <= xrange[2] & df$Y >= yrange[1] & df$Y <= yrange[2]) ] <- 1
+      score_print<- is_above_thresh + is_in_frame
+      score_print[is_in_frame==0]<-0
+      N_show <- min(N_print, sum(score_print>0))
+      if( N_show>0 ){
+        idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
+      }else{
+        idx_print <- NULL
+      }
+    }else{
+      if( N_print>0 ){
+        idx_print <- order(df$fold_change, decreasing = TRUE)[ 1:N_print ]
+      }else{
+        idx_print <- NULL
+      }
+    }
+    
+    df$label_color <- as.factor(score_print)
+    
+    label_x <- "log10(fold_change)"
+    label_y <- "-log10(p_value)"
+    if (asinh_transform) label_y <- "asinh(-log10(p_value))"
+      
+    plist[[i]] <- ggplot( df , aes( label=names ) ) +
+      coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
+      xlab(label_x ) + 
+      ylab(label_y) + 
+      #scale_y_continuous(limits=c(0,ymax)) +
+      #scale_x_continuous(limits=c(-xmax,xmax)) +
+      ggtitle(conditions[i])
+      
+    
+    if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
+      plist[[i]] <- plist[[i]] +
+        geom_polygon(data=data.frame(x=c(x1,x2,x2,x1),y=c(y1,y1,y2,y2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+        annotate("segment", x = -x2, xend = x2, y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
+        annotate("segment", x = -x1, xend = -x1, y = 0, yend = y2, colour = rgb(1,0,0,0.5) ) +
+        annotate("segment", x = x1, xend = x1, y = 0, yend = y2, colour = rgb(1,0,0,0.5) )
+    }
+    
+    plist[[i]] <- plist[[i]] + 
+      geom_point(data=df, mapping=aes(x=X, y=Y), alpha=0.2) +
+      geom_text_repel(data=df[idx_print, ],
+                     aes(x=X, y=Y, label = names, colour=label_color), size=5) +
+      # geom_text(data=df[idx_print, ],
+      #                 aes(x=X, y=Y, label = names, colour=label_color), size=3) +
+      scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
+      theme(legend.position="none")
+    
+  }
+  
+  if( length(save_file)>0 ){
+    pdf( save_file, 6, 6)
+    #layout <- matrix(1:length(conditions), nrow = 1, byrow = TRUE)
+    #multiplot(plotlist = plist, layout = layout)
+    print(plist)
+    dev.off()
+  }
+  
+  return(plist)
+}
+
+#' Dot plot representation of interaction as a function of experimental conditions
+#' @param res an \code{InteRactome}
+#' @param idx_cols numeric vector to select and order conditions to be displayed
+#' @param idx_rows numeric vector to select proteins to display
+#' @param size_var name of the variable corresponding to dot size
+#' @param size_range range of dot sizes to display
+#' @param color_var name of the variable corresponding to dot color
+#' @param color_breaks vector used to discretize colors
+#' @param color_default value corresponding to the default color
+#' @param save_file path of output file (.pdf)
+#' @param plot_width width of the output .pdf file
+#' @param plot_height height of the output .pdf file
+#' @param clustering logical or numeric vector. If logical, use hierarchical 
+#' clustering to order proteins. If numeric, ordering indexes for displayed proteins 
+#' (must be the same length as \code{idx_rows})
+#' @return a list conataining :
+#' @return a plot "plot"
+#' @return a numeric vector "idx_order" containing the position of the protein 
+#' displayed within the \code{InteRactome}
+#' @importFrom grDevices dev.off pdf rgb
+#' @importFrom stats dist hclust
+#' @export
+plot_per_condition <- function( res,
+                                 idx_cols = 1:length(res$conditions),
+                                 idx_rows=1:20,
+                                 size_var="norm_stoichio",
+                                 size_range=c(0,1),
+                                 color_var="p_val", 
+                                 color_breaks=c(1,0.1,0.05,0.01), 
+                                 #color_values=rgb(t(col2rgb(c("black", "blue","purple","red")))/255),
+                                 color_default = 1,
+                                 save_file=NULL,
+                                 plot_width=2.5 + length(res$conditions)/5,
+                                 plot_height=2 + length(idx_rows)/5,
+                                 clustering = TRUE){
+  
+  if(length(idx_rows)==1){
+    idx_rows<-1:idx_rows
+  }
+  
+  M<-do.call(cbind, res[[size_var]])
+  M1<-do.call(cbind, res[[color_var]])
+    
+  row.names(M) <- unlist(lapply(res$names, function(x) substr(x,1,min(8,nchar(x))) ) )
+  Mcol<-M
+  Mcol[!is.null(M)]<-color_default
+  
+   if(!is.null(color_var)){
+     idx_order_col <- order(color_breaks, decreasing = TRUE);
+     for(i in seq_along(color_breaks)){
+       Mcol[M1<color_breaks[idx_order_col[i]]]<-color_breaks[idx_order_col[i]]
+     }
+   }
+  
+  if("interactor" %in% names(res)){
+    title_text <- paste(res$groups," (n=",length(res$interactor),")",sep="")
+  } else {
+    title_text <- res$groups
+  }
+  
+  M <- M[idx_rows, idx_cols]
+  Mcol <- Mcol[idx_rows, idx_cols]
+  M[is.na(M)]<-0
+  
+  idx_order <- 1:length(idx_rows)
+  if(is.logical(clustering)){
+    if(clustering){
+      d<-dist(M)
+      h<-hclust(d)
+      idx_order <- h$order
+    }
+  }else if(is.numeric(clustering)){
+    if(length(clustering) == length(idx_rows)){
+      idx_order <- clustering
+    }
+  } 
+  
+  M <- M[idx_order, ]
+  Mcol <- Mcol[idx_order, ]
+  
+  p<-dot_plot( as.matrix(M), 
+               as.matrix(Mcol), 
+               title = title_text,
+               size_var = size_var, 
+               size_range=size_range,
+               color_var=color_var)
+  
+  if(!is.null(save_file)){
+    pdf(save_file, plot_width, plot_height)
+    print(p)
+    dev.off()
+  }
+  
+  return(list(plot = p, idx_order = idx_order))
+  
+}
+
+#' Dot plot representation of matrices
+#' @param Dot_Size a matrix of dot sizes
+#' @param Dot_Color a matrix of dot colors (optionnal)
+#' @param title plot title
+#' @param size_range range of dot sizes to display
+#' @param size_var name of the variable corresponding to dot size
+#' @param color_var name of the variable corresponding to dot color
+#' @return a plot
+#' @import ggplot2
+#' @export
+dot_plot <- function(Dot_Size, 
+                     Dot_Color=NULL, 
+                     title="Dot Plot", 
+                     size_range=range(Dot_Size) , 
+                     size_var ="size", 
+                     color_var="color"){
+
+  # Dot_Size: matrix of dot size
+  
+  M<-Dot_Size
+  Mcol <- Dot_Color
+  
+  ylabels <- row.names(M)
+  if(length(ylabels)==0){
+    ylabels <- 1:dim(M)[1]
+  }
+  
+  xlabels <- colnames(M)
+  if(length(xlabels)==0){
+    xlabels <- 1:dim(M)[2]
+  }
+  
+  xpos <- vector("list", dim(M)[2] );
+  ypos <- vector("list", dim(M)[2] );
+  size <- vector("list", dim(M)[2] );
+  if(length(Dot_Color)>0){
+    if( sum(dim(M) != dim(M))==0 ){
+      color <- vector("list", dim(M)[2] );
+    }else{
+      stop("Dimensions of size and color matrix do not match")
+    }
+  }
+  
+  #pos <- 1+dim(M)[1] - ( 1:dim(M)[1] )
+  pos <-  - ( 1:dim(M)[1] )
+  
+  for( k in 1:dim(M)[2] ){
+    xpos[[k]] <- rep(k, dim(M)[1] )
+    ypos[[k]] <- pos
+    size[[k]] <- as.numeric(M[,k]);
+    if(length(Dot_Color)>0){
+      color[[k]] <- Mcol[,k];
+    }
+  }
+  
+  df<-data.frame( xpos=unlist(xpos), ypos=unlist(ypos), size=unlist(size) );
+  if(length(Dot_Color)>0){
+    df$color = unlist(color)
+  }else{
+    df$color = rep( 1, dim(df)[1] )
+  }
+  
+  df$color<-as.factor(df$color)
+  
+  unique_col <- unique(df$color);
+  size_label_y <- max(6, 16 - (dim(M)[1] %/% 10)*1.5 )
+  size_label_x <- max(6, 16 - (dim(M)[2] %/% 5)*1.5 )
+  
+  p <- ggplot(df, aes(x=xpos, y=ypos, size=size, col=color ) ) +
+    theme(#plot.margin=unit(c(0.2,0,0,0), "cm"),
+      plot.title = element_text(size=12),
+      axis.text.y= element_text(size=size_label_y), 
+      axis.text.x = element_text(size=size_label_x, angle = 90, hjust = 1,vjust=0.5) ) +
+    ggtitle(title)+
+    scale_color_manual( values=c( "red", "purple",  "blue", "black" ) , name=color_var) +
+    scale_radius(limits=size_range, name=size_var) +
+    #scale_colour_manual(values=setNames(unique_col, c( "red", "purple",  "blue", "black" ) )) +
+    xlab("") +
+    ylab("") +
+    scale_x_continuous(breaks=1:dim(M)[2],
+                       limits=c(0.5, dim(M)[2]+0.5),
+                       labels=xlabels) +
+    scale_y_continuous(breaks=pos,
+                       #limits= -c(0.25, dim(M)[1]+0.75),
+                       limits= -c(dim(M)[1]+0.75, 0.25 ),
+                       labels=ylabels) +
+    geom_point(alpha=0.5, show.legend = TRUE)
+  
+  return(p)
+  
+}
+
+#' Plot interaction stoichiometries per biological replicate
+#' @param res an \code{InteRactome}
+#' @param name name of the protein to display
+#' @param conditions set of conditions to display
+#' @param ref_condition name of the reference condition for all \code{test}
+#' @param test name of the test function to compare sttoichiometries between conditions
+#' @param test.args arguments passed to function \code{test}
+#' @param map_signif_level named vector with labels and corresponding significance levels
+#' @param save_file path of output file (.pdf)
+#' @return a plot
+#' @import ggplot2
+#' @import ggsignif
+#' @importFrom grDevices dev.off pdf rgb
+#' @export
+plot_stoichio <- function(res, 
+                         name,
+                         conditions = Interactome$conditions,
+                         ref_condition = Interactome$conditions[1], 
+                         test="t.test", 
+                         test.args = list("paired"=TRUE),
+                         map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
+                         save_file = NULL){
+  plot_title <- paste(name, " / ",test, sep = "") 
+    
+  if("paired" %in% names(test.args)){
+    if(test.args$paired){
+      plot_title <- paste(plot_title, "(paired)", sep="")
+    }
+  }
+    
+  
+  idx_match <- which(res$names == name)
+  df_tot <- NULL
+  for ( bio in res$replicates){
+    stoichio <- do.call(cbind, res$stoichio_bio[[bio]])[idx_match, conditions]
+    df <- data.frame(stoichio = stoichio, cond = factor(names(stoichio), levels=conditions), bio = rep(bio, length(stoichio)))
+    df_tot <- rbind(df_tot, df)
+  }
+  
+  comparisons <- list()
+  cond_test <- setdiff(conditions, ref_condition)
+  for (i in 1:length(cond_test)){
+    comparisons[[i]] <- c(ref_condition, cond_test[i])
+  }
+    
+  p <- ggplot(df_tot, aes(x=cond, y=log10(stoichio))) + 
+    theme(axis.text.x = element_text(size=10, angle = 90, hjust = 1,vjust=0.5),
+          axis.text.y = element_text(size=10)
+          ) +
+    geom_point(size=0, alpha = 0) +  
+    ggtitle(plot_title) + 
+    xlab("conditions") +
+    geom_line( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), group=bio, color=bio), alpha = 0.2) +
+    geom_point( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), color=bio), size=3, alpha = 0.8) + 
+    geom_signif(comparisons = comparisons, 
+                step_increase = 0.1,
+                test = test,
+                textsize = 2.5, 
+                test.args = test.args,
+                map_signif_level = map_signif_level
+                )
+  if(!is.null(save_file)){
+    pdf(save_file, 4, 4)
+    print(p)
+    dev.off()
+  }
+  return(p)
+  
+}
+
+#' Plot protein intensities per biological replicate and background
+#' @param res an \code{InteRactome}
+#' @param name name of the protein to display
+#' @param conditions set of conditions to display
+#' @param textsize size of labels corresponding to significance levels
+#' @param test name of the test function to compare intensities between background
+#' @param test.args arguments passed to function \code{test}
+#' @param map_signif_level named vector with labels and corresponding significance levels
+#' @param position name of the function used to position data points 
+#' @param position.args arguments passed to function \code{position}
+#' @return a plot
+#' @import ggplot2
+#' @import ggsignif
+#' @export
+plot_comparison <- function(res,
+                          name,
+                          conditions, 
+                          textsize = 3,
+                          test="t.test",
+                          test.args = list("paired"=FALSE),
+                          map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
+                          position = "position_jitter",
+                          position.args = list(width=0.3, height=0)){
+  
+  plot_title <- paste(name, test, sep = " / ") 
+  
+  if("paired" %in% names(test.args)){
+    if(test.args$paired){
+      plot_title <- paste(plot_title, "(paired)", sep="")
+    }
+  }
+  
+  
+  idx_match <- which(res$names == name)
+  
+  df_tot <- NULL
+  for( cond in conditions){
+    for ( bio in res$replicates){
+      if (is.null(dim(res$intensity_bait[[cond]][[bio]])) ){
+        intensity <- res$intensity_bait[[cond]][[bio]][idx_match]
+      } else {
+        intensity <- res$intensity_bait[[cond]][[bio]][idx_match, ]
+      }
+      df <- data.frame(intensity = intensity, bckg = rep("bait", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
+      df_tot <- rbind(df_tot, df)
+    }
+  }
+  for( cond in conditions){
+    for ( bio in res$replicates){
+      if (is.null(dim(res$intensity_ctrl[[cond]][[bio]])) ){
+        intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match]
+      } else {
+        intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match, ]
+      }
+      df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
+      df_tot <- rbind(df_tot, df)
+    }
+  }
+  df_tot$bckg <- factor(df_tot$bckg, levels = c("ctrl", "bait"))
+  
+  comparisons <- list(c("ctrl","bait"))
+  
+  p <- ggplot(df_tot, aes(x=bckg, y=log10(intensity))) + 
+    theme(axis.text = element_text(size=12)) +
+    geom_point(size=0, alpha = 0) + 
+    geom_violin() + 
+    ggtitle(plot_title) + 
+    geom_point( data = df_tot, 
+                mapping = aes(x=bckg, y=log10(intensity), color=bio), 
+                size=3, 
+                alpha = 0.8,
+                position = do.call(position, position.args) ) + 
+    geom_signif(comparisons = comparisons, 
+                step_increase = 0.1,
+                test = test,
+                textsize = textsize, 
+                test.args = test.args,
+                map_signif_level = map_signif_level
+    )
+  
+  p <- p + facet_grid(~ cond)
+  
+  return(p)
+  
+}
+
+#' Quality check plots for preprocessed AP-MS data
+#' @param prep_data preprocessed data as obtained using function \code{preprocess_data()}
+#' @return Several QC plots
+#' @import ggplot2
+#' @importFrom stats quantile IQR
+#' @export
+plot_QC <- function(prep_data){
+  
+  p_list <- list()
+  
+  df <- prep_data
+  ibait <- which(df$names == df$bait)
+  
+  M <- as.matrix(df$Intensity)
+  R <- rcorr(M)
+  
+  idx_bait <- df$conditions$bckg == df$bckg_bait
+  idx_ctrl <- df$conditions$bckg == df$bckg_ctrl
+  
+  Ravg_bait <- cbind(df$conditions[idx_bait, ], Ravg = row_mean(R$r[idx_bait, idx_bait]))
+  Ravg_ctrl <- cbind(df$conditions[idx_ctrl, ], Ravg = row_mean(R$r[idx_ctrl, idx_ctrl]))
+  Ravg <- rbind(Ravg_bait, Ravg_ctrl)
+  
+  
+  
+  x <- Ravg_bait$Ravg[Ravg_bait$bckg==df$bckg_bait]
+  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * stats::IQR(x, na.rm = T)
+  
+  outlier_bio_1 <- unique(Ravg_bait$bio[x < (qnt[1] - H)])
+  if(length(outlier_bio_1)>0){
+    message_outlier_1 <- paste("outliers in", paste(outlier_bio_1, sep=", "), sep=" ")
+  }else{
+    message_outlier_1 <- "No outliers"
+  }
+  message_outlier_1 <- paste(message_outlier_1, "(in bait bckg)", sep=" ")
+  
+  p1 <- ggplot(Ravg, aes(x=bckg, y=Ravg, col=bio)) + 
+    #theme(legend.position="top") +
+    ggtitle("QC: Intensity Correlation", subtitle = message_outlier_1) +
+    ylab("average R")+
+    geom_boxplot(data=Ravg, mapping=aes(x=bckg, y=Ravg), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
+  
+  p_list[[1]] <- p1
+  
+  Ibait <- cbind(df$conditions, Ibait = as.numeric(df$Intensity[ibait, ]) )
+  x <- Ibait$Ibait[Ibait$bckg==df$bckg_bait]
+  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * stats::IQR(x, na.rm = TRUE)
+  
+  outlier_bio_2 <- unique(Ibait$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
+  if(length(outlier_bio_2)>0){
+    message_outlier_2 <- paste("outliers in", paste(outlier_bio_2, sep=", "), sep=" ")
+  }else{
+    message_outlier_2 <- "No outliers"
+  }
+  message_outlier_2 <- paste(message_outlier_2, "(in bait bckg)", sep=" ")
+  
+  p2 <- ggplot(Ibait, aes(x=bckg, y=log10(Ibait), col=bio)) + 
+    #theme(legend.position="top") +
+    ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
+    ylab("norm. Intensity (log10)") +
+    geom_boxplot(data=Ibait, mapping=aes(x=bckg, y=log10(Ibait)), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
+  
+  p_list[[2]] <- p2
+  
+  nNA <- cbind(df$conditions,
+               nNA = sapply(1:dim(df$Intensity)[2], FUN=function(x){sum(is.na(df$Intensity[,x]))})
+  )
+  
+  x <- nNA$nNA[nNA$bckg==df$bckg_bait]
+  qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
+  H <- 1.5 * stats::IQR(x, na.rm = TRUE)
+  
+  outlier_bio_3 <- unique(nNA$bio[x < (qnt[1] - H) | x > (qnt[2] + H)])
+  if(length(outlier_bio_3)>0){
+    message_outlier_3 <- paste("outliers in", paste(outlier_bio_3, sep=", "), sep=" ")
+  }else{
+    message_outlier_3 <- "No outliers"
+  }
+  message_outlier_3 <- paste(message_outlier_3, "(in bait bckg)", sep=" ")
+  
+  p3 <- ggplot(nNA, aes(x=bckg, y=log10(nNA), col=bio)) +
+    #theme(legend.position="top") +
+    ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
+    ylab("NA counts (log10)") +
+    geom_boxplot(data=nNA, mapping=aes(x=bckg, y=log10(nNA)), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
+  
+  p_list[[3]] <- p3
+  
+  return(p_list)
+  
+}
+
+#' Plot an interactive correlation network with communities highlighted
+#' @param df_corr a data.frame with columns 'r_corr' and 'p_corr'
+#' @param r_corr_thresh threshold for variable 'r_corr' (min)
+#' @param p_val_thresh threshold for ariable 'p_corr' (max)
+#' @return an interactive networkD3 plot
+#' @import igraph
+#' @import networkD3
+#' @export
+plot_correlation_network <- function(df_corr, r_corr_thresh = 0.8, p_val_thresh = 0.05){
+  
+  df_corr_filtered <- df_corr[df_corr$r_corr>=r_corr_thresh & df_corr$p_corr<=p_val_thresh, ]
+  
+  net <- igraph::graph.data.frame(df_corr_filtered, directed=FALSE);
+  net <- igraph::simplify(net)
+  cfg <- igraph::cluster_fast_greedy(as.undirected(net))
+  
+  #plot(cfg, as.undirected(net.s))
+  #plot(igraph::as.undirected(net.s), mark.groups = igraph::communities(cfg))
+  
+  net_d3 <- networkD3::igraph_to_networkD3(net, group = igraph::communities(cfg))
+  
+  forceNetwork(Links = net_d3$links, Nodes = net_d3$nodes,
+               Source = 'source', Target = 'target',
+               fontFamily = "arial",
+               NodeID = 'name', Group = 'group',
+               colourScale = JS("d3.scaleOrdinal(d3.schemeCategory20);"),
+               charge = -10, opacity = 1,
+               linkColour = rgb(0.75, 0.75, 0.75),
+               fontSize = 12, bounded = TRUE, zoom=TRUE, opacityNoHover = 1
+  )
   
 }
