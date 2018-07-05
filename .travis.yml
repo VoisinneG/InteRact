@@ -1,1 +1,8 @@
 language: r
+language: r
+r: bioc-devel
+sudo: true
+cache: packages
+
+bioc_required: true
+bioc_use_devel: true
