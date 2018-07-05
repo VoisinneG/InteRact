@@ -1,3 +1,6 @@
+options(repos = BiocInstaller::biocinstallRepos())
+options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
+
 # Load packages ----
 
 library(shiny)
@@ -13,8 +16,6 @@ library(shinyBS)
 library("InteRact")
 
 #source("../R/InteRact.R")
-
-options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
 
 
 # User interface ----
