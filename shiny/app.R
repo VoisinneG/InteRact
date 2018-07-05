@@ -1,4 +1,5 @@
 options(repos = BiocInstaller::biocinstallRepos())
+#getOption("repos")
 options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
 
 # Load packages ----
