@@ -4,7 +4,7 @@
 \name{proteinGroups_Cbl}
 \alias{proteinGroups_Cbl}
 \title{Characterization of protein groups identified from AP-MS data using MaxQuant}
-\format{A data frame with 1978 rows (protein groups) and 849 variables:
+\format{A data frame with 1540 rows (protein groups) and 358 variables:
 
 See the \href{ftp://ftp.lrz.de/transfer/proteomics/Phospho_Library/archive/MaxQuant/LibraryResults/EtdNoFilter/combined/txt/tables.pdf}{Maxquant documentation}
 for the description of the different variables}

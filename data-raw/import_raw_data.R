@@ -218,7 +218,7 @@ devtools::use_data( uniprot_data_mouse,
 #                     overwrite = TRUE)
 
 
-proteinGroups_Cbl <- read.csv("./inst/extdata/proteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=".")
+proteinGroups_Cbl <- read.csv("~/Documents/Data/BMMlab/CBL-CBLB_paper/C-CBL/data/ProteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=",")
 
 devtools::use_data(proteinGroups_Cbl,
                    pkg=".",
