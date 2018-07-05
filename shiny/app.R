@@ -8,10 +8,11 @@ library(grid)
 library(Hmisc)
 library(igraph)
 library(networkD3)
+library(shinyBS)
 
 library("InteRact")
 
-#source("./R/InteRact.R")
+#source("../R/InteRact.R")
 
 options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
 
@@ -24,19 +25,24 @@ ui <- fluidPage(
     column(3,
            br(),
            wellPanel(
-             h3("Parameters"),
+             h4("General parameters"),
              textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
-             checkboxInput("pool_background", "pool_background", value = TRUE),
-             checkboxInput("substract_ctrl", "substract_ctrl", value = TRUE),
-             numericInput("Nrep", "# iterations (missing values replacement)", value = 3),
+             bsTooltip("bait_gene_name", "The gene name of the bait protein"),
+             checkboxInput("pool_background", "pool ctrl intensities", value = FALSE),
+             bsTooltip("pool_background", "Perform protein enrichment tests using control intensities from all conditions"),
+             checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
+             numericInput("Nrep", "# NA replacement iterations", value = 3)
+          ),
+          wellPanel(
+             h4("Interaction parameters"),
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
              numericInput("n_success_min", "n_success_min", value = 1),
-             checkboxInput("consecutive_success", "consecutive_success", value = TRUE),
+             checkboxInput("consecutive_success", "consecutive_success", value = FALSE),
              verbatimTextOutput("interactors"),
              downloadButton("download_all", "Save analysis")
              #verbatimTextOutput("plotly_print")
-           )
+          )
     ),
     column(9,
            br(),
@@ -45,9 +51,11 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         h3("Import"),
-                                         fileInput("file", h4("Protein intensity file :"), placeholder = "Enter file here"),
-                                         checkboxInput("dec", "Use comma as decimal separator", value = FALSE),
+                                         fileInput("file", h4("Import protein intensity file :"), placeholder = "Enter file here"),
+                                         checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
+                                       ),
+                                       wellPanel(
+                                         h4("Identify columns"),
                                          textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
                                          selectInput("column_gene_name",
                                                      "column for gene name",
@@ -69,13 +77,13 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         h3("General"),
-                                         textInput("bckg_bait", "Name of Bait background", value = "Bait"),
-                                         textInput("bckg_ctrl", "Name of Control background", value = "WT")
+                                         h4("Group by background"),
+                                         textInput("bckg_bait", "Bait background", value = "Bait"),
+                                         textInput("bckg_ctrl", "Control background", value = "WT")
                                          
                                        ),
                                        wellPanel(
-                                         h3("Map samples"),
+                                         h4("Samples mapping"),
                                          checkboxInput("manual_mapping", "manual mapping", value = FALSE),
                                          conditionalPanel(
                                            condition = "input.manual_mapping == false",
@@ -557,18 +565,6 @@ server <- function(input, output, session) {
     
   })
 
-  order_list <- reactive({
-    res_int <- identify_interactors (res()$Interactome,
-                                     var_p_val = "p_val", 
-                                     p_val_thresh = input$p_val_thresh, 
-                                     fold_change_thresh = input$fold_change_thresh, 
-                                     n_success_min = input$n_success_min, 
-                                     consecutive_success = input$consecutive_success)
-    order_list_int <- get_order_discrete(res_int, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01) )
-    Ninteractors$x <- order_list_int$Ndetect
-    order_list_int
-  })
-
   ordered_Interactome <- reactive({
       res_int <- identify_interactors (res()$Interactome,
                                      var_p_val = "p_val", 
@@ -576,7 +572,8 @@ server <- function(input, output, session) {
                                      fold_change_thresh = input$fold_change_thresh, 
                                      n_success_min = input$n_success_min, 
                                      consecutive_success = input$consecutive_success)
-      res_int <- order_interactome(res_int, order_list()$idx_order)
+      Ninteractors$x <- length(res_int$interactor)
+      res_int <- order_interactome(res_int)
       res_int
   })
   
@@ -825,7 +822,7 @@ server <- function(input, output, session) {
         progress2$set(message = "Perform enrichment analysis...", value = 0)
         
         df_annot <- annotation_enrichment_analysis( annotated_Interactome(), 
-                                                    1:order_list()$Ndetect, 
+                                                    1:Ninteractors$x, 
                                                     annotation_selected = annotation$enrichment_to_perform, 
                                                     names = annotated_Interactome()$names,
                                                     updateProgress = updateProgress2)
@@ -866,18 +863,18 @@ server <- function(input, output, session) {
                      condition = input$Stoichio2D_cond,
                      xlim = ranges$x,
                      ylim = ranges$y,
-                     N_display=min(order_list()$Ndetect, input$Nmax2D) )
+                     N_display=min(Ninteractors$x, input$Nmax2D) )
   })
   
   Stoichio2D <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
                      condition = input$Stoichio2D_cond,
-                     N_display = min(order_list()$Ndetect, input$Nmax2D) )
+                     N_display = min(Ninteractors$x, input$Nmax2D) )
   })
   
   dotPlot <- reactive({
-    p <- plot_per_conditions(ordered_Interactome(),
-                        idx_rows = min(input$Nmax, order_list()$Ndetect),
+    p <- plot_per_condition(ordered_Interactome(),
+                        idx_rows = min(input$Nmax, Ninteractors$x),
                         clustering = input$clustering)
     idx_order$cluster <- p$idx_order
     p$plot + coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
@@ -957,11 +954,11 @@ server <- function(input, output, session) {
       hover=input$Stoichio2D_hover
       
       if(input$Stoichio2D_cond == "max"){
-        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
-                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(Ninteractors$x, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(Ninteractors$x, input$Nmax2D)]) )^2)
       }else{
-        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
-                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(Ninteractors$x, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(Ninteractors$x, input$Nmax2D)]) )^2)
       }
       
       select_stoichioPlot$min_dist1 <- min(dist1, na.rm=TRUE)
@@ -986,7 +983,7 @@ server <- function(input, output, session) {
   output$condTable <- renderDataTable(condTable())
   output$condTable_bis <- renderDataTable(condTable())
   output$data_summary <- renderDataTable(data_summary())
-  output$summaryTable <- renderDataTable({summaryTable()[1:order_list()$Ndetect, ] })
+  output$summaryTable <- renderDataTable({summaryTable()[1:Ninteractors$x, ] })
   output$annotTable <- renderDataTable(annotTable())
   
   #Output Plot functions -------------------------------------------------------------------------
@@ -1139,11 +1136,11 @@ server <- function(input, output, session) {
     if(!is.null(input$Stoichio2D_zoom_hover)){
       hover=input$Stoichio2D_zoom_hover
       if(input$Stoichio2D_cond == "max"){
-        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
-                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$max_stoichio[1:min(Ninteractors$x, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(Ninteractors$x, input$Nmax2D)]) )^2)
       }else{
-        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(order_list()$Ndetect, input$Nmax2D)]) )^2 +
-                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(order_list()$Ndetect, input$Nmax2D)]) )^2)
+        dist1=sqrt( (hover$x-log10(ordered_Interactome()$stoichio[[input$Stoichio2D_cond]][1:min(Ninteractors$x, input$Nmax2D)]) )^2 +
+                      (hover$y-log10(ordered_Interactome()$stoch_abundance[1:min(Ninteractors$x, input$Nmax2D)]) )^2)
       }
       min_dist1 <- min(dist1, na.rm=TRUE)
       i_min <- which.min(dist1)
