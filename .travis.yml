@@ -1,5 +1,6 @@
 language: r
-r_packages: BiocInstaller
-bioc_packages: PSICQUIC
+repos:
+  CRAN: https://cran.rstudio.com/
+  BioCsoft: https://bioconductor.org/packages/3.4/bioc
 cache: packages
 install: travis_wait 30
