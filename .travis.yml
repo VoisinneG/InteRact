@@ -1,8 +1,4 @@
 language: r
-repos:
-  CRAN: https://cran.rstudio.com/
-  BioCsoft: https://bioconductor.org/packages/3.4/bioc
-  BioCann: https://bioconductor.org/packages/3.4/data/annotation
-  BioCexp: https://bioconductor.org/packages/3.4/data/experiment
-  BioCextra: https://bioconductor.org/packages/3.4/extra
+r_packages: BiocInstaller 
+bioc_packages: PSICQUIC
 cache: packages
