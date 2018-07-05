@@ -1,10 +1,10 @@
 Package: InteRact
-Title: Analysis of Affinity Purification data
+Title: InteRact : Analysis of proteomics data
 Version: 0.1.0
 Date: 2018-02-21
 Author: Guillaume Voisinne
 Maintainer: Guillaume Voisinne <voisinne@ciml.univ-mrs.fr>
-Description: This package contains useful functions to analyse affinity purification data
+Description: The InteRact package provides tools to analyse affinity purification data
 Imports:
 	dplyr, 
 	ggplot2, 

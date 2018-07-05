@@ -4,8 +4,8 @@
 \alias{plot_stoichio}
 \title{Plot interaction stoichiometries per biological replicate}
 \usage{
-plot_stoichio(res, name, conditions = Interactome$conditions,
-  ref_condition = Interactome$conditions[1], test = "t.test",
+plot_stoichio(res, name, conditions = res$conditions,
+  ref_condition = res$conditions[1], test = "t.test",
   test.args = list(paired = TRUE), map_signif_level = c(`***` = 0.001, `**`
   = 0.01, `*` = 0.05), save_file = NULL)
 }
