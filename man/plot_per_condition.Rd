@@ -9,7 +9,7 @@ plot_per_condition(res, idx_cols = 1:length(res$conditions),
   color_var = "p_val", color_breaks = c(1, 0.1, 0.05, 0.01),
   color_default = 1, save_file = NULL, plot_width = 2.5 +
   length(res$conditions)/5, plot_height = 2 + length(idx_rows)/5,
-  clustering = TRUE)
+  clustering = FALSE)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

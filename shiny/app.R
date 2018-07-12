@@ -5,19 +5,20 @@ options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
 # Load packages ----
 
 library(shiny)
-library(ggplot2)
-library(ggrepel)
-library(ggsignif)
-library(grid)
-library(Hmisc)
-library(igraph)
-library(networkD3)
 library(shinyBS)
 
 library("InteRact")
 
-#source("../R/InteRact.R")
 
+#source("../R/InteRact.R")
+#library(ggplot2)
+#library(ggrepel)
+#library(ggsignif)
+#library(grid)
+library(Hmisc)
+library(igraph)
+library(networkD3)
+#library(mice)
 
 # User interface ----
 ui <- fluidPage(
@@ -122,6 +123,13 @@ ui <- fluidPage(
                                                               choices = list(),
                                                               selected = NULL)
                                            
+                                         ),
+                                         wellPanel(
+                                           h4("Format column names"),
+                                           textInput("format_function", "Function", value = "gsub"),
+                                           textInput("format_pattern", "Pattern", value = "."),
+                                           textInput("format_replacement", "Replacement", value = "_"),
+                                           actionButton("format_names","Format column names")
                                          )
                                          
                                        )
@@ -368,7 +376,7 @@ server <- function(input, output, session) {
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
 
-  saved_df <- reactiveValues(annot = NULL, enrichment = NULL)
+  saved_df <- reactiveValues(data = NULL, annot = NULL, enrichment = NULL)
  
   annotation<- reactiveValues(selected = NULL, 
                               loaded = NULL, 
@@ -385,7 +393,7 @@ server <- function(input, output, session) {
   
   #Main reactive functions -------------------------------------------------------------------------
   
-  data <- reactive({
+  data_raw <- reactive({
     
     df <- read.csv(input$file$datapath, 
              sep="\t", fill=TRUE, 
@@ -403,8 +411,23 @@ server <- function(input, output, session) {
                       choices = as.list(names(df)),
                       selected = id_selected) 
     
+    saved_df$data <- df
+    cat("OK\n")
+    #cat(names(saved_df$data))
     df
     
+  })
+  
+  data <- reactive({
+    saved_df$data
+    # df <- data_raw()
+    # if(input$format_names){
+    #   names(df) <-  do.call(input$format_function, 
+    #                         list(x=names(df), pattern = input$format_pattern, replacement = input$format_replacement, fixed=TRUE)
+    #   ) 
+    # }
+    # 
+    # df
   })
   
   data_cond <- reactive({
@@ -597,6 +620,11 @@ server <- function(input, output, session) {
   #     
   # })
   
+  observeEvent(input$format_names, {
+    df<-saved_df$data
+    names(saved_df$data) <- do.call(input$format_function, list(x=names(df), pattern = input$format_pattern, replacement = input$format_replacement, fixed=TRUE))
+  })
+  
   observeEvent(input$launch_annot, {
     
     annotation$selected <- input$annotation_selected
@@ -780,7 +808,7 @@ server <- function(input, output, session) {
   # }) 
   
   data_summary <- reactive({
-    df <- data()
+    df <- data_raw()
     columns <- names(df)
     data_class <- sapply(1:dim(df)[2], FUN=function(x){class(df[,x])})
     data_median <- sapply(1:dim(df)[2], FUN=function(x){ 

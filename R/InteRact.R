@@ -20,6 +20,7 @@
 #' @return \code{fold_change} : a list of vectors containing the fold change associated to each experimental condition. 
 #' @return \code{...} : other variables.
 #' @importFrom stats quantile rnorm
+#' @import mice
 #' @export
 #' @author Guillaume Voisinne
 #' @examples
@@ -52,7 +53,7 @@ InteRact <- function(
                      updateProgress = NULL,
                      N_rep=3,
                      quantile_rep  = 0.05,
-                     pool_background = TRUE, 
+                     pool_background = FALSE, 
                      log_test = TRUE,
                      log_stoichio = TRUE,
                      log_mean = TRUE,
@@ -93,8 +94,10 @@ InteRact <- function(
       }
       
       cat(paste("Nrep=",i,"\n",sep=""));
-      log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- stats::rnorm( n_replace, mean=q, sd=s) 
-
+      #log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- stats::rnorm( n_replace, mean=q, sd=s) 
+      imp <- mice::mice(log10_I_norm_mean, printFlag = FALSE, method="pmm")
+      log10_I_norm_mean_rep <- mice::complete(imp)
+      
       res[[i]]<-analyse_interactome(df = 10^log10_I_norm_mean_rep, 
                                     bait_gene_name = avg$bait_gene_name, 
                                     ibait = match(avg$bait_gene_name, avg$names), 
@@ -137,7 +140,7 @@ InteRact <- function(
   }
   
   res_mean <- global_analysis(res_mean);
-  output=list( Interactome = res_mean, data = avg);
+  output=list( Interactome = res_mean, data = avg, log10_I_rep = log10_I_norm_mean_rep);
   
 }
 
@@ -296,8 +299,8 @@ identify_conditions <- function(df,
                                   Column_intensity_pattern = "^Intensity.",
                                   split = "_",
                                   bckg_pos = 1,
-                                  bio_pos = 2,
-                                  time_pos = 3, 
+                                  bio_pos = 3,
+                                  time_pos = 2, 
                                   tech_pos = 4
                                   ){
   idx_col<-grep(Column_intensity_pattern,colnames(df))
@@ -315,15 +318,30 @@ identify_conditions <- function(df,
   #s <- strsplit(col_I, split=split, fixed=TRUE)
   n <- length(s[[1]])
   
-  if(bckg_pos > n) stop("bckg_pos too large")
-  if(bio_pos > n) stop("bio_pos too large")
-  if(tech_pos > n) stop("tech_pos too large")
-  if(time_pos > n) stop("time_pos too large")
-  
-  bckg <- unlist(lapply(s, function(x){x[bckg_pos]}))
-  bio<- unlist(lapply(s, function(x){x[bio_pos]}))
-  tech <- unlist(lapply(s, function(x){x[tech_pos]}))
-  time <- unlist(lapply(s, function(x){x[time_pos]}))
+  if(bckg_pos > n){
+    warning("bckg_pos too large")
+    bckg <- rep("", length(col_I))
+  }else{
+    bckg <- unlist(lapply(s, function(x){x[bckg_pos]}))
+  }
+  if(bio_pos > n){
+    warning("bio_pos too large")
+    bio <- rep("", length(col_I))
+  }else{
+    bio<- unlist(lapply(s, function(x){x[bio_pos]}))
+  } 
+  if(tech_pos > n){
+    warning("tech_pos too large")
+    tech <- rep("", length(col_I))
+  }else{
+    tech <- unlist(lapply(s, function(x){x[tech_pos]}))
+  }
+  if(time_pos > n){
+    warning("time_pos too large")
+    time <- rep("", length(col_I))
+  }else{
+    time <- unlist(lapply(s, function(x){x[time_pos]}))
+  }
   
   cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
 
@@ -2391,7 +2409,7 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
       if(j>1){
         lines(h$mids,h$density,col=rgb(0,0,0,0.2));
       }else{
-        plot(h$mids, h$density, type="l",col=rgb(0,0,0,0.2),ylim=c(0,1), xlim=range(I_rep));
+        plot(h$mids, h$density, type="l",col=rgb(0,0,0,0.2),ylim=c(0,1));
       }
     }
     
@@ -2570,7 +2588,7 @@ plot_per_condition <- function( res,
                                  save_file=NULL,
                                  plot_width=2.5 + length(res$conditions)/5,
                                  plot_height=2 + length(idx_rows)/5,
-                                 clustering = TRUE){
+                                 clustering = FALSE){
   
   if(length(idx_rows)==1){
     idx_rows<-1:idx_rows
@@ -2990,14 +3008,14 @@ plot_correlation_network <- function(df_corr, r_corr_thresh = 0.8, p_val_thresh 
   
   df_corr_filtered <- df_corr[df_corr$r_corr>=r_corr_thresh & df_corr$p_corr<=p_val_thresh, ]
   
-  net <- igraph::graph.data.frame(df_corr_filtered, directed=FALSE);
+  net <- igraph::graph.data.frame(df_corr_filtered, directed=FALSE)
   net <- igraph::simplify(net)
   cfg <- igraph::cluster_fast_greedy(as.undirected(net))
   
   #plot(cfg, as.undirected(net.s))
   #plot(igraph::as.undirected(net.s), mark.groups = igraph::communities(cfg))
   
-  net_d3 <- networkD3::igraph_to_networkD3(net, group = igraph::communities(cfg))
+  net_d3 <- networkD3::igraph_to_networkD3(net, group = cfg$membership)
   
   forceNetwork(Links = net_d3$links, Nodes = net_d3$nodes,
                Source = 'source', Target = 'target',

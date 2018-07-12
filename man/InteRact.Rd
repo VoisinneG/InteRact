@@ -5,7 +5,7 @@
 \title{Analysis of AP-MS data}
 \usage{
 InteRact(df, updateProgress = NULL, N_rep = 3, quantile_rep = 0.05,
-  pool_background = TRUE, log_test = TRUE, log_stoichio = TRUE,
+  pool_background = FALSE, log_test = TRUE, log_stoichio = TRUE,
   log_mean = TRUE, by_conditions = TRUE, substract_ctrl = TRUE,
   preprocess_df = NULL, ...)
 }
