@@ -18,6 +18,7 @@ library("InteRact")
 library(Hmisc)
 library(igraph)
 library(networkD3)
+library(data.table)
 #library(mice)
 
 # User interface ----
@@ -34,6 +35,7 @@ ui <- fluidPage(
              checkboxInput("pool_background", "pool ctrl intensities", value = FALSE),
              bsTooltip("pool_background", "Perform protein enrichment tests using control intensities from all conditions"),
              checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
+             bsTooltip("substract_ctrl", "The gene name of the bait protein"),
              numericInput("Nrep", "# NA replacement iterations", value = 3)
           ),
           wellPanel(
@@ -86,7 +88,7 @@ ui <- fluidPage(
                                          
                                        ),
                                        wellPanel(
-                                         h4("Samples mapping"),
+                                         h4("Map samples"),
                                          checkboxInput("manual_mapping", "manual mapping", value = FALSE),
                                          conditionalPanel(
                                            condition = "input.manual_mapping == false",
@@ -104,8 +106,13 @@ ui <- fluidPage(
                                          conditionalPanel(
                                            condition = "input.manual_mapping == true",
                                            fileInput("file_cond", h4("Import file :"), placeholder = "Enter file here"),
-                                           checkboxInput("dec_cond", "Use comma as decimal separator", value = FALSE),
-                                           checkboxInput("sample_by_rows", "Samples by rows", value = FALSE),
+                                           checkboxInput("sep_cond", "Use comma as separator", value = FALSE),
+                                           checkboxInput("transpose", "transpose", value = FALSE),
+                                           h4("Choose column for:"),
+                                           selectInput("column_name",
+                                                       "column name",
+                                                       choices = list(),
+                                                       selected = NULL),
                                            selectInput("manual_bckg",
                                                               "background",
                                                               choices = list(),
@@ -122,8 +129,10 @@ ui <- fluidPage(
                                                               "experimental conditions",
                                                               choices = list(),
                                                               selected = NULL)
-                                           
-                                         ),
+                                         )
+                                       ),
+                                       conditionalPanel(
+                                         condition = "input.manual_mapping == false",
                                          wellPanel(
                                            h4("Format column names"),
                                            textInput("format_function", "Function", value = "gsub"),
@@ -433,29 +442,39 @@ server <- function(input, output, session) {
   data_cond <- reactive({
     if(input$manual_mapping){
       df_cond <- read.table(input$file_cond$datapath, 
-                 sep="\t", 
+                 sep=ifelse(input$sep_cond, ",", "\t"), 
                  fill=TRUE, 
                  na.strings="",
-                 header=FALSE)
+                 header=TRUE)
       
-      if (input$sample_by_rows) {
-        df_cond <- transpose(df_cond)
+      if (input$transpose) {
+       
+        df_cond_int <- data.table::transpose(df_cond)
+        names(df_cond_int) <- df_cond[ , 1]
+        df_cond_int <- cbind(names(df_cond)[-1], df_cond_int[-1, ])
+        names(df_cond_int)[1] <- names(df_cond)[1]
+        df_cond <- df_cond_int
+        
       }
       
+      updateSelectInput(session, "column_name",
+                        choices = as.list(names(df_cond)),
+                        selected = NULL) 
+      
       updateSelectInput(session, "manual_bckg",
-                               choices = as.list(df_cond[ , 1]),
+                               choices = as.list(names(df_cond)),
                                selected = NULL) 
       
       updateSelectInput(session, "manual_bio",
-                               choices = as.list(df_cond[ , 1]),
+                               choices = as.list(names(df_cond)),
                                selected = NULL) 
       
       updateSelectInput(session, "manual_tech",
-                               choices = as.list(df_cond[ , 1]),
+                               choices = as.list(names(df_cond)),
                                selected = NULL) 
       
       updateSelectInput(session, "manual_time",
-                               choices = as.list(df_cond[ , 1]),
+                               choices = as.list(names(df_cond)),
                                selected = NULL)
       df_cond
     } else {
@@ -470,36 +489,43 @@ server <- function(input, output, session) {
     if(input$manual_mapping){
       
       df_cond <- data_cond()
-      
-      idx_cond <- grep(input$pattern, names(data()))
-      col_I <- names(data())[idx_cond]
-      
-      idx_match <- match(col_I, df_cond[1, ])
-      
-      bckg <- rep("", length(col_I))
-      bio <- rep("", length(col_I))
-      tech <- rep("", length(col_I))
-      time <- rep("", length(col_I))
-      
-      idx_bckg <- which(df_cond[, 1] == input$manual_bckg)
-      cat(idx_bckg)
-      if(length(idx_bckg)>0){
-        bckg <- factor(unlist(df_cond[idx_bckg, idx_match]))
-      }
-      idx_bio <- which(df_cond[, 1] == input$manual_bio)
-      if(length(idx_bio)>0){
-        bio <- factor(unlist(df_cond[idx_bio, idx_match]))
-      }
-      idx_tech <- which(df_cond[,1] == input$manual_tech)
-      if(length(idx_tech)>0){
-        tech <- factor(unlist(df_cond[idx_tech, idx_match]))
-      }
-      idx_time <- which(df_cond[,1] == input$manual_time)
-      if(length(idx_time)>0){
-        time <- factor(unlist(df_cond[idx_time, idx_match]))
-      } 
+      col_I <- df_cond[[input$column_name]]
+      bckg <- df_cond[[input$manual_bckg]]
+      time <- df_cond[[input$manual_time]]
+      bio <- df_cond[[input$manual_bio]]
+      tech <- df_cond[[input$manual_tech]]
       
       cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+      
+      # idx_cond <- grep(input$pattern, names(data()))
+      # col_I <- names(data())[idx_cond]
+      # 
+      # idx_match <- match(col_I, df_cond[1, ])
+      # 
+      # bckg <- rep("", length(col_I))
+      # bio <- rep("", length(col_I))
+      # tech <- rep("", length(col_I))
+      # time <- rep("", length(col_I))
+      # 
+      # idx_bckg <- which(df_cond[, 1] == input$manual_bckg)
+      # cat(idx_bckg)
+      # if(length(idx_bckg)>0){
+      #   bckg <- factor(unlist(df_cond[idx_bckg, idx_match]))
+      # }
+      # idx_bio <- which(df_cond[, 1] == input$manual_bio)
+      # if(length(idx_bio)>0){
+      #   bio <- factor(unlist(df_cond[idx_bio, idx_match]))
+      # }
+      # idx_tech <- which(df_cond[,1] == input$manual_tech)
+      # if(length(idx_tech)>0){
+      #   tech <- factor(unlist(df_cond[idx_tech, idx_match]))
+      # }
+      # idx_time <- which(df_cond[,1] == input$manual_time)
+      # if(length(idx_time)>0){
+      #   time <- factor(unlist(df_cond[idx_time, idx_match]))
+      # } 
+      # 
+      # cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
                       
     } else {
       # cond_int <- identify_conditions(data(),
