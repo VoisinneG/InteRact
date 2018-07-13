@@ -2455,9 +2455,12 @@ plot_volcanos <- function( res,
     
   plist <- vector("list",length(conditions));
   
-  ymax <- -log10(min(do.call(cbind,res$p_val)))
+  xval <- log10(do.call(cbind,res$fold_change))
+  yval <- -log10(do.call(cbind,res$p_val))
+                 
+  ymax <- max(yval[is.finite(yval)])
   if (asinh_transform) ymax <- asinh(ymax)
-  xmax <- max(abs(log10(do.call(cbind,res$fold_change))))
+  xmax <- max(abs(xval[is.finite(xval)]))
   
   x1 <- log10(fold_change_thresh)
   x2 <- xmax
