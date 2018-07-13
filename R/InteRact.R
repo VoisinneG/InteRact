@@ -1196,7 +1196,7 @@ identify_interactors <- function(res,
   for (i in 1:length(res$names)){
     
     M_test <- M[i, ]
-    n_success[i] <- sum( M_test )
+    n_success[i] <- sum( M_test, na.rm = TRUE )
     
     if (consecutive_success & n_success_min > 1){
       for (k in 1:(n_success_min-1)){
