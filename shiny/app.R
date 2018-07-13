@@ -31,21 +31,35 @@ ui <- fluidPage(
            wellPanel(
              h4("General parameters"),
              textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
-             bsTooltip("bait_gene_name", "The gene name of the bait protein"),
+             bsTooltip("bait_gene_name", 
+                       "The gene name of the bait protein"),
              checkboxInput("pool_background", "pool ctrl intensities", value = FALSE),
-             bsTooltip("pool_background", "Perform protein enrichment tests using control intensities from all conditions"),
+             bsTooltip("pool_background", 
+                       "Perform protein enrichment tests using control intensities from all conditions"),
              checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
-             bsTooltip("substract_ctrl", "The gene name of the bait protein"),
-             numericInput("Nrep", "# NA replacement iterations", value = 3)
+             bsTooltip("substract_ctrl", 
+                       "Substract protein intensity from ctrl background to compute interaction stoichiometry"),
+             numericInput("Nrep", "Missing values : # replacements : ", value = 3),
+             bsTooltip("Nrep", 
+                       "Number of times missing values will be replaced. Use 0 not to replace missing values")
           ),
           wellPanel(
              h4("Interaction parameters"),
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
+             bsTooltip("p_val_thresh", "Threshold on interaction p-value"),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
+             bsTooltip("fold_change_thresh", "Threshold on interaction fold-change"),
              numericInput("n_success_min", "n_success_min", value = 1),
+             bsTooltip("n_success_min", 
+                       "Minimum number of conditions for which both interaction p-value and fold-change must pass the defined thresholds"),
              checkboxInput("consecutive_success", "consecutive_success", value = FALSE),
+             bsTooltip("consecutive_success", 
+                       "Should the successful passing of thresholds happen for consecutive conditions?"),
              verbatimTextOutput("interactors"),
-             downloadButton("download_all", "Save analysis")
+             bsTooltip("interactors", 
+                       "Number of proteins that pass the detection criteria defined above"),
+             downloadButton("download_all", "Save report"),
+             bsTooltip("download_all", "Download a report of the analysis")
              #verbatimTextOutput("plotly_print")
           )
     ),
@@ -62,14 +76,19 @@ ui <- fluidPage(
                                        wellPanel(
                                          h4("Identify columns"),
                                          textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
+                                         bsTooltip("pattern", "Columns whose name contains this pattern will be identified as protein intensity columns. Regular expressions are supported."),
                                          selectInput("column_gene_name",
                                                      "column for gene name",
                                                      choices = list(),
                                                      selected = NULL),
+                                         bsTooltip("column_gene_name", 
+                                                   "Choose the column containing gene names. This is where the Bait (gene name) defined in the general parameters panel should be."),
                                          selectInput("column_ID",
                                                      "column for protein ID",
                                                      choices = list(),
-                                                     selected = NULL)
+                                                     selected = NULL),
+                                         bsTooltip("column_ID", 
+                                                   "Choose the column containing protein IDs (from uniprot). This information is used to retrieve additional information such as GO annotations.")
                                        )
                                 ),
                                 column(8,
@@ -82,22 +101,32 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         h4("Group by background"),
+                                         h4("Enter background"),
                                          textInput("bckg_bait", "Bait background", value = "Bait"),
-                                         textInput("bckg_ctrl", "Control background", value = "WT")
+                                         bsTooltip("bckg_bait", 
+                                                   "Enter the name of the bait background (as displayed in the table on the right)."),
+                                         textInput("bckg_ctrl", "Control background", value = "WT"),
+                                         bsTooltip("bckg_ctrl", 
+                                                   "Enter the name of the control background (as displayed in the table on the right).")
                                          
                                        ),
                                        wellPanel(
                                          h4("Map samples"),
                                          checkboxInput("manual_mapping", "manual mapping", value = FALSE),
+                                         bsTooltip("manual_mapping", "Option to import custom definition of samples"),
                                          conditionalPanel(
                                            condition = "input.manual_mapping == false",
                                            textInput("split", "split character", value = "_"),
+                                           bsTooltip("split", "split character used to divide column names in multiple substrings"),
                                            h4("Enter position of:"),
                                            numericInput("bckg_pos", "background", value = 1),
+                                           bsTooltip("bckg_pos", "Position, within column names, of the substrings containing the background name (id)"),
                                            numericInput("bio_pos", "biological replicates", value = 2),
+                                           bsTooltip("bio_pos", "Position, within column names, of the substrings containing the name (id) of the biological replicate"),
                                            numericInput("time_pos", "experimental conditions", value = 3),
-                                           numericInput("tech_pos", "technical replicates", value = 4)
+                                           bsTooltip("time_pos", "Position, within column names, of the substrings containing the name (id) of the experimental condition"),
+                                           numericInput("tech_pos", "technical replicates", value = 4),
+                                           bsTooltip("tech_pos", "Position, within column names, of the substrings containing the name (id) of the technical replicate")
                                            # textInput("preffix_bio", "biological replicates", value = "S"),
                                            # textInput("preffix_tech", "technical replicates", value = "R"),
                                            # textInput("preffix_time", "experimental conditions", value = "")
@@ -108,36 +137,48 @@ ui <- fluidPage(
                                            fileInput("file_cond", h4("Import file :"), placeholder = "Enter file here"),
                                            checkboxInput("sep_cond", "Use comma as separator", value = FALSE),
                                            checkboxInput("transpose", "transpose", value = FALSE),
+                                           bsTooltip("transpose", "Invert rows/columns. Rows should correspond to protein intensity column names (corresponding to those shown in the import tab)"),
                                            h4("Choose column for:"),
                                            selectInput("column_name",
                                                        "column name",
                                                        choices = list(),
                                                        selected = NULL),
+                                           bsTooltip("column_name", "Choose column containing protein intensity column names (corresponding to those shown in the import tab)"),
                                            selectInput("manual_bckg",
                                                               "background",
                                                               choices = list(),
                                                               selected = NULL),
+                                           bsTooltip("manual_bckg", "Choose column containing the background name (id) for each sample"),
                                            selectInput("manual_bio",
                                                               "biological replicates",
                                                               choices = list(),
                                                               selected = NULL),
+                                           bsTooltip("manual_bio", "Choose column containing the name (id) of the biological replicate for each sample"),
                                            selectInput("manual_tech",
                                                               "technical replicates",
                                                               choices = list(),
                                                               selected = NULL),
+                                           bsTooltip("manual_tech", "Choose column containing the name (id) of the technical replicate for each sample"),
                                            selectInput("manual_time",
                                                               "experimental conditions",
                                                               choices = list(),
-                                                              selected = NULL)
+                                                              selected = NULL),
+                                           bsTooltip("manual_time", "Choose column containing the name (id) of the experimental condition for each sample")
                                          )
                                        ),
                                        conditionalPanel(
                                          condition = "input.manual_mapping == false",
                                          wellPanel(
                                            h4("Format column names"),
-                                           textInput("format_function", "Function", value = "gsub"),
-                                           textInput("format_pattern", "Pattern", value = "."),
-                                           textInput("format_replacement", "Replacement", value = "_"),
+                                           selectInput("format_function",
+                                                       "Function",
+                                                       choices = c("gsub", "sub"),
+                                                       selected = "gsub"),
+                                           bsTooltip("format_function", "Name of the function used to modify column names. The function gsub replaces all occurences of pattern by replacement while the function sub replaces only the first occurence."),
+                                           textInput("format_pattern", "pattern", value = "."),
+                                           bsTooltip("format_pattern", "pattern to be replaced in column names"),
+                                           textInput("format_replacement", "replacement", value = "_"),
+                                           bsTooltip("format_replacement", "character string replacing pattern"),
                                            actionButton("format_names","Format column names")
                                          )
                                          
@@ -194,9 +235,8 @@ ui <- fluidPage(
                                          helpText("Click to select protein"),
                                          helpText("Brush and double-click to zoom")
                                        ),
+                                       verbatimTextOutput("info_volcano_hover")
                                        
-                                       br(),
-                                       plotOutput("compPlot_volcano",width="200",height="200")
                                        
                                 ),
                                 column(8,
@@ -213,7 +253,8 @@ ui <- fluidPage(
                                                   brush = brushOpts(
                                                   id = "volcano_brush",
                                                   resetOnNew = TRUE) ),
-                                       verbatimTextOutput("info_volcano_hover")
+                                       br(),
+                                       plotOutput("compPlot_volcano",width="450",height="225")
                                 )
                        ),
                        tabPanel("Dot Plot",
@@ -225,13 +266,10 @@ ui <- fluidPage(
                                        ),
                                        wellPanel(
                                          helpText("Hover mouse over point to display extra info"),
-                                         helpText("Click to select protein"),
                                          helpText("Brush and double-click to zoom")
                                        ),
-                                       br(),
-                                       plotOutput("stoichioPlot",width="200",height="200"),
-                                       br(),
-                                       plotOutput("compPlot",width="200",height="200")
+                                       verbatimTextOutput("info_dotPlot_hover"),
+                                       plotOutput("stoichioPlot",width="200",height="200")
                                 ),
                                 column(8,
                                        br(),
@@ -244,8 +282,9 @@ ui <- fluidPage(
                                                   brush = brushOpts(
                                                     id = "dotPlot_brush",
                                                     resetOnNew = TRUE) ),
-                                       br(),
-                                       verbatimTextOutput("info_dotPlot_hover")
+                                       plotOutput("compPlot",width="450",height="225")
+
+                                       
                                 )
                        ),
                        tabPanel("2D Stoichio",
@@ -984,7 +1023,7 @@ server <- function(input, output, session) {
     
     plot_comparison(ordered_Interactome(), 
                     name = ordered_Interactome()$names[ idx_order$cluster[select_dotPlot$i_prot]],
-                    condition = ordered_Interactome()$conditions[select_dotPlot$i_cond])
+                    condition = ordered_Interactome()$conditions)
   })
   
   observe({
@@ -1027,7 +1066,7 @@ server <- function(input, output, session) {
     
     plot_comparison(ordered_Interactome(), 
                     name = ordered_Interactome()$names[select_volcanoPlot$i_min],
-                    condition = input$volcano_cond)
+                    condition = ordered_Interactome()$conditions)
   })
   
   QCPlot <- reactive({
@@ -1165,27 +1204,11 @@ server <- function(input, output, session) {
   })
   
   output$info_volcano_hover <- renderPrint({
-    if(!is.null(input$volcano_hover)){
-      hover=input$volcano_hover
-      
-      dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
-                  (hover$y+log10(ordered_Interactome()$p_val[[input$volcano_cond]]) )^2)
-      
-      if(input$asinh_transform) {
-        dist1=sqrt((hover$x-log10(ordered_Interactome()$fold_change[[input$volcano_cond]]) )^2 +
-                     (hover$y+asinh(log10(ordered_Interactome()$p_val[[input$volcano_cond]])) )^2)
-      }
-      
-      min_dist1 <- min(dist1, na.rm=TRUE)
-      i_min <- which.min(dist1)
-      if( min_dist1 < 0.25){
-        s1<-paste("name: ", ordered_Interactome()$names[ i_min ],sep="")
-        s2<-paste("p_val: ", ordered_Interactome()$p_val[[input$volcano_cond]][ i_min ],sep="")
-        s3<-paste("fold_change: ", ordered_Interactome()$fold_change[[input$volcano_cond]][ i_min ],sep="")
-        s4<-paste("stoichio: ", ordered_Interactome()$stoichio[[input$volcano_cond]][ i_min ],sep="")
-        cat(s1,s2,s3,s4,sep="\n")
-      }
-    }
+    s1<-paste("name: ", ordered_Interactome()$names[ select_volcanoPlot$i_min ],sep="")
+    s2<-paste("p_val: ", ordered_Interactome()$p_val[[input$volcano_cond]][ select_volcanoPlot$i_min ],sep="")
+    s3<-paste("fold_change: ", ordered_Interactome()$fold_change[[input$volcano_cond]][ select_volcanoPlot$i_min ],sep="")
+    s4<-paste("stoichio: ", ordered_Interactome()$stoichio[[input$volcano_cond]][ select_volcanoPlot$i_min ],sep="")
+    cat(s1,s2,s3,s4,sep="\n")
   })
 
   output$info_Stoichio2D_zoom_hover <- renderPrint({
