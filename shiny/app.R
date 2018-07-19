@@ -1,7 +1,3 @@
-options(repos = BiocInstaller::biocinstallRepos())
-#getOption("repos")
-options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
-
 # Load packages ----
 
 library(shiny)
@@ -9,17 +5,24 @@ library(shinyBS)
 
 library("InteRact")
 
-
 #source("../R/InteRact.R")
 #library(ggplot2)
 #library(ggrepel)
 #library(ggsignif)
 #library(grid)
+#library(mice)
+
 library(Hmisc)
 library(igraph)
 library(networkD3)
 library(data.table)
-#library(mice)
+library(BiocInstaller)
+
+`%then%` <- shiny:::`%OR%`
+
+options(repos = BiocInstaller::biocinstallRepos())
+#getOption("repos")
+options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
 
 # User interface ----
 ui <- fluidPage(
@@ -39,9 +42,9 @@ ui <- fluidPage(
              checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
              bsTooltip("substract_ctrl", 
                        "Substract protein intensity from ctrl background to compute interaction stoichiometry"),
-             numericInput("Nrep", "Missing values : # replacements : ", value = 3),
+             numericInput("Nrep", "Missing values : # replacements : ", value = 1),
              bsTooltip("Nrep", 
-                       "Number of times missing values will be replaced. Use 0 not to replace missing values")
+                       "Number of times missing values will be replaced. Use 0 if you do not want to replace missing values")
           ),
           wellPanel(
              h4("Interaction parameters"),
@@ -75,8 +78,6 @@ ui <- fluidPage(
                                        ),
                                        wellPanel(
                                          h4("Identify columns"),
-                                         textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
-                                         bsTooltip("pattern", "Columns whose name contains this pattern will be identified as protein intensity columns. Regular expressions are supported."),
                                          selectInput("column_gene_name",
                                                      "column for gene name",
                                                      choices = list(),
@@ -116,6 +117,8 @@ ui <- fluidPage(
                                          bsTooltip("manual_mapping", "Option to import custom definition of samples"),
                                          conditionalPanel(
                                            condition = "input.manual_mapping == false",
+                                           textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
+                                           bsTooltip("pattern", "Columns whose name contains this pattern will be identified as protein intensity columns. Regular expressions are supported."),
                                            textInput("split", "split character", value = "_"),
                                            bsTooltip("split", "split character used to divide column names in multiple substrings"),
                                            h4("Enter position of:"),
@@ -443,6 +446,10 @@ server <- function(input, output, session) {
   
   data_raw <- reactive({
     
+    validate(
+      need(input$file$datapath, "Please select a file to import")
+    )
+    
     df <- read.csv(input$file$datapath, 
              sep="\t", fill=TRUE, 
              na.strings="", 
@@ -460,26 +467,22 @@ server <- function(input, output, session) {
                       selected = id_selected) 
     
     saved_df$data <- df
-    cat("OK\n")
-    #cat(names(saved_df$data))
+    
     df
     
   })
   
   data <- reactive({
     saved_df$data
-    # df <- data_raw()
-    # if(input$format_names){
-    #   names(df) <-  do.call(input$format_function, 
-    #                         list(x=names(df), pattern = input$format_pattern, replacement = input$format_replacement, fixed=TRUE)
-    #   ) 
-    # }
-    # 
-    # df
   })
   
   data_cond <- reactive({
     if(input$manual_mapping){
+      
+      validate(
+        need(input$file_cond$datapath, "Please select a file to import")
+      )
+      
       df_cond <- read.table(input$file_cond$datapath, 
                  sep=ifelse(input$sep_cond, ",", "\t"), 
                  fill=TRUE, 
@@ -535,46 +538,22 @@ server <- function(input, output, session) {
       tech <- df_cond[[input$manual_tech]]
       
       cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
-      
-      # idx_cond <- grep(input$pattern, names(data()))
-      # col_I <- names(data())[idx_cond]
-      # 
-      # idx_match <- match(col_I, df_cond[1, ])
-      # 
-      # bckg <- rep("", length(col_I))
-      # bio <- rep("", length(col_I))
-      # tech <- rep("", length(col_I))
-      # time <- rep("", length(col_I))
-      # 
-      # idx_bckg <- which(df_cond[, 1] == input$manual_bckg)
-      # cat(idx_bckg)
-      # if(length(idx_bckg)>0){
-      #   bckg <- factor(unlist(df_cond[idx_bckg, idx_match]))
-      # }
-      # idx_bio <- which(df_cond[, 1] == input$manual_bio)
-      # if(length(idx_bio)>0){
-      #   bio <- factor(unlist(df_cond[idx_bio, idx_match]))
-      # }
-      # idx_tech <- which(df_cond[,1] == input$manual_tech)
-      # if(length(idx_tech)>0){
-      #   tech <- factor(unlist(df_cond[idx_tech, idx_match]))
-      # }
-      # idx_time <- which(df_cond[,1] == input$manual_time)
-      # if(length(idx_time)>0){
-      #   time <- factor(unlist(df_cond[idx_time, idx_match]))
-      # } 
-      # 
-      # cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+
                       
     } else {
-      # cond_int <- identify_conditions(data(),
-      #                               Column_intensity_pattern = input$pattern,
-      #                               bckg_bait = input$bckg_bait,
-      #                               bckg_ctrl = input$bckg_ctrl,
-      #                               preffix_time = input$preffix_time,
-      #                               preffix_bio = input$preffix_bio, 
-      #                               preffix_tech = input$preffix_tech,
-      #                               split = input$split)
+      
+      match_pattern <- grep(input$pattern, names(data()))
+      n_factor_col <- 0
+      if(length(match_pattern) > 0){
+        n_factor_col <- sum( sapply( match_pattern, function(x) is.factor(data()[[x]]) ) )
+      }
+      
+      validate(
+        need(match_pattern>0, "Pattern could not be found in column names. Please enter another pattern for intensity columns") %then%
+          need(n_factor_col == 0,
+               "Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data"
+          )
+      )
       
       cond_int <- identify_conditions(data(),
                                       Column_intensity_pattern = input$pattern,
@@ -603,6 +582,34 @@ server <- function(input, output, session) {
   })
   
   prep_data <- reactive({
+    
+    ibait <- which(data()[[input$column_gene_name]] == input$bait_gene_name);
+    check_two_bckg <- length(unique(cond()$bckg))>1
+    
+    check_two_bckg_per_cond <- sum(sapply(unique(cond()$time),
+                                         function(x) { 
+                                           input$bckg_bait %in% cond()$bckg[cond()$time==x] & 
+                                             input$bckg_ctrl %in% cond()$bckg[cond()$time==x] 
+                                         }
+                                  )
+                               ) == length(unique(cond()$time))
+            
+    
+    check_two_bio_rep <- length(unique(cond()$bio))>1
+    found_bait_bckg <- input$bckg_bait %in% cond()$bckg
+    found_ctrl_bckg <- input$bckg_ctrl %in% cond()$bckg
+    validate(
+      need(check_two_bckg, "Could not identify distinct backgrounds. Please verify the mapping of samples"),
+      need(check_two_bio_rep, "Could not identify distinct biological replicates. Please verify the mapping of samples") %then%
+      need(found_bait_bckg, paste("Could not find", input$bckg_bait ," in possible backgrounds. Please change the background name the Group tab")) %then%
+      need(found_ctrl_bckg, paste("Could not find", input$bckg_ctrl ," in possible backgrounds. Please change the background name the Group tab")) %then%
+      need(check_two_bckg_per_cond, "Could not identify bait and ctrl backgrounds for each experimental condition. Please verify the mapping of samples") %then%
+      need(input$column_ID, "Please select the column containing protein IDs in the Import tab") %then%
+      need(input$column_gene_name, "Please select the column containing gene names in the Import tab") %then%
+      need(!input$bait_gene_name %in% c("", "Bait"), "Please enter the gene name of the bait (in General Parameters)") %then%
+      need(length(ibait)>0,
+           paste("Could not find bait '", input$bait_gene_name,"' in column '",input$column_gene_name,"'", sep=""))
+    )
     
     updateSelectInput(session, "volcano_cond",
                       choices = as.list(setdiff(unique(cond()$time), input$filter_time) ),
