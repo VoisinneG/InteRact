@@ -204,9 +204,7 @@ preprocess_data <- function(df,
   
   df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
   
-  T_int <- df[ ,idx_col];
-  row.names(T_int) <- df$gene_name
-  col_I <- colnames(T_int)
+  
   
   ibait <- which(df$gene_name == bait_gene_name);
   if(length(ibait)==0){
@@ -222,17 +220,17 @@ preprocess_data <- function(df,
                                 ...)
     
     
-  } else if( length(setdiff(c("bckg", "bio", "time", "tech"), names(condition))) > 0 | dim(condition)[1] != length(col_I)) {
+  } else if( length(setdiff(c("column", "bckg", "bio", "time", "tech"), names(condition))) > 0 ) {
     stop("incorrect dimensions for data.frame condition")
   } else {
-    cond <- dplyr::tibble(idx = seq_along(col_I), 
-                          column = col_I, 
+    cond <- dplyr::tibble(column = condition$column, 
                           bckg = condition$bckg, 
                           bio = condition$bio, 
                           time = condition$time,
                           tech = condition$tech)
   }
   
+
   
   # filter out some experimental conditions
   
@@ -253,7 +251,8 @@ preprocess_data <- function(df,
   
   
   #Normalize on median intensity across conditions
-  
+  T_int <- df[ ,match(condition$column, names(df))];
+  row.names(T_int) <- df$gene_name
   T_int[T_int==0] <- NA;
   T_int_norm <- rescale_median(T_int);
   
@@ -343,7 +342,7 @@ identify_conditions <- function(df,
     time <- unlist(lapply(s, function(x){x[time_pos]}))
   }
   
-  cond <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+  cond <- dplyr::tibble(column=col_I, bckg, time, bio, tech)
 
 }
 
@@ -366,8 +365,9 @@ identify_conditions <- function(df,
 #  avg <- average_technical_replicates(df_int, cond)
 average_technical_replicates<-function(df, cond, log = TRUE){
   
+  cond$idx_match <- match(cond$column, names(df))
   cond_group <- dplyr::group_by(cond, bckg, time, bio)
-  idx_cond <-  dplyr::summarize(cond_group, idx_all=list(idx))
+  idx_cond <-  dplyr::summarize(cond_group, idx_all=list(idx_match))
   
   cond_name <- vector("character", dim(idx_cond)[1])
   df_mean = data.frame( matrix( NA, nrow = dim(df)[1], ncol=dim(idx_cond)[1] ) );
