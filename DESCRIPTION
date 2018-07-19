@@ -10,7 +10,6 @@ Imports:
 	ggplot2, 
 	ggrepel,
 	stringr,
-	mice,
 	Hmisc,
 	igraph,
 	networkD3,
