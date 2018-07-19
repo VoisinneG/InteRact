@@ -190,27 +190,7 @@ preprocess_data <- function(df,
   if(! Column_gene_name %in% names(df)){
     stop(paste("Column ", Column_gene_name, " could not be found", sep=""))
   }
-  
-  df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
-  
-  df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
-  
-  df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
-  
-  idx_col<-grep(Column_intensity_pattern, colnames(df))
-  if(length(idx_col)==0){
-    stop("Couldn't find pattern in column names")
-  }
-  
-  df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
-  
-  
-  
-  ibait <- which(df$gene_name == bait_gene_name);
-  if(length(ibait)==0){
-    stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
-  }
-  
+
   # Identify conditions corresponding to intensity columns
   
   if( is.null(condition) ){
@@ -223,9 +203,9 @@ preprocess_data <- function(df,
   } else if( length(setdiff(c("column", "bckg", "bio", "time", "tech"), names(condition))) > 0 ) {
     stop("incorrect dimensions for data.frame condition")
   } else {
-    cond <- dplyr::tibble(column = condition$column, 
-                          bckg = condition$bckg, 
-                          bio = condition$bio, 
+    cond <- dplyr::tibble(column = condition$column,
+                          bckg = condition$bckg,
+                          bio = condition$bio,
                           time = condition$time,
                           tech = condition$tech)
   }
@@ -240,18 +220,30 @@ preprocess_data <- function(df,
                    unlist( lapply(filter_tech, function(x) l=which(cond$tech==x) ) ) )
   
   if(!is.null(idx_filter) && length(idx_filter)>0 ){
-    
     cat("Filter following intensity columns :\n")
     cat(idx_filter)
     cat("\n")
-    
     cond_filter <- cond[-idx_filter,] 
-    
   }
   
   
+  #Merge protein groups with the same gene name
+  
+  df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
+  
+  df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
+  
+  df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
+  df <- merge_duplicate_groups(df, idx_col = match(cond_filter$column, names(df)), merge_column = "gene_name")
+  
+  ibait <- which(df$gene_name == bait_gene_name);
+  if(length(ibait)==0){
+    stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
+  }
+  
+
   #Normalize on median intensity across conditions
-  T_int <- df[ ,match(condition$column, names(df))];
+  T_int <- df[ , match(cond_filter$column, names(df))];
   row.names(T_int) <- df$gene_name
   T_int[T_int==0] <- NA;
   T_int_norm <- rescale_median(T_int);
