@@ -8,7 +8,11 @@ plot_correlation_network(res, idx = NULL, df_corr = NULL,
   r_corr_thresh = 0.8, p_val_thresh = 0.05)
 }
 \arguments{
-\item{df_corr}{a data.frame with columns 'r_corr' and 'p_corr'}
+\item{res}{an \code{InteRactome}}
+
+\item{idx}{indexes of the set of proteins in \code{res} for which correlations will be computed}
+
+\item{df_corr}{a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res} and \code{idx}.}
 
 \item{r_corr_thresh}{threshold for variable 'r_corr' (min)}
 

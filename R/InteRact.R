@@ -2206,6 +2206,7 @@ compute_correlations <- function(res, idx = NULL){
     }
   }
   df_corr <- data.frame( name_1 = name_1, name_2 = name_2, r_corr = r_corr, p_corr = p_corr)
+  df_corr <- df_corr[!is.na(df_corr$r_corr), ]
   
   return(df_corr)
 }
@@ -3001,7 +3002,9 @@ plot_QC <- function(prep_data){
 }
 
 #' Plot an interactive correlation network with communities highlighted
-#' @param df_corr a data.frame with columns 'r_corr' and 'p_corr'
+#' @param res an \code{InteRactome}
+#' @param idx indexes of the set of proteins in \code{res} for which correlations will be computed
+#' @param df_corr a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res} and \code{idx}.
 #' @param r_corr_thresh threshold for variable 'r_corr' (min)
 #' @param p_val_thresh threshold for ariable 'p_corr' (max)
 #' @return an interactive networkD3 plot
