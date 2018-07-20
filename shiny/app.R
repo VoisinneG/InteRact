@@ -15,6 +15,7 @@ library("InteRact")
 # library(igraph)
 # library(networkD3)
 
+library(networkD3)
 library(data.table)
 library(BiocInstaller)
 
