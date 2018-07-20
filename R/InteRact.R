@@ -214,10 +214,11 @@ preprocess_data <- function(df,
   
   # filter out some experimental conditions
   
-  cond_filter <- cond
-  idx_filter <- c( unlist( lapply(filter_time, function(x) l=which(cond$time==x) ) ) , 
-                   unlist( lapply(filter_bio, function(x) l=which(cond$bio==x) ) ),
-                   unlist( lapply(filter_tech, function(x) l=which(cond$tech==x) ) ) )
+  cond_filter <- cond[!is.na(cond$time), ]
+  
+  idx_filter <- c( unlist( lapply(filter_time, function(x) l=which(cond_filter$time==x) ) ) , 
+                   unlist( lapply(filter_bio, function(x) l=which(cond_filter$bio==x) ) ),
+                   unlist( lapply(filter_tech, function(x) l=which(cond_filter$tech==x) ) ) )
   
   if(!is.null(idx_filter) && length(idx_filter)>0 ){
     cat("Filter following intensity columns :\n")
@@ -241,11 +242,19 @@ preprocess_data <- function(df,
     stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
   }
   
-
-  #Normalize on median intensity across conditions
+  #Select intensity columns corresponding to selected conditions
   T_int <- df[ , match(cond_filter$column, names(df))];
-  row.names(T_int) <- df$gene_name
   T_int[T_int==0] <- NA;
+  
+  #Discard proteins with NA values for all conditions
+  idx_all_na <- which( rowSums(!is.na(T_int)) == 0 )
+  if(length(idx_all_na)>0){
+    T_int <- T_int[-idx_all_na, ]
+    df <- df[-idx_all_na, ]
+  }
+  row.names(T_int) <- df$gene_name
+  
+  #Normalize on median intensity across conditions
   T_int_norm <- rescale_median(T_int);
   
   cat("Rescale median intensity across conditions\n")
@@ -2755,7 +2764,7 @@ dot_plot <- function(Dot_Size,
 plot_stoichio <- function(res, 
                          name,
                          conditions = res$conditions,
-                         ref_condition = res$conditions[1], 
+                         ref_condition = conditions[1], 
                          test="t.test", 
                          test.args = list("paired"=TRUE),
                          map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
@@ -2999,7 +3008,18 @@ plot_QC <- function(prep_data){
 #' @import igraph
 #' @import networkD3
 #' @export
-plot_correlation_network <- function(df_corr, r_corr_thresh = 0.8, p_val_thresh = 0.05){
+plot_correlation_network <- function(res, idx = NULL, df_corr = NULL, r_corr_thresh = 0.8, p_val_thresh = 0.05){
+  
+  if(is.null(df_corr)){
+    if(is.null(idx)){
+      if("interactor" %in% names(res)){
+        idx <- which(res$is_interactor > 0)
+      }else{
+        idx <- 1:length(res$names)
+      }
+    }
+    df_corr <- compute_correlations(res = res, idx = idx)
+  }
   
   df_corr_filtered <- df_corr[df_corr$r_corr>=r_corr_thresh & df_corr$p_corr<=p_val_thresh, ]
   

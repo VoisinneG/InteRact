@@ -4,7 +4,8 @@
 \alias{plot_correlation_network}
 \title{Plot an interactive correlation network with communities highlighted}
 \usage{
-plot_correlation_network(df_corr, r_corr_thresh = 0.8, p_val_thresh = 0.05)
+plot_correlation_network(res, idx = NULL, df_corr = NULL,
+  r_corr_thresh = 0.8, p_val_thresh = 0.05)
 }
 \arguments{
 \item{df_corr}{a data.frame with columns 'r_corr' and 'p_corr'}
