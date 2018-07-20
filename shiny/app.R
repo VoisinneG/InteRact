@@ -6,15 +6,15 @@ library(shinyBS)
 library("InteRact")
 
 #source("../R/InteRact.R")
-#library(ggplot2)
-#library(ggrepel)
-#library(ggsignif)
-#library(grid)
-#library(mice)
+# library(ggplot2)
+# library(ggrepel)
+# library(ggsignif)
+# library(grid)
+# library(mice)
+# library(Hmisc)
+# library(igraph)
+# library(networkD3)
 
-library(Hmisc)
-library(igraph)
-library(networkD3)
 library(data.table)
 library(BiocInstaller)
 
@@ -103,10 +103,11 @@ ui <- fluidPage(
                                        br(),
                                        wellPanel(
                                          h4("Enter background"),
-                                         textInput("bckg_bait", "Bait background", value = "Bait"),
+                                         selectInput("bckg_bait", "Bait background", choices = list(), selected = NULL ),
                                          bsTooltip("bckg_bait", 
                                                    "Enter the name of the bait background (as displayed in the table on the right)."),
-                                         textInput("bckg_ctrl", "Control background", value = "WT"),
+                                         selectInput("bckg_ctrl", "Control background", choices = list(), selected = NULL ),
+                                         #textInput("bckg_ctrl", "Control background", value = "WT"),
                                          bsTooltip("bckg_ctrl", 
                                                    "Enter the name of the control background (as displayed in the table on the right).")
                                          
@@ -192,24 +193,27 @@ ui <- fluidPage(
                                        dataTableOutput("condTable")
                                 )
                        ),
-                       tabPanel("QC / Filter",
+                       tabPanel("QC / Select",
                                 column(4,
                                     br(),
                                     wellPanel(
-                                        helpText("check boxes to filter out samples"),
-                                        checkboxGroupInput("filter_bio",
-                                                           "Biological replicates (bio)",
-                                                           choices = list(),
-                                                           selected = NULL),
-                                        checkboxGroupInput("filter_tech",
-                                                           "Technical replicates (tech)",
-                                                           choices = list(),
-                                                           selected = NULL),
-                                        checkboxGroupInput("filter_time",
-                                                           "Experimental conditions (time)",
-                                                           choices = list(),
-                                                           selected = NULL)
-
+                                        helpText("Select samples"),
+                                        # checkboxGroupInput("filter_bio",
+                                        #                    "Biological replicates (bio)",
+                                        #                    choices = list(),
+                                        #                    selected = NULL),
+                                        # checkboxGroupInput("filter_tech",
+                                        #                    "Technical replicates (tech)",
+                                        #                    choices = list(),
+                                        #                    selected = NULL),
+                                        # checkboxGroupInput("filter_time",
+                                        #                    "Experimental conditions (time)",
+                                        #                    choices = list(),
+                                        #                    selected = NULL),
+                                        selectizeInput("bio_selected", "Select biological replicates", choices = list(), multiple = TRUE),
+                                        selectizeInput("tech_selected", "Select technical replicates", choices = list(), multiple = TRUE),
+                                        selectizeInput("time_selected", "Select experimental conditions (in order)", choices = list(), multiple = TRUE),
+                                        actionButton("apply_filter", label = "Apply")
                                     )
                                 ),
                                 column(8,
@@ -235,7 +239,6 @@ ui <- fluidPage(
                                        ),
                                        wellPanel(
                                          helpText("Hover mouse over point to display extra info"),
-                                         helpText("Click to select protein"),
                                          helpText("Brush and double-click to zoom")
                                        ),
                                        verbatimTextOutput("info_volcano_hover")
@@ -268,8 +271,9 @@ ui <- fluidPage(
                                          checkboxInput("clustering", "Hierarchical clustering", value = FALSE)
                                        ),
                                        wellPanel(
-                                         helpText("Hover mouse over point to display extra info"),
-                                         helpText("Brush and double-click to zoom")
+                                         helpText("Brush and double-click to zoom"),
+                                         helpText("Hover mouse over point to display extra info or select protein below"),
+                                         selectizeInput("name_focus", "Select protein", choices = list(), multiple = FALSE)
                                        ),
                                        verbatimTextOutput("info_dotPlot_hover"),
                                        plotOutput("stoichioPlot",width="200",height="200")
@@ -427,7 +431,7 @@ server <- function(input, output, session) {
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
 
-  saved_df <- reactiveValues(data = NULL, annot = NULL, enrichment = NULL)
+  saved_df <- reactiveValues(cond = NULL, data = NULL, annot = NULL, enrichment = NULL)
  
   annotation<- reactiveValues(selected = NULL, 
                               loaded = NULL, 
@@ -518,8 +522,10 @@ server <- function(input, output, session) {
       updateSelectInput(session, "manual_time",
                                choices = as.list(names(df_cond)),
                                selected = NULL)
+      
       df_cond
     } else {
+
       cond()
     }
     
@@ -562,44 +568,139 @@ server <- function(input, output, session) {
                                       time_pos = input$time_pos, 
                                       tech_pos = input$tech_pos,
                                       split = input$split)
+      
     }
     
     
+    # updateCheckboxGroupInput(session, "bio_selected",
+    #                          choices = as.list(unique(cond_int$bio)),
+    #                          selected = as.list(unique(cond_int$bio))) 
+    
+    # updateCheckboxGroupInput(session, "filter_bio",
+    #                          choices = as.list(unique(cond_int$bio)),
+    #                          selected = NULL) 
     
     
-    updateCheckboxGroupInput(session, "filter_bio",
-                             choices = as.list(unique(cond_int$bio)),
-                             selected = NULL) 
+                             
+    # updateCheckboxGroupInput(session, "filter_bio",
+    #                          choices = as.list(unique(cond_int$bio)),
+    #                          selected = NULL) 
+    # 
+    # updateCheckboxGroupInput(session, "filter_tech",
+    #                          choices = as.list(unique(cond_int$tech)),
+    #                          selected = NULL) 
     
-    updateCheckboxGroupInput(session, "filter_tech",
-                             choices = as.list(unique(cond_int$tech)),
-                             selected = NULL) 
+    # updateCheckboxGroupInput(session, "filter_time",
+    #                          choices = as.list(unique(cond_int$time)),
+    #                          selected = NULL)
     
-    updateCheckboxGroupInput(session, "filter_time",
-                             choices = as.list(unique(cond_int$time)),
-                             selected = NULL)
+    
+    #saved_df$cond <- cond_int
+    
     cond_int
+    
   })
+  
+  observe({
+    idx_ctrl_guess <- grep("WT", toupper(unique(cond()$bckg)))
+    if(length(idx_ctrl_guess) > 0){
+      ctrl_guess <- unique(cond()$bckg)[idx_ctrl_guess[1]]     
+    }else{
+      ctrl_guess <- unique(cond()$bckg)[1]
+    }
+    bait_guess <- setdiff(unique(cond()$bckg), ctrl_guess)[1]
+    
+    updateSelectInput(session, "bckg_bait",
+                      choices = as.list(unique(cond()$bckg)),
+                      selected = bait_guess)
+    
+    updateSelectInput(session, "bckg_ctrl",
+                      choices = as.list(unique(cond()$bckg)),
+                      selected = ctrl_guess)
+    
+    updateTextInput(session, "bait_gene_name", value = bait_guess)
+    
+  })
+  observe({
+    # updateSelectInput(session, "time_selected",
+    #                   choices = as.list(unique(cond()$time[cond()$bio %in% input$bio_selected])),
+    #                   selected = as.list(unique(cond()$time[cond()$bio %in% input$bio_selected])))
+    
+     updateSelectInput(session, "time_selected",
+                       choices = as.list(unique(cond()$time)),
+                       selected = as.list(unique(cond()$time)))
+    
+  })
+  
+  observe({
+    updateSelectInput(session, "tech_selected",
+                             choices = as.list(unique(cond()$tech)),
+                             selected = as.list(unique(cond()$tech))) 
+  })
+  
+  observe({
+    updateSelectInput(session, "bio_selected",
+                             choices = as.list(unique(cond()$bio)),
+                             selected = as.list(unique(cond()$bio))) 
+  })
+  
+  observe({
+    updateSelectInput(session, "name_focus", choices = ordered_Interactome()$names, selected = NULL)
+  })
+  
+  observeEvent(input$apply_filter,{
+    cond_int <- cond()
+    cond_int$time <- factor(cond_int$time, levels=input$time_selected)
+    cond_int$bio <- factor(cond_int$bio, levels=input$bio_selected)
+    cond_int$tech <- factor(cond_int$tech, levels=input$tech_selected)
+    idx_cond_selected <- which(rowSums(is.na(cond_int)) == 0)
+    cat(rowSums(is.na(cond_int)))
+    cat(idx_cond_selected)
+    cond_int <- cond_int[idx_cond_selected, ]
+    saved_df$cond <- cond_int
+  })
+  
+  # cond_filter <- reactive({
+  #   if(input$apply_filter){
+  #     cond_int <- cond()
+  #     cond_int$time <- factor(cond_int$time, levels=input$time_selected)
+  #     cond_int$bio <- factor(cond_int$bio, levels=input$bio_selected)
+  #     cond_int$tech <- factor(cond_int$tech, levels=input$tech_selected)
+  #     idx_cond_selected <- which(rowSums(is.na(cond_int)) == 0)
+  #     cat(rowSums(is.na(cond_int)))
+  #     cat(idx_cond_selected)
+  #     cond_int <- cond_int[idx_cond_selected, ]
+  #     saved_df$cond <- cond_int
+  #     cond_int
+  #   } else{
+  #     cond()
+  #   }
+  #   
+  #   
+  # })
   
   prep_data <- reactive({
     
     ibait <- which(data()[[input$column_gene_name]] == input$bait_gene_name);
     check_two_bckg <- length(unique(cond()$bckg))>1
     
-    check_two_bckg_per_cond <- sum(sapply(unique(cond()$time),
+    bio_sel <- setdiff(unique(cond()$bio), input$filter_bio)
+    check_two_bckg_per_cond <- sum(sapply(unique(cond()$time[cond()$bio %in% bio_sel]),
                                          function(x) { 
                                            input$bckg_bait %in% cond()$bckg[cond()$time==x] & 
                                              input$bckg_ctrl %in% cond()$bckg[cond()$time==x] 
                                          }
                                   )
-                               ) == length(unique(cond()$time))
+                               ) == length(unique(cond()$time[cond()$bio %in% bio_sel]))
             
     
     check_two_bio_rep <- length(unique(cond()$bio))>1
     found_bait_bckg <- input$bckg_bait %in% cond()$bckg
     found_ctrl_bckg <- input$bckg_ctrl %in% cond()$bckg
+    
     validate(
-      need(check_two_bckg, "Could not identify distinct backgrounds. Please verify the mapping of samples"),
+      need(dim(saved_df$cond)[1]>0, "Please validate your sample selection in the QC / Select tab") %then%
+      need(check_two_bckg, "Could not identify distinct backgrounds. Please verify the mapping of samples") %then%
       need(check_two_bio_rep, "Could not identify distinct biological replicates. Please verify the mapping of samples") %then%
       need(found_bait_bckg, paste("Could not find", input$bckg_bait ," in possible backgrounds. Please change the background name the Group tab")) %then%
       need(found_ctrl_bckg, paste("Could not find", input$bckg_ctrl ," in possible backgrounds. Please change the background name the Group tab")) %then%
@@ -608,15 +709,11 @@ server <- function(input, output, session) {
       need(input$column_gene_name, "Please select the column containing gene names in the Import tab") %then%
       need(!input$bait_gene_name %in% c("", "Bait"), "Please enter the gene name of the bait (in General Parameters)") %then%
       need(length(ibait)>0,
-           paste("Could not find bait '", input$bait_gene_name,"' in column '",input$column_gene_name,"'", sep=""))
+           paste("Could not find bait '", input$bait_gene_name,"' in column '",input$column_gene_name,"'. Please modify bait gene name in General Parameters.", sep=""))
     )
     
-    updateSelectInput(session, "volcano_cond",
-                      choices = as.list(setdiff(unique(cond()$time), input$filter_time) ),
-                      selected = NULL)
-    updateSelectInput(session, "Stoichio2D_cond",
-                      choices = as.list(setdiff( c("max", unique(cond()$time)), input$filter_time)),
-                      selected = NULL)
+    
+    
 
     Column_gene_name <- input$column_gene_name #names(data())[grep("GENE", toupper(names(data())))[1]]
     Column_ID <- input$column_ID #names(data())[grep("ID", toupper(names(data())))[1]]
@@ -631,10 +728,10 @@ server <- function(input, output, session) {
                       # preffix_bio = input$preffix_bio,
                       # preffix_tech = input$preffix_tech,
                       # preffix_time = input$preffix_time,
-                      filter_bio = input$filter_bio,
-                      filter_tech = input$filter_tech,
-                      filter_time = input$filter_time,
-                      condition = cond()
+                      #filter_bio = input$filter_bio,
+                      #filter_tech = input$filter_tech,
+                      #filter_time = input$filter_time,
+                      condition = saved_df$cond
                       )
   })
   
@@ -658,6 +755,14 @@ server <- function(input, output, session) {
     df_merge <- merge_conditions(res_int$Interactome)
     df_FDR <- compute_FDR_from_asymmetry(df_merge)
     res_int$Interactome <- append_FDR(res_int$Interactome, df_FDR)
+    
+    updateSelectInput(session, "volcano_cond",
+                      choices = as.list(res_int$Interactome$conditions),
+                      selected = NULL)
+    updateSelectInput(session, "Stoichio2D_cond",
+                      choices = as.list(c("max", res_int$Interactome$conditions)),
+                      selected = "max")
+    
     res_int
     
   })
@@ -813,44 +918,39 @@ server <- function(input, output, session) {
     
   })
   
-  df_corr_filtered <- reactive({
-    
-    df1 <- df_corr()
-    df1 <- df1[df1$r_corr>=input$r_corr_thresh & df1$p_corr<=input$p_val_corr_thresh, ]
-    
-    net <- igraph::graph.data.frame(df1, directed=FALSE);
-    net <- igraph::simplify(net)
-    layout <- igraph::layout_nicely(net)
-    cfg <- igraph::cluster_fast_greedy(as.undirected(net))
-    net_d3 <- networkD3::igraph_to_networkD3(net, group = cfg$membership)
-    
-    # vatt <- vertex.attributes(net)
-    # vertex_names <- as.character(vatt$name)
-    # 
-    # #layout <- data.frame(x=rnorm(length(vertex_names)), y=rnorm(length(vertex_names)))
-    # #idx_vertex <- as.numeric(vertex_names)
-    # #df_corr_plot$names <- names[idx_vertex]
-    # 
-    # df_corr_plot$names <- vertex_names
-    # df_corr_plot$x <- layout[ , 1]
-    # df_corr_plot$y <- layout[ , 2]
-    # df_corr_plot$cluster <- as.factor(cfg$membership)
-    # #df_corr_plot$cluster <- sample(10, length(vertex_names), replace = TRUE)
-    # 
-    # df1
-  })
+  # df_corr_filtered <- reactive({
+  #   
+  #   df1 <- df_corr()
+  #   df1 <- df1[df1$r_corr>=input$r_corr_thresh & df1$p_corr<=input$p_val_corr_thresh, ]
+  #   
+  #   net <- igraph::graph.data.frame(df1, directed=FALSE);
+  #   net <- igraph::simplify(net)
+  #   layout <- igraph::layout_nicely(net)
+  #   cfg <- igraph::cluster_fast_greedy(as.undirected(net))
+  #   net_d3 <- networkD3::igraph_to_networkD3(net, group = cfg$membership)
+  #   
+  #   # vatt <- vertex.attributes(net)
+  #   # vertex_names <- as.character(vatt$name)
+  #   # 
+  #   # #layout <- data.frame(x=rnorm(length(vertex_names)), y=rnorm(length(vertex_names)))
+  #   # #idx_vertex <- as.numeric(vertex_names)
+  #   # #df_corr_plot$names <- names[idx_vertex]
+  #   # 
+  #   # df_corr_plot$names <- vertex_names
+  #   # df_corr_plot$x <- layout[ , 1]
+  #   # df_corr_plot$y <- layout[ , 2]
+  #   # df_corr_plot$cluster <- as.factor(cfg$membership)
+  #   # #df_corr_plot$cluster <- sample(10, length(vertex_names), replace = TRUE)
+  #   # 
+  #   # df1
+  # })
   
   output$force_net <- renderForceNetwork({
     
-    forceNetwork(Links = df_corr_filtered()$links, Nodes = df_corr_filtered()$nodes,
-                 Source = 'source', Target = 'target',
-                 fontFamily = "arial",
-                 NodeID = 'name', Group = 'group',
-                 colourScale = JS("d3.scaleOrdinal(d3.schemeCategory20);"),
-                 charge = -10, opacity = 1,
-                 linkColour = rgb(0.75, 0.75, 0.75),
-                 fontSize = 12, bounded = TRUE, zoom=TRUE, opacityNoHover = 1
-    )
+    plot_correlation_network(df_corr = df_corr(), 
+                             r_corr_thresh = input$r_corr_thresh,
+                             p_val_thresh =  input$p_val_corr_thresh)
+
   })
   
   # corrPlot <- reactive({
@@ -896,6 +996,7 @@ server <- function(input, output, session) {
   
   condTable <- reactive({
     data_cond()
+    #cond_filter()
   })
     
   summaryTable <- reactive({
@@ -977,6 +1078,7 @@ server <- function(input, output, session) {
   dotPlot <- reactive({
     p <- plot_per_condition(ordered_Interactome(),
                         idx_rows = min(input$Nmax, Ninteractors$x),
+                        idx_cols = match(input$time_selected, ordered_Interactome()$conditions),
                         clustering = input$clustering)
     idx_order$cluster <- p$idx_order
     p$plot + coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
@@ -1008,29 +1110,38 @@ server <- function(input, output, session) {
                             N_annot_min = input$N_annot_min)
   })
   
-  observe({
+  observeEvent(input$dotPlot_hover, {
     
     if(!is.null(input$dotPlot_hover)){
       select_dotPlot$i_prot <- round(-input$dotPlot_hover$y)
       select_dotPlot$i_cond <- round(input$dotPlot_hover$x)
+      select_dotPlot$name <- ordered_Interactome()$names[idx_order$cluster[select_dotPlot$i_prot]]
     }
     
+  })
+  
+  observeEvent(input$name_focus, {
+    select_dotPlot$name <- input$name_focus
   })
   
   stoichioPlot <- reactive({
     
     plot_stoichio(ordered_Interactome(), 
-                  name = ordered_Interactome()$names[idx_order$cluster[select_dotPlot$i_prot]],
+                  name = select_dotPlot$name,
                   test = "t.test",
-                  test.args = list("paired" = FALSE))
+                  test.args = list("paired" = FALSE),
+                  conditions = input$time_selected)
    
   })
   
   compPlot <- reactive({
     
+    validate(
+      need(select_dotPlot$name %in% ordered_Interactome()$names, "Protein not found. Please select another one.")
+    )
     plot_comparison(ordered_Interactome(), 
-                    name = ordered_Interactome()$names[ idx_order$cluster[select_dotPlot$i_prot]],
-                    condition = ordered_Interactome()$conditions)
+                    name = select_dotPlot$name,
+                    condition = input$time_selected)
   })
   
   observe({
@@ -1085,7 +1196,7 @@ server <- function(input, output, session) {
   output$condTable <- renderDataTable(condTable())
   output$condTable_bis <- renderDataTable(condTable())
   output$data_summary <- renderDataTable(data_summary())
-  output$summaryTable <- renderDataTable({summaryTable()[1:Ninteractors$x, ] })
+  output$summaryTable <- renderDataTable({summaryTable()})
   output$annotTable <- renderDataTable(annotTable())
   
   #Output Plot functions -------------------------------------------------------------------------
