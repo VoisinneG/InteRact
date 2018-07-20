@@ -6,7 +6,7 @@ library(shinyBS)
 library("InteRact")
 
 #source("../R/InteRact.R")
-# library(ggplot2)
+
 # library(ggrepel)
 # library(ggsignif)
 # library(grid)
@@ -15,6 +15,7 @@ library("InteRact")
 # library(igraph)
 # library(networkD3)
 
+library(ggplot2)
 library(networkD3)
 library(data.table)
 library(BiocInstaller)
