@@ -180,9 +180,9 @@ preprocess_data <- function(df,
                      ...            
 ){
   
-  if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
-    stop("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
-  }
+  #if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
+  #  stop("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
+  #}
   
   if(! Column_ID %in% names(df)){
     warning(paste("Column ", Column_ID, " could not be found", sep=""))
@@ -210,8 +210,6 @@ preprocess_data <- function(df,
                           tech = condition$tech)
   }
   
-
-  
   # filter out some experimental conditions
   
   cond_filter <- cond[!is.na(cond$time), ]
@@ -227,23 +225,50 @@ preprocess_data <- function(df,
     cond_filter <- cond[-idx_filter,] 
   }
   
+  # match conditions to samples
+  idx_match <- match(cond_filter$column, names(df))
+  if( sum(is.na(idx_match)) == length(idx_match) ){
+    stop("Could not match conditions to samples")
+  }
+  cond_filter <- cond_filter[!is.na(idx_match), ]
   
-  #Merge protein groups with the same gene name
+  #print(cond_filter$column[is.na(idx_match)])
   
+  #discard columns that are factors
+  is_factor <- sapply(match(cond_filter$column, names(df)), function(x){is.factor(df[[x]])})
+  
+  if( sum(is_factor) == length(is_factor) ){
+    stop("All intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
+  }else if(sum(is_factor) > 0) {
+    warning("Some intensity columns identified as factors were discarded. Check imported data")
+    df <- df[ , -match(cond_filter$column, names(df))[is_factor] ]
+    cond_filter <- cond_filter[!is_factor, ]
+  }
+
+  #format gene name
   df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
   
-  df<-filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
+  # Filter protein with no gene name and a low score
+  df <- filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
   
+  # Compute number of theoretically observable peptides
   df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
-  df <- merge_duplicate_groups(df, idx_col = match(cond_filter$column, names(df)), merge_column = "gene_name")
   
+  #Merge protein groups with the same gene name
+  idx_col = match(cond_filter$column, names(df))
+  idx_col <- idx_col[!is.na(idx_col)]
+  df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
+  
+  
+  
+  #identify bait
   ibait <- which(df$gene_name == bait_gene_name);
   if(length(ibait)==0){
     stop(paste("Could not find bait '",bait_gene_name,"' in column '",Column_gene_name,"'", sep="")) 
   }
   
   #Select intensity columns corresponding to selected conditions
-  T_int <- df[ , match(cond_filter$column, names(df))];
+  T_int <- df[ , idx_col];
   T_int[T_int==0] <- NA;
   
   #Discard proteins with NA values for all conditions
@@ -300,7 +325,7 @@ identify_conditions <- function(df,
                                   split = "_",
                                   bckg_pos = 1,
                                   bio_pos = 3,
-                                  time_pos = 2, 
+                                  time_pos = 2,
                                   tech_pos = 4
                                   ){
   idx_col<-grep(Column_intensity_pattern,colnames(df))
@@ -320,25 +345,25 @@ identify_conditions <- function(df,
   
   if(bckg_pos > n){
     warning("bckg_pos too large")
-    bckg <- rep("", length(col_I))
+    bckg <- rep("bckg_1", length(col_I))
   }else{
     bckg <- unlist(lapply(s, function(x){x[bckg_pos]}))
   }
   if(bio_pos > n){
     warning("bio_pos too large")
-    bio <- rep("", length(col_I))
+    bio <- rep("bio_1", length(col_I))
   }else{
     bio<- unlist(lapply(s, function(x){x[bio_pos]}))
   } 
   if(tech_pos > n){
     warning("tech_pos too large")
-    tech <- rep("", length(col_I))
+    tech <- rep("tech_1", length(col_I))
   }else{
     tech <- unlist(lapply(s, function(x){x[tech_pos]}))
   }
   if(time_pos > n){
     warning("time_pos too large")
-    time <- rep("", length(col_I))
+    time <- rep("time_1", length(col_I))
   }else{
     time <- unlist(lapply(s, function(x){x[time_pos]}))
   }
@@ -450,7 +475,7 @@ merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name
         max_I <- rep(0, length(idx_u));
         for (j in 1:length(idx_u) ){
           idx_merge[idx_u[j]] = 0;
-          max_I[j] = max(df[ idx_u[j], idx_col])
+          max_I[j] = max(df[ idx_u[j], idx_col], na.rm = TRUE)
         }
         jmax = which(max_I == max(max_I) );
         idx_merge[ idx_u[jmax] ] = 1;
