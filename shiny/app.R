@@ -1,4 +1,4 @@
-# Load packages ----
+#Load packages ----
 
 library(shiny)
 library(shinyBS)
@@ -14,7 +14,9 @@ library("InteRact")
 # library(Hmisc)
 # library(igraph)
 # library(networkD3)
+#library(dplyr)
 
+library(Hmisc)
 library(ggplot2)
 library(networkD3)
 library(data.table)
@@ -25,6 +27,30 @@ library(BiocInstaller)
 options(repos = BiocInstaller::biocinstallRepos())
 #getOption("repos")
 options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
+
+method_choices <- c("default",
+                    "pmm", 
+                    "midastouch",
+                    "sample",
+                    "cart",
+                    "rf",
+                    "mean",
+                    "norm",
+                    "norm.nob",
+                    "norm.boot",
+                    "norm.predict",
+                    "quadratic",
+                    "ri",
+                    "logreg",
+                    "logreg.boot",
+                    "polr",
+                    "polyreg",
+                    "lda",
+                    "2l.norm",
+                    "2l.lmer",
+                    "2l.pan",
+                    "2lonly.mean",
+                    "2lonly.norm")
 
 # User interface ----
 ui <- fluidPage(
@@ -44,12 +70,20 @@ ui <- fluidPage(
              checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
              bsTooltip("substract_ctrl", 
                        "Substract protein intensity from ctrl background to compute interaction stoichiometry"),
-             numericInput("Nrep", "Missing values : # replacements : ", value = 1),
+             h4("Missing values :"),
+             numericInput("Nrep", "# replacements", value = 1),
              bsTooltip("Nrep", 
-                       "Number of times missing values will be replaced. Use 0 if you do not want to replace missing values")
+                       "Number of times missing values will be replaced. Use 0 if you do not want to replace missing values"),
+             selectInput("method", "Replacement method", choices = as.list(method_choices), selected = "default"),
+             bsTooltip("method", 
+                       "Method used for the replacement of missing values."),
+             actionButton("start", label = "Compute Interactome")
+             
           ),
           wellPanel(
              h4("Interaction parameters"),
+             selectInput("var_p_val", "p-value variable", choices=c("p_val","FDR"), selected = "p_val"),
+             bsTooltip("var_p_val", "p_val : p-value corresponding to the enrichment t-test; FDR : false discovery rate calculated using the asymmetry of the volcano plot."),
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              bsTooltip("p_val_thresh", "Threshold on interaction p-value"),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
@@ -62,9 +96,7 @@ ui <- fluidPage(
                        "Should the successful passing of thresholds happen for consecutive conditions?"),
              verbatimTextOutput("interactors"),
              bsTooltip("interactors", 
-                       "Number of proteins that pass the detection criteria defined above"),
-             downloadButton("download_all", "Save report"),
-             bsTooltip("download_all", "Download a report of the analysis")
+                       "Number of proteins that pass the detection criteria defined above")
              #verbatimTextOutput("plotly_print")
           )
     ),
@@ -75,11 +107,11 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         fileInput("file", h4("Import protein intensity file :"), placeholder = "Enter file here"),
+                                         fileInput("file", h4("Import file :"), placeholder = "Enter file here"),
                                          checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
                                        ),
                                        wellPanel(
-                                         h4("Identify columns"),
+                                         h4("Select columns"),
                                          selectInput("column_gene_name",
                                                      "column for gene name",
                                                      choices = list(),
@@ -104,7 +136,7 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         h4("Enter background"),
+                                         h4("Select background"),
                                          selectInput("bckg_bait", "Bait background", choices = list(), selected = NULL ),
                                          bsTooltip("bckg_bait", 
                                                    "Enter the name of the bait background (as displayed in the table on the right)."),
@@ -199,7 +231,7 @@ ui <- fluidPage(
                                 column(4,
                                     br(),
                                     wellPanel(
-                                        helpText("Select samples"),
+                                        h4("Select samples"),
                                         # checkboxGroupInput("filter_bio",
                                         #                    "Biological replicates (bio)",
                                         #                    choices = list(),
@@ -212,17 +244,23 @@ ui <- fluidPage(
                                         #                    "Experimental conditions (time)",
                                         #                    choices = list(),
                                         #                    selected = NULL),
-                                        selectizeInput("bio_selected", "Select biological replicates", choices = list(), multiple = TRUE),
-                                        selectizeInput("tech_selected", "Select technical replicates", choices = list(), multiple = TRUE),
-                                        selectizeInput("time_selected", "Select experimental conditions (in order)", choices = list(), multiple = TRUE),
+                                        selectizeInput("bio_selected", "Biological replicates", choices = list(), multiple = TRUE),
+                                        selectizeInput("tech_selected", "Technical replicates", choices = list(), multiple = TRUE),
+                                        selectizeInput("time_selected", "Experimental conditions (ordered)", choices = list(), multiple = TRUE),
                                         actionButton("apply_filter", label = "Apply")
+                                    ),
+                                    wellPanel(
+                                      selectInput("QC_selected", "Select QC plot",
+                                                  choices = c("Intensity correlation", "Bait purification", "Missing values"), 
+                                                  selected = "Bait purification") 
                                     )
                                 ),
                                 column(8,
                                   br(),
-                                  plotOutput("QCPlot1", width="250",height="200"),
-                                  plotOutput("QCPlot2", width="250",height="200"),
-                                  plotOutput("QCPlot3", width="250",height="200")
+                                  plotOutput("QCPlot", width="400",height="350")
+                                  # plotOutput("QCPlot1", width="500",height="400"),
+                                  # plotOutput("QCPlot2", width="250",height="200"),
+                                  # plotOutput("QCPlot3", width="250",height="200")
                                   # plotlyOutput("QCPlot1ly", width="300",height="250"),
                                   # plotlyOutput("QCPlot2ly", width="300",height="250"),
                                   # plotlyOutput("QCPlot3ly", width="300",height="250")
@@ -416,6 +454,23 @@ ui <- fluidPage(
                                        dataTableOutput("summaryTable")
                                 )
 
+                       ),
+                       tabPanel("Save",
+                                column(4,
+                                       br(),
+                                       wellPanel(
+                                         checkboxGroupInput("saved_items",
+                                                            "Items to save",
+                                                            choices = c("Interactome", "preprocessed data", "summary table", "correlation network", "volcano plot", "dot plot", "2D stoichio plot", "enrichment plots", "stoichio plots" ),
+                                                            selected = c("Interactome", "preprocessed data", "summary table", "correlation network", "volcano plot", "dot plot", "2D stoichio plot" )
+                                         )
+                                       ),
+                                       wellPanel(
+                                         downloadButton("download_all", "Save report"),
+                                         bsTooltip("download_all", "Download a report of the analysis")
+                                       )
+                                )
+                                
                        )
            )
     )
@@ -425,6 +480,7 @@ ui <- fluidPage(
 
 # Server logic
 server <- function(input, output, session) {
+  
   
   #Reactive values ---------------------------------------------------------------------------------
   
@@ -483,6 +539,7 @@ server <- function(input, output, session) {
   })
   
   data_cond <- reactive({
+    
     if(input$manual_mapping){
       
       validate(
@@ -492,6 +549,7 @@ server <- function(input, output, session) {
       df_cond <- read.table(input$file_cond$datapath, 
                  sep=ifelse(input$sep_cond, ",", "\t"), 
                  fill=TRUE, 
+                 colClasses = "character",
                  na.strings="",
                  header=TRUE)
       
@@ -526,8 +584,8 @@ server <- function(input, output, session) {
                                selected = NULL)
       
       df_cond
+      
     } else {
-
       cond()
     }
     
@@ -538,29 +596,41 @@ server <- function(input, output, session) {
     
     if(input$manual_mapping){
       
+      validate(
+        need(dim(data_cond())[1]>0, "No data imported for conditions")
+      )
+      
       df_cond <- data_cond()
+      
       col_I <- df_cond[[input$column_name]]
       bckg <- df_cond[[input$manual_bckg]]
       time <- df_cond[[input$manual_time]]
       bio <- df_cond[[input$manual_bio]]
       tech <- df_cond[[input$manual_tech]]
       
-      cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+      #cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
+      cond_int <- data.frame(idx=seq_along(col_I), column=col_I, bckg, time = time, bio, tech, stringsAsFactors = FALSE)
+
 
                       
     } else {
       
       match_pattern <- grep(input$pattern, names(data()))
-      n_factor_col <- 0
-      if(length(match_pattern) > 0){
-        n_factor_col <- sum( sapply( match_pattern, function(x) is.factor(data()[[x]]) ) )
-      }
+      # n_factor_col <- 0
+      # if(length(match_pattern) > 0){
+      #   n_factor_col <- sum( sapply( match_pattern, function(x) is.factor(data()[[x]]) ) )
+      # }
       
       validate(
-        need(match_pattern>0, "Pattern could not be found in column names. Please enter another pattern for intensity columns") %then%
-          need(n_factor_col == 0,
-               "Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data"
-          )
+        need(match_pattern > 0, "Pattern could not be found in column names. Please enter another pattern for intensity columns") %then%
+        need(input$bckg_pos > 0, "Enter position of background") %then%
+        need(input$bio_pos > 0, "Enter position of biological replicates") %then%
+        need(input$time_pos > 0, "Enter position of technical replicates") %then%
+        need(input$tech_pos > 0, "Enter position of experimental conditions")
+          
+          # need(n_factor_col == 0,
+          #      "Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data"
+          # )
       )
       
       cond_int <- identify_conditions(data(),
@@ -623,6 +693,7 @@ server <- function(input, output, session) {
     updateTextInput(session, "bait_gene_name", value = bait_guess)
     
   })
+  
   observe({
     # updateSelectInput(session, "time_selected",
     #                   choices = as.list(unique(cond()$time[cond()$bio %in% input$bio_selected])),
@@ -651,17 +722,22 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$apply_filter,{
+    #cat(cond()$time)
     cond_int <- cond()
+    #cat(length(unique(cond_int$tech)))
     cond_int$time <- factor(cond_int$time, levels=input$time_selected)
     cond_int$bio <- factor(cond_int$bio, levels=input$bio_selected)
     cond_int$tech <- factor(cond_int$tech, levels=input$tech_selected)
     idx_cond_selected <- which(rowSums(is.na(cond_int)) == 0)
-    cat(rowSums(is.na(cond_int)))
-    cat(idx_cond_selected)
     cond_int <- cond_int[idx_cond_selected, ]
     saved_df$cond <- cond_int
+    #cat(saved_df$cond$time)
+    #cat(input$time_selected)
   })
   
+  observeEvent(saved_df$data,{
+    saved_df$cond <- NULL
+  })
   # cond_filter <- reactive({
   #   if(input$apply_filter){
   #     cond_int <- cond()
@@ -683,25 +759,43 @@ server <- function(input, output, session) {
   
   prep_data <- reactive({
     
-    ibait <- which(data()[[input$column_gene_name]] == input$bait_gene_name);
-    check_two_bckg <- length(unique(cond()$bckg))>1
+    #cat(saved_df$cond$time)
+    validate(
+      need(dim(saved_df$cond)[1]>0, "No sample selected. Please select samples and/or validate your sample selection in the QC / Select tab") %then%
+      need( length(setdiff(c("column", "bckg", "time", "bio", "tech"), names(saved_df$cond))) == 0 , "No data")
+    )
     
-    bio_sel <- setdiff(unique(cond()$bio), input$filter_bio)
-    check_two_bckg_per_cond <- sum(sapply(unique(cond()$time[cond()$bio %in% bio_sel]),
+    ibait <- which(data()[[input$column_gene_name]] == input$bait_gene_name);
+    check_two_bckg <- length(unique(saved_df$cond$bckg))>1
+    
+    bio_sel <- setdiff(unique(saved_df$cond$bio), input$filter_bio)
+    check_two_bckg_per_cond <- sum(sapply(unique(saved_df$cond$time[saved_df$cond$bio %in% bio_sel]),
                                          function(x) { 
-                                           input$bckg_bait %in% cond()$bckg[cond()$time==x] & 
-                                             input$bckg_ctrl %in% cond()$bckg[cond()$time==x] 
+                                           input$bckg_bait %in% saved_df$cond$bckg[saved_df$cond$time==x] & 
+                                             input$bckg_ctrl %in% saved_df$cond$bckg[saved_df$cond$time==x] 
                                          }
                                   )
-                               ) == length(unique(cond()$time[cond()$bio %in% bio_sel]))
+                               ) == length(unique(saved_df$cond$time[saved_df$cond$bio %in% bio_sel]))
             
     
-    check_two_bio_rep <- length(unique(cond()$bio))>1
-    found_bait_bckg <- input$bckg_bait %in% cond()$bckg
-    found_ctrl_bckg <- input$bckg_ctrl %in% cond()$bckg
+    check_two_bio_rep <- length(unique(saved_df$cond$bio))>1
+    found_bait_bckg <- input$bckg_bait %in% saved_df$cond$bckg
+    found_ctrl_bckg <- input$bckg_ctrl %in% saved_df$cond$bckg
+    
+    #cat(match(saved_df$cond$column, names(data())))
     
     validate(
-      need(dim(saved_df$cond)[1]>0, "Please validate your sample selection in the QC / Select tab") %then%
+      need( sum(is.na(match(saved_df$cond$column, names(data())))) == 0, "Some column names could not be mapped to original sample names. Please check the file used to map samples" )
+    )
+    
+    #cat(names(data()[ , match(saved_df$cond$column, names(data()))]))
+    
+    cat(sapply(match(saved_df$cond$column, names(data())), function(x){class(data()[[x]])}))
+    
+    is_factor <- sapply(match(saved_df$cond$column, names(data())), function(x){is.factor(data()[[x]])})
+    cat(is_factor)
+    
+    validate(
       need(check_two_bckg, "Could not identify distinct backgrounds. Please verify the mapping of samples") %then%
       need(check_two_bio_rep, "Could not identify distinct biological replicates. Please verify the mapping of samples") %then%
       need(found_bait_bckg, paste("Could not find", input$bckg_bait ," in possible backgrounds. Please change the background name the Group tab")) %then%
@@ -711,14 +805,16 @@ server <- function(input, output, session) {
       need(input$column_gene_name, "Please select the column containing gene names in the Import tab") %then%
       need(!input$bait_gene_name %in% c("", "Bait"), "Please enter the gene name of the bait (in General Parameters)") %then%
       need(length(ibait)>0,
-           paste("Could not find bait '", input$bait_gene_name,"' in column '",input$column_gene_name,"'. Please modify bait gene name in General Parameters.", sep=""))
+           paste("Could not find bait '", input$bait_gene_name,"' in column '",input$column_gene_name,"'. Please modify bait gene name in General Parameters.", sep=""))%then%
+      need( sum( is_factor ) < length(is_factor) , "All intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
     )
-    
-    
-    
+
+
 
     Column_gene_name <- input$column_gene_name #names(data())[grep("GENE", toupper(names(data())))[1]]
     Column_ID <- input$column_ID #names(data())[grep("ID", toupper(names(data())))[1]]
+    
+    #cat(names(saved_df$cond))
     
     preprocess_data(  df = data(),
                       Column_intensity_pattern = input$pattern,
@@ -737,7 +833,15 @@ server <- function(input, output, session) {
                       )
   })
   
-  res<- reactive({
+  
+  
+  res<- eventReactive(input$start, {
+    
+    validate(
+      need(!is.null(saved_df$data), "Please import data (see the Import tab)") %then%
+      need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
+      need(input$start, "Please click on the Compute Interactome button in General parameters")
+    )
     
     # Create a Progress object
     progress <- shiny::Progress$new(min = 0, max = 100)
@@ -747,8 +851,11 @@ server <- function(input, output, session) {
       progress$set(value = value, detail = detail)
     }
 
+    
+    
     res_int <- InteRact(preprocess_df = prep_data(),
                       N_rep=input$Nrep,
+                      method = input$method,
                       pool_background = input$pool_background,
                       updateProgress = updateProgress,
                       substract_ctrl = input$substract_ctrl)
@@ -770,15 +877,21 @@ server <- function(input, output, session) {
   })
 
   ordered_Interactome <- reactive({
-      res_int <- identify_interactors (res()$Interactome,
-                                     var_p_val = "p_val", 
+    validate(
+      need(!is.null(saved_df$data), "Please import data (see the Import tab)") %then%
+        need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
+        need(input$start, "Please click on the Compute Interactome button in General parameters")
+    )
+    res_int <- identify_interactors (res()$Interactome,
+                                     var_p_val = input$var_p_val, 
                                      p_val_thresh = input$p_val_thresh, 
                                      fold_change_thresh = input$fold_change_thresh, 
                                      n_success_min = input$n_success_min, 
                                      consecutive_success = input$consecutive_success)
-      Ninteractors$x <- length(res_int$interactor)
-      res_int <- order_interactome(res_int)
-      res_int
+    Ninteractors$x <- length(res_int$interactor)
+    res_int <- order_interactome(res_int)
+    res_int
+      
   })
   
   annotated_Interactome <- reactive({
@@ -1065,23 +1178,25 @@ server <- function(input, output, session) {
   
   Stoichio2D_zoom <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
-                     condition = input$Stoichio2D_cond,
                      xlim = ranges$x,
-                     ylim = ranges$y,
-                     N_display=min(Ninteractors$x, input$Nmax2D) )
+                     ylim=ranges$y,
+                     condition = input$Stoichio2D_cond,
+                     N_display=min(Ninteractors$x, input$Nmax2D) )[[1]]
   })
   
   Stoichio2D <- reactive({
     plot_2D_stoichio(ordered_Interactome(),
                      condition = input$Stoichio2D_cond,
-                     N_display = min(Ninteractors$x, input$Nmax2D) )
+                     N_display = min(Ninteractors$x, input$Nmax2D) )[[1]]
   })
   
   dotPlot <- reactive({
     p <- plot_per_condition(ordered_Interactome(),
-                        idx_rows = min(input$Nmax, Ninteractors$x),
-                        idx_cols = match(input$time_selected, ordered_Interactome()$conditions),
-                        clustering = input$clustering)
+                            color_var = "FDR",   
+                            idx_rows = min(input$Nmax, Ninteractors$x),
+                            idx_cols = match(input$time_selected, ordered_Interactome()$conditions),
+                            clustering = input$clustering)
+                            
     idx_order$cluster <- p$idx_order
     p$plot + coord_cartesian(xlim = ranges_dotPlot$x, ylim = ranges_dotPlot$y, expand = FALSE)
   })
@@ -1212,9 +1327,16 @@ server <- function(input, output, session) {
   output$stoichioPlot <- renderPlot(stoichioPlot())
   output$compPlot <- renderPlot(compPlot())
   output$compPlot_volcano <- renderPlot(compPlot_volcano())
-  output$QCPlot1 <- renderPlot(QCPlot()[[1]])
-  output$QCPlot2 <- renderPlot(QCPlot()[[2]])
-  output$QCPlot3 <- renderPlot(QCPlot()[[3]])
+  output$QCPlot <- renderPlot(
+    switch(input$QC_selected,
+           "Intensity correlation" = QCPlot()[[1]],
+           "Bait purification" = QCPlot()[[2]],
+           "Missing values" = QCPlot()[[3]]
+           )
+  )
+  # output$QCPlot1 <- renderPlot(QCPlot()[[1]])
+  # output$QCPlot2 <- renderPlot(QCPlot()[[2]])
+  # output$QCPlot3 <- renderPlot(QCPlot()[[3]])
   #output$QCPlot1ly <- renderPlotly( ggplotly(QCPlot()[[1]], source="QCPlot1ly") )
   #output$QCPlot2ly <- renderPlotly( ggplotly(QCPlot()[[2]]) )
   #output$QCPlot3ly <- renderPlotly( ggplotly(QCPlot()[[3]]) )
@@ -1298,18 +1420,107 @@ server <- function(input, output, session) {
   )
   
   output$download_all <- downloadHandler(
-    filename = paste("report.tar", sep=""),
-    content = function(file) {
+      
+      filename = paste("report.tar", sep=""),
+      content = function(file) {
       
       dir.create(paste("./report/",sep=""))
       setwd("./report/")
+      
+      unlink("./*", recursive = TRUE, force = TRUE)
       on.exit(setwd(".."))
       
-      pdf(paste("./volcano.pdf", sep=""), 5, 5)
-      print(all_volcanos())
-      dev.off()
+      if( "volcano plot" %in% input$saved_items){
+        # print volcano plots
+        pdf(paste("./volcano.pdf", sep=""), 6, 6)
+        print(all_volcanos())
+        dev.off()
+      }
       
-      write.table(annotTable(), paste("./summary_table.txt", sep=""),  sep = "\t", dec = ".", row.names = FALSE)
+      if( "2D stoichio plot" %in% input$saved_items){
+        # print stoichio 2D plots
+        pdf(paste("./stoichio_2D.pdf", sep=""), 4, 4)
+        print( plot_2D_stoichio(ordered_Interactome(),
+                                condition = c("max", ordered_Interactome()$conditions),
+                                N_display = min(Ninteractors$x, input$Nmax2D) ))
+        dev.off()
+      
+      }
+      
+      if( "dot plot" %in% input$saved_items){
+        # print dot plots
+        plot_width = 2.5 + length(ordered_Interactome()$conditions)/5
+        plot_height = 1.5 + input$Nmax/5
+        pdf(paste("./dot_plot.pdf", sep=""), plot_width, plot_height)
+        print(dotPlot())
+        dev.off()
+        
+        # print dot plots (all)
+        plot_width = 2.5 + length(ordered_Interactome()$conditions)/5
+        plot_height = 1.5 + Ninteractors$x/5
+        pdf(paste("./dot_plot_all.pdf", sep=""), plot_width, plot_height)
+        print(plot_per_condition(ordered_Interactome(),
+                                 color_var = input$var_p_val,
+                                 idx_rows = Ninteractors$x,
+                                 idx_cols = match(input$time_selected, ordered_Interactome()$conditions),
+                                 clustering = input$clustering))
+        dev.off()
+      }
+      
+      if( "stoichio plots" %in% input$saved_items){
+        # print stoichio plots
+        pdf(paste("./stoichio_per_interactor.pdf", sep=""), 2, 3)
+        print(lapply(ordered_Interactome()$interactor, 
+                     function(x){
+                       plot_stoichio(res = ordered_Interactome(), 
+                                     name = x,
+                                     test="t.test", 
+                                     test.args = list("paired"=FALSE))
+                     }))
+        dev.off()
+      }
+      
+      if( "enrichment plots" %in% input$saved_items){
+        # print stoichio 2D plots
+        pdf(paste("./enrichment_per_interactor.pdf", sep=""), 2*length(ordered_Interactome()$conditions), 5)
+        print(lapply(ordered_Interactome()$interactor, 
+                     function(x){
+                       plot_comparison(res = ordered_Interactome(), 
+                                     name = x,
+                                     conditions =  ordered_Interactome()$conditions)
+                     }))
+        dev.off()
+      }
+      
+      # write summary tables
+      if( "summary table" %in% input$saved_items){
+        write.table(summary_table(annotated_Interactome(),  add_columns = names(annotated_Interactome())),
+                  paste("./summary_table.txt", sep=""),  sep = "\t", dec = ".", row.names = FALSE)
+      }
+      
+      # save Interactome
+      if("Interactome" %in% input$saved_items){
+        Interactome <- annotated_Interactome()
+        save(Interactome, file = "./Interactome.Rda")
+      }
+      
+      if("preprocessed data" %in% input$saved_items){
+        prep_data <- res()$data
+        save(prep_data, file = "./prep_data.Rda")
+      }
+      
+      if("correlation network" %in% input$saved_items){
+        write.table(df_corr(), file = "./correlation_network.txt", sep = "\t", dec = ".", row.names = FALSE)
+      }
+      
+      input_name <- rep("", length(names(input)))
+      input_value <- rep("", length(names(input)))
+      for(i in 1:length(names(input))){
+        input_name[i] <- names(input)[i]
+        input_value[i] <- paste(input[[names(input)[i]]], collapse = ";")
+      }
+      df_input <- data.frame(input_parameter = input_name, value = input_value)
+      write.table(df_input, file = "./parameters.txt", sep = "\t", dec = ".", row.names = FALSE)
       
       tar(file)
       
