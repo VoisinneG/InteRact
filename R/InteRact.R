@@ -3,6 +3,9 @@
 #' (use parameter \code{Column_intensity_pattern} to change)
 #' @param updateProgress function to show progress bar in shiny app
 #' @param N_rep Number of iterations for the replacement of missing values
+#' @param method Method to replace missing values. Methods from the "mice" package are supported. By default, 
+#' missing values are sampled from a normal distribution centered on the quantile of ctrl intensities defined by parameter \code{quantile_rep}
+#' with the standard deviation set to the mean SD of ctrl intensities across all proteins.
 #' @param quantile_rep Numeric value between 0 and 1. Quantile of the distribution of mean intensities 
 #' in the control background used to replace missing values.
 #' @param pool_background option to use all control background conditions as one control group for all conditions
@@ -52,6 +55,7 @@ InteRact <- function(
                      df,
                      updateProgress = NULL,
                      N_rep=3,
+                     method = "default",
                      quantile_rep  = 0.05,
                      pool_background = FALSE, 
                      log_test = TRUE,
@@ -94,9 +98,15 @@ InteRact <- function(
       }
       
       cat(paste("Nrep=",i,"\n",sep=""));
-      #log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- stats::rnorm( n_replace, mean=q, sd=s) 
-      imp <- mice::mice(log10_I_norm_mean, printFlag = FALSE, method="pmm")
-      log10_I_norm_mean_rep <- mice::complete(imp)
+      
+      if(method == "default"){
+        log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- stats::rnorm( n_replace, mean=q, sd=s) 
+      }
+      else{
+        imp <- mice::mice(log10_I_norm_mean, printFlag = FALSE, method = method)
+        log10_I_norm_mean_rep <- mice::complete(imp)
+      }
+      
       
       res[[i]]<-analyse_interactome(df = 10^log10_I_norm_mean_rep, 
                                     bait_gene_name = avg$bait_gene_name, 
@@ -340,33 +350,44 @@ identify_conditions <- function(df,
   s0 <- sapply(strsplit(col_I, Column_intensity_pattern), function(x){x[2]})
   s <- strsplit(s0, split=split, fixed=TRUE)
   
+  bckg <- rep("bckg_0", length(col_I))
+  bio <- rep("bio_0", length(col_I))
+  tech <- rep("tech_0", length(col_I))
+  time <- rep("time_0", length(col_I))
   #s <- strsplit(col_I, split=split, fixed=TRUE)
-  n <- length(s[[1]])
   
-  if(bckg_pos > n){
-    warning("bckg_pos too large")
-    bckg <- rep("bckg_1", length(col_I))
-  }else{
-    bckg <- unlist(lapply(s, function(x){x[bckg_pos]}))
+  for (i in 1:length(col_I)){
+    n <- length(s[[i]])
+    
+    if(bckg_pos <= n){ bckg[i] <- s[[i]][bckg_pos]}
+    if(bio_pos <= n){ bio[i] <-s[[i]][bio_pos] }
+    if(tech_pos <= n){ tech[i] <- s[[i]][tech_pos] }
+    if(time_pos <= n){ time[i] <- s[[i]][time_pos] }
+    #   #warning("bckg_pos too large")
+    #   bckg <- rep("bckg_1", length(col_I))
+    # }else{
+    #   bckg <- unlist(lapply(s, function(x){x[bckg_pos]}))
+    # }
+    # if(bio_pos > n){
+    #   #warning("bio_pos too large")
+    #   bio <- rep("bio_1", length(col_I))
+    # }else{
+    #   bio<- unlist(lapply(s, function(x){x[bio_pos]}))
+    # } 
+    # if(tech_pos > n){
+    #   #warning("tech_pos too large")
+    #   tech <- rep("tech_1", length(col_I))
+    # }else{
+    #   tech <- unlist(lapply(s, function(x){x[tech_pos]}))
+    # }
+    # if(time_pos > n){
+    #   #warning("time_pos too large")
+    #   time <- rep("time_1", length(col_I))
+    # }else{
+    #   time <- unlist(lapply(s, function(x){x[time_pos]}))
+    # }
   }
-  if(bio_pos > n){
-    warning("bio_pos too large")
-    bio <- rep("bio_1", length(col_I))
-  }else{
-    bio<- unlist(lapply(s, function(x){x[bio_pos]}))
-  } 
-  if(tech_pos > n){
-    warning("tech_pos too large")
-    tech <- rep("tech_1", length(col_I))
-  }else{
-    tech <- unlist(lapply(s, function(x){x[tech_pos]}))
-  }
-  if(time_pos > n){
-    warning("time_pos too large")
-    time <- rep("time_1", length(col_I))
-  }else{
-    time <- unlist(lapply(s, function(x){x[time_pos]}))
-  }
+  
   
   cond <- dplyr::tibble(column=col_I, bckg, time, bio, tech)
 
@@ -1217,7 +1238,7 @@ identify_interactors <- function(res,
   is_interactor <- rep(0, length(res$names))
   n_success <- rep(0, length(res$names))
   
-  M <- do.call(cbind, res[[var_p_val]]) < p_val_thresh & do.call(cbind, res[["fold_change"]]) > fold_change_thresh
+  M <- do.call(cbind, res[[var_p_val]]) <= p_val_thresh & do.call(cbind, res[["fold_change"]]) >= fold_change_thresh
   
   for (i in 1:length(res$names)){
     
@@ -2352,70 +2373,83 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "f
 #' @export
 plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_display=30){
   
-  df<- data.frame( Y=log10(res$stoch_abundance), 
-                   label_tot=res$names
-  )
-  if(condition=="max"){
-    df$X <- log10(res$max_stoichio)
-    df$size <- res$max_fold_change
-  }else if(condition %in% res$conditions){
-    df$X <- log10(res$stoichio[[condition]])
-    df$size <- res$fold_change[[condition]]
-  }else{
-    stop("Condition is not defined")
+  
+  
+  plist <- list()
+  
+  for(icond in 1:length(condition)){
+    
+    cond <- condition[icond]
+    
+    df<- data.frame( Y=log10(res$stoch_abundance), 
+                     label_tot=res$names)
+      
+    if(cond=="max"){
+      df$X <- log10(res$max_stoichio)
+      df$size <- res$max_fold_change
+    }else if(cond %in% res$conditions){
+      df$X <- log10(res$stoichio[[cond]])
+      df$size <- res$fold_change[[cond]]
+    }else{
+      stop("Condition is not defined")
+    }
+    
+    
+    df<-df[1:min(N_display, dim(df)[1]), ]
+    
+    xc <- -0.5
+    yc <- 0
+    rc<-1
+    
+    ylow <- -3
+    
+    if(is.null(xlim) & is.null(ylim)){
+      max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
+      center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
+      center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
+    }else{
+      max_range <- max( xlim[2] - xlim[1],  ylim[2] - ylim[1] )
+      center_x <- ( xlim[2] + xlim[1] )/2
+      center_y <- ( ylim[2] + ylim[1] )/2
+    }
+    xmin<-center_x - max_range/1.9
+    xmax<-center_x + max_range/1.9
+    ymin<-center_y - max_range/1.9
+    ymax<-center_y + max_range/1.9
+    
+    ylow_plot <- max(ylow,ymin)
+    
+    df$size_prey <- log10(df$size)/max_range*20
+    df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
+    df$sat_max_fold_t0 <- rep(1,dim(df)[1])
+    
+    idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
+    df <- df[idx_plot, ]
+    
+    p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
+      theme(aspect.ratio=1) +
+      ggtitle(cond) + 
+      scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
+      geom_polygon(data=data.frame(x=c(ylow_plot,xmax,xmax),y=c(ylow_plot,ylow_plot,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+      annotate("path",
+               x=xc+rc*cos(seq(0,2*pi,length.out=100)),
+               y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
+      annotate("segment", x = ylow_plot, xend = xmax, y = ylow_plot, yend = xmax, colour = rgb(0,0,0,0.5) ) +
+      annotate("segment", x = xmin, xend = xmax, y = ylow_plot, yend = ylow_plot, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
+      xlab("log10(Interaction Stoichiometry)") +
+      ylab("log10(Abundance Stoichiometry)") +
+      geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
+      coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
+      #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
+      geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
+                      segment.size = 0.1,
+                      min.segment.length = unit(0.15, "lines"), 
+                      point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
+    
+    plist[[icond]] <- p
   }
-  
-  
-  df<-df[1:min(N_display, dim(df)[1]), ]
-  
-  xc <- -0.5
-  yc <- 0
-  rc<-1
-  
-  ylow <- -3
-  
-  if(is.null(xlim) & is.null(ylim)){
-    max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
-    center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
-    center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
-  }else{
-    max_range <- max( xlim[2] - xlim[1],  ylim[2] - ylim[1] )
-    center_x <- ( xlim[2] + xlim[1] )/2
-    center_y <- ( ylim[2] + ylim[1] )/2
-  }
-  xmin<-center_x - max_range/1.9
-  xmax<-center_x + max_range/1.9
-  ymin<-center_y - max_range/1.9
-  ymax<-center_y + max_range/1.9
-  
-  ylow_plot <- max(ylow,ymin)
-  
-  df$size_prey <- log10(df$size)/max_range*20
-  df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
-  df$sat_max_fold_t0 <- rep(1,dim(df)[1])
-  
-  idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
-  df <- df[idx_plot, ]
-  
-  p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
-    theme(aspect.ratio=1) +
-    scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
-    geom_polygon(data=data.frame(x=c(ylow_plot,xmax,xmax),y=c(ylow_plot,ylow_plot,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
-    annotate("path",
-             x=xc+rc*cos(seq(0,2*pi,length.out=100)),
-             y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
-    annotate("segment", x = ylow_plot, xend = xmax, y = ylow_plot, yend = xmax, colour = rgb(0,0,0,0.5) ) +
-    annotate("segment", x = xmin, xend = xmax, y = ylow_plot, yend = ylow_plot, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
-    xlab("log10(Interaction Stoichiometry)") +
-    ylab("log10(Abundance Stoichiometry)") +
-    geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
-    coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
-    #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
-    geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
-                    segment.size = 0.1,
-                    min.segment.length = unit(0.15, "lines"), 
-                    point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
-  return(p)
+
+  return(plist)
   #print(p)
   #output=p
 }
@@ -2976,6 +3010,7 @@ plot_QC <- function(prep_data){
   p_list[[1]] <- p1
   
   Ibait <- cbind(df$conditions, Ibait = as.numeric(df$Intensity[ibait, ]) )
+  Ibait <- Ibait[Ibait$bckg %in% c(df$bckg_bait, df$bckg_ctrl), ]
   x <- Ibait$Ibait[Ibait$bckg==df$bckg_bait]
   qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
   H <- 1.5 * stats::IQR(x, na.rm = TRUE)
@@ -3000,7 +3035,7 @@ plot_QC <- function(prep_data){
   nNA <- cbind(df$conditions,
                nNA = sapply(1:dim(df$Intensity)[2], FUN=function(x){sum(is.na(df$Intensity[,x]))})
   )
-  
+  nNA <- nNA[nNA$bckg %in% c(df$bckg_bait, df$bckg_ctrl), ]
   x <- nNA$nNA[nNA$bckg==df$bckg_bait]
   qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
   H <- 1.5 * stats::IQR(x, na.rm = TRUE)
