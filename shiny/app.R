@@ -97,7 +97,6 @@ ui <- fluidPage(
              verbatimTextOutput("interactors"),
              bsTooltip("interactors", 
                        "Number of proteins that pass the detection criteria defined above")
-             #verbatimTextOutput("plotly_print")
           )
     ),
     column(9,
@@ -165,9 +164,6 @@ ui <- fluidPage(
                                            bsTooltip("time_pos", "Position, within column names, of the substrings containing the name (id) of the experimental condition"),
                                            numericInput("tech_pos", "technical replicates", value = 4),
                                            bsTooltip("tech_pos", "Position, within column names, of the substrings containing the name (id) of the technical replicate")
-                                           # textInput("preffix_bio", "biological replicates", value = "S"),
-                                           # textInput("preffix_tech", "technical replicates", value = "R"),
-                                           # textInput("preffix_time", "experimental conditions", value = "")
                                            
                                          ),
                                          conditionalPanel(
@@ -232,18 +228,6 @@ ui <- fluidPage(
                                     br(),
                                     wellPanel(
                                         h4("Select samples"),
-                                        # checkboxGroupInput("filter_bio",
-                                        #                    "Biological replicates (bio)",
-                                        #                    choices = list(),
-                                        #                    selected = NULL),
-                                        # checkboxGroupInput("filter_tech",
-                                        #                    "Technical replicates (tech)",
-                                        #                    choices = list(),
-                                        #                    selected = NULL),
-                                        # checkboxGroupInput("filter_time",
-                                        #                    "Experimental conditions (time)",
-                                        #                    choices = list(),
-                                        #                    selected = NULL),
                                         selectizeInput("bio_selected", "Biological replicates", choices = list(), multiple = TRUE),
                                         selectizeInput("tech_selected", "Technical replicates", choices = list(), multiple = TRUE),
                                         selectizeInput("time_selected", "Experimental conditions (ordered)", choices = list(), multiple = TRUE),
@@ -258,13 +242,6 @@ ui <- fluidPage(
                                 column(8,
                                   br(),
                                   plotOutput("QCPlot", width="400",height="350")
-                                  # plotOutput("QCPlot1", width="500",height="400"),
-                                  # plotOutput("QCPlot2", width="250",height="200"),
-                                  # plotOutput("QCPlot3", width="250",height="200")
-                                  # plotlyOutput("QCPlot1ly", width="300",height="250"),
-                                  # plotlyOutput("QCPlot2ly", width="300",height="250"),
-                                  # plotlyOutput("QCPlot3ly", width="300",height="250")
-                                  #dataTableOutput("condTable_bis")
                                 )
                        ),
                        tabPanel("Volcano",
@@ -608,7 +585,6 @@ server <- function(input, output, session) {
       bio <- df_cond[[input$manual_bio]]
       tech <- df_cond[[input$manual_tech]]
       
-      #cond_int <- dplyr::tibble(idx=seq_along(col_I), column=col_I, bckg, time, bio, tech)
       cond_int <- data.frame(idx=seq_along(col_I), column=col_I, bckg, time = time, bio, tech, stringsAsFactors = FALSE)
 
 
@@ -616,10 +592,6 @@ server <- function(input, output, session) {
     } else {
       
       match_pattern <- grep(input$pattern, names(data()))
-      # n_factor_col <- 0
-      # if(length(match_pattern) > 0){
-      #   n_factor_col <- sum( sapply( match_pattern, function(x) is.factor(data()[[x]]) ) )
-      # }
       
       validate(
         need(match_pattern > 0, "Pattern could not be found in column names. Please enter another pattern for intensity columns") %then%
@@ -628,9 +600,6 @@ server <- function(input, output, session) {
         need(input$time_pos > 0, "Enter position of technical replicates") %then%
         need(input$tech_pos > 0, "Enter position of experimental conditions")
           
-          # need(n_factor_col == 0,
-          #      "Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data"
-          # )
       )
       
       cond_int <- identify_conditions(data(),
@@ -642,32 +611,6 @@ server <- function(input, output, session) {
                                       split = input$split)
       
     }
-    
-    
-    # updateCheckboxGroupInput(session, "bio_selected",
-    #                          choices = as.list(unique(cond_int$bio)),
-    #                          selected = as.list(unique(cond_int$bio))) 
-    
-    # updateCheckboxGroupInput(session, "filter_bio",
-    #                          choices = as.list(unique(cond_int$bio)),
-    #                          selected = NULL) 
-    
-    
-                             
-    # updateCheckboxGroupInput(session, "filter_bio",
-    #                          choices = as.list(unique(cond_int$bio)),
-    #                          selected = NULL) 
-    # 
-    # updateCheckboxGroupInput(session, "filter_tech",
-    #                          choices = as.list(unique(cond_int$tech)),
-    #                          selected = NULL) 
-    
-    # updateCheckboxGroupInput(session, "filter_time",
-    #                          choices = as.list(unique(cond_int$time)),
-    #                          selected = NULL)
-    
-    
-    #saved_df$cond <- cond_int
     
     cond_int
     
@@ -695,14 +638,9 @@ server <- function(input, output, session) {
   })
   
   observe({
-    # updateSelectInput(session, "time_selected",
-    #                   choices = as.list(unique(cond()$time[cond()$bio %in% input$bio_selected])),
-    #                   selected = as.list(unique(cond()$time[cond()$bio %in% input$bio_selected])))
-    
      updateSelectInput(session, "time_selected",
                        choices = as.list(unique(cond()$time)),
                        selected = as.list(unique(cond()$time)))
-    
   })
   
   observe({
@@ -722,44 +660,23 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$apply_filter,{
-    #cat(cond()$time)
+
     cond_int <- cond()
-    #cat(length(unique(cond_int$tech)))
     cond_int$time <- factor(cond_int$time, levels=input$time_selected)
     cond_int$bio <- factor(cond_int$bio, levels=input$bio_selected)
     cond_int$tech <- factor(cond_int$tech, levels=input$tech_selected)
     idx_cond_selected <- which(rowSums(is.na(cond_int)) == 0)
     cond_int <- cond_int[idx_cond_selected, ]
     saved_df$cond <- cond_int
-    #cat(saved_df$cond$time)
-    #cat(input$time_selected)
+
   })
   
   observeEvent(saved_df$data,{
     saved_df$cond <- NULL
   })
-  # cond_filter <- reactive({
-  #   if(input$apply_filter){
-  #     cond_int <- cond()
-  #     cond_int$time <- factor(cond_int$time, levels=input$time_selected)
-  #     cond_int$bio <- factor(cond_int$bio, levels=input$bio_selected)
-  #     cond_int$tech <- factor(cond_int$tech, levels=input$tech_selected)
-  #     idx_cond_selected <- which(rowSums(is.na(cond_int)) == 0)
-  #     cat(rowSums(is.na(cond_int)))
-  #     cat(idx_cond_selected)
-  #     cond_int <- cond_int[idx_cond_selected, ]
-  #     saved_df$cond <- cond_int
-  #     cond_int
-  #   } else{
-  #     cond()
-  #   }
-  #   
-  #   
-  # })
   
   prep_data <- reactive({
     
-    #cat(saved_df$cond$time)
     validate(
       need(dim(saved_df$cond)[1]>0, "No sample selected. Please select samples and/or validate your sample selection in the QC / Select tab") %then%
       need( length(setdiff(c("column", "bckg", "time", "bio", "tech"), names(saved_df$cond))) == 0 , "No data")
@@ -782,18 +699,11 @@ server <- function(input, output, session) {
     found_bait_bckg <- input$bckg_bait %in% saved_df$cond$bckg
     found_ctrl_bckg <- input$bckg_ctrl %in% saved_df$cond$bckg
     
-    #cat(match(saved_df$cond$column, names(data())))
-    
     validate(
       need( sum(is.na(match(saved_df$cond$column, names(data())))) == 0, "Some column names could not be mapped to original sample names. Please check the file used to map samples" )
     )
-    
-    #cat(names(data()[ , match(saved_df$cond$column, names(data()))]))
-    
-    cat(sapply(match(saved_df$cond$column, names(data())), function(x){class(data()[[x]])}))
-    
+
     is_factor <- sapply(match(saved_df$cond$column, names(data())), function(x){is.factor(data()[[x]])})
-    cat(is_factor)
     
     validate(
       need(check_two_bckg, "Could not identify distinct backgrounds. Please verify the mapping of samples") %then%
@@ -809,12 +719,9 @@ server <- function(input, output, session) {
       need( sum( is_factor ) < length(is_factor) , "All intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
     )
 
-
-
     Column_gene_name <- input$column_gene_name #names(data())[grep("GENE", toupper(names(data())))[1]]
     Column_ID <- input$column_ID #names(data())[grep("ID", toupper(names(data())))[1]]
-    
-    #cat(names(saved_df$cond))
+
     
     preprocess_data(  df = data(),
                       Column_intensity_pattern = input$pattern,
@@ -823,12 +730,6 @@ server <- function(input, output, session) {
                       Column_ID = Column_ID,
                       bckg_bait = input$bckg_bait,
                       bckg_ctrl = input$bckg_ctrl,
-                      # preffix_bio = input$preffix_bio,
-                      # preffix_tech = input$preffix_tech,
-                      # preffix_time = input$preffix_time,
-                      #filter_bio = input$filter_bio,
-                      #filter_tech = input$filter_tech,
-                      #filter_time = input$filter_time,
                       condition = saved_df$cond
                       )
   })
@@ -904,13 +805,6 @@ server <- function(input, output, session) {
   })
 
   #Observe functions -------------------------------------------------------------------
-  
-  # observe({
-  #   
-  #     b_name <- input$bait_gene_name
-  #     updateTextInput(session, "bckg_bait", value =  b_name)
-  #     
-  # })
   
   observeEvent(input$format_names, {
     df<-saved_df$data
@@ -1068,31 +962,6 @@ server <- function(input, output, session) {
 
   })
   
-  # corrPlot <- reactive({
-  #   
-  #   df2 = data.frame(x=df_corr_plot$x, y=df_corr_plot$y, label=df_corr_plot$names, cluster=df_corr_plot$cluster)
-  #   
-  #   #print(head(df_corr_filtered() ))
-  #   
-  #   p<-ggplot(df2, aes(x, y, label=label, color=cluster)) +
-  #     theme_void() +
-  #     geom_point(alpha=0.3, size=10) +
-  #     geom_text()
-  #   
-  #   for (i in 1:length(df_corr_filtered()$name_1)){
-  #     idx1 <- which(df_corr_plot$names == df_corr_filtered()$name_1[i])
-  #     idx2 <- which(df_corr_plot$names == df_corr_filtered()$name_2[i])
-  #     p <- p + annotate("segment",
-  #                       x = df_corr_plot$x[idx1],
-  #                       xend = df_corr_plot$x[idx2],
-  #                       y = df_corr_plot$y[idx1],
-  #                       yend = df_corr_plot$y[idx2],
-  #                       colour = "gray50",
-  #                       alpha=0.25)
-  #   }
-  #   
-  #   p
-  # }) 
   
   data_summary <- reactive({
     df <- data_raw()
@@ -1334,18 +1203,7 @@ server <- function(input, output, session) {
            "Missing values" = QCPlot()[[3]]
            )
   )
-  # output$QCPlot1 <- renderPlot(QCPlot()[[1]])
-  # output$QCPlot2 <- renderPlot(QCPlot()[[2]])
-  # output$QCPlot3 <- renderPlot(QCPlot()[[3]])
-  #output$QCPlot1ly <- renderPlotly( ggplotly(QCPlot()[[1]], source="QCPlot1ly") )
-  #output$QCPlot2ly <- renderPlotly( ggplotly(QCPlot()[[2]]) )
-  #output$QCPlot3ly <- renderPlotly( ggplotly(QCPlot()[[3]]) )
-  
-  
-  # output$plotly_print <- renderPrint({
-  #   d <- event_data("plotly_hover", source = "QCPlot1ly")
-  #   if (is.null(d)) "Hover on a point!" else names(d)
-  # })
+
   
   #Output Download functions ---------------------------------------------------------------------
   
@@ -1577,9 +1435,7 @@ server <- function(input, output, session) {
   })
 
   output$info_dotPlot_hover <- renderPrint({
-    #if(!is.null(input$dotPlot_hover)){
-    #  i_prot = round(-input$dotPlot_hover$y)
-    #  i_cond = round(input$dotPlot_hover$x)
+
       prot_idx <- idx_order$cluster[select_dotPlot$i_prot]
       cond_idx <- select_dotPlot$i_cond
       
@@ -1590,7 +1446,7 @@ server <- function(input, output, session) {
       s5 <- paste("stoichio: ", ordered_Interactome()$stoichio[[ cond_idx ]][ prot_idx ], sep="")
       s6 <- paste("norm_stoichio: ", ordered_Interactome()$norm_stoichio[[ cond_idx ]][ prot_idx ], sep="")
       cat(s1, s2, s3, s4, s5, s6,sep="\n")
-    #}
+
   })
 
   
