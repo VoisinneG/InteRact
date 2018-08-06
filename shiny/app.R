@@ -14,7 +14,7 @@ library("InteRact")
 # library(Hmisc)
 # library(igraph)
 # library(networkD3)
-#library(dplyr)
+# library(dplyr)
 
 library(Hmisc)
 library(ggplot2)
@@ -67,6 +67,9 @@ ui <- fluidPage(
              checkboxInput("pool_background", "pool ctrl intensities", value = FALSE),
              bsTooltip("pool_background", 
                        "Perform protein enrichment tests using control intensities from all conditions"),
+             checkboxInput("merge_conditions", "merge conditions", value = FALSE),
+             bsTooltip("merge_conditions", 
+                       "Perform protein enrichment tests using control intensities from all conditions against bait intensities from all conditions"),
              checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
              bsTooltip("substract_ctrl", 
                        "Substract protein intensity from ctrl background to compute interaction stoichiometry"),
@@ -753,8 +756,13 @@ server <- function(input, output, session) {
     }
 
     
+    preprocess_df <- prep_data()
     
-    res_int <- InteRact(preprocess_df = prep_data(),
+    if(input$merge_conditions){
+      preprocess_df$conditions$time <- rep("merge", length(preprocess_df$conditions$time))
+    }
+    
+    res_int <- InteRact(preprocess_df = preprocess_df,
                       N_rep=input$Nrep,
                       method = input$method,
                       pool_background = input$pool_background,
@@ -1061,7 +1069,7 @@ server <- function(input, output, session) {
   
   dotPlot <- reactive({
     p <- plot_per_condition(ordered_Interactome(),
-                            color_var = "FDR",   
+                            color_var = input$var_p_val,   
                             idx_rows = min(input$Nmax, Ninteractors$x),
                             idx_cols = match(input$time_selected, ordered_Interactome()$conditions),
                             clustering = input$clustering)
