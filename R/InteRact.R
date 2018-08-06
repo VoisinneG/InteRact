@@ -63,6 +63,7 @@ InteRact <- function(
                      log_mean = TRUE,
                      by_conditions = TRUE,
                      substract_ctrl = TRUE,
+                     use_mean_for_bait = FALSE,
                      preprocess_df = NULL,
                      ...
                      ){
@@ -108,7 +109,8 @@ InteRact <- function(
       }
       
       
-      res[[i]]<-analyse_interactome(df = 10^log10_I_norm_mean_rep, 
+      res[[i]]<-analyse_interactome(df = 10^log10_I_norm_mean_rep,
+                                    Intensity = avg$Intensity,
                                     bait_gene_name = avg$bait_gene_name, 
                                     ibait = match(avg$bait_gene_name, avg$names), 
                                     Npep = avg$Npep, 
@@ -122,7 +124,8 @@ InteRact <- function(
                                     log_test = log_test, 
                                     log_stoichio = log_stoichio,
                                     by_conditions = by_conditions,
-                                    substract_ctrl = substract_ctrl)
+                                    substract_ctrl = substract_ctrl,
+                                    use_mean_for_bait =use_mean_for_bait)
       
     }
     
@@ -131,7 +134,8 @@ InteRact <- function(
     
   }else{
     
-    res_mean<-analyse_interactome(df = 10^log10_I_norm_mean, 
+    res_mean<-analyse_interactome(df = 10^log10_I_norm_mean,
+                                  Intensity = avg$Intensity,
                                   bait_gene_name = avg$bait_gene_name, 
                                   ibait = match(avg$bait_gene_name, avg$names), 
                                   Npep = avg$Npep, 
@@ -145,7 +149,8 @@ InteRact <- function(
                                   log_test = log_test, 
                                   log_stoichio = log_stoichio,
                                   by_conditions = by_conditions,
-                                  substract_ctrl = substract_ctrl)
+                                  substract_ctrl = substract_ctrl,
+                                  use_mean_for_bait = use_mean_for_bait)
 
   }
   
@@ -655,7 +660,10 @@ row_stoichio <- function(df,
                          idx_bait, 
                          Npep, 
                          log = TRUE, 
-                         substract_ctrl = TRUE){
+                         substract_ctrl = TRUE,
+                         use_mean_for_bait = TRUE,
+                         idx_group_1_mean,
+                         idx_group_2_mean){
   # compute stoichiometry of interaction for each row (protein).
   # idx_group_1 : indexes of columns for group #1 (OST bait)
   # idx_group_2 : indexes of columns for group #2 (WT)
@@ -664,8 +672,14 @@ row_stoichio <- function(df,
   
   stoichio <- rep(NaN,dim(df)[1]);
   
-  xbait1<-df[idx_bait, idx_group_1]
-  xbait2<-df[idx_bait, idx_group_2]
+  if(use_mean_for_bait){
+    xbait1<-df[idx_bait, idx_group_1_mean]
+    xbait2<-df[idx_bait, idx_group_2_mean]
+  }else{
+    xbait1<-df[idx_bait, idx_group_1]
+    xbait2<-df[idx_bait, idx_group_2]
+  }
+  
   
   for(i in (1:dim(df)[1]) ){
     x1<-df[i, idx_group_1]
@@ -693,6 +707,7 @@ row_stoichio <- function(df,
 #' Construct an interactome by comparing bait and control background across experimental conditions
 #'
 #' @param df a data frame of protein intensities. columns are experimental samples and rows are proteins
+#' @param Intensity a data frame of protein intensities (without replacement of missing values). columns are experimental samples and rows are proteins
 #' @param ibait : row index corresponding to the bait protein
 #' @param bait_gene_name : The gene name of the bait
 #' @param Npep : vector containing the number of theoretically observable peptide per protein (same length as \code{dim(df)[1]})
@@ -713,7 +728,8 @@ row_stoichio <- function(df,
 #' @return \code{p_val} : a list of vectors containing the p values associated to each experimental condition.
 #' @return \code{fold_change} : a list of vectors containing the fold change associated to each experimental condition. 
 #' @return \code{...} : other variables.
-analyse_interactome <- function( df, 
+analyse_interactome <- function( df,
+                                 Intensity,
                                  ibait, 
                                  bait_gene_name, 
                                  Npep, 
@@ -725,7 +741,8 @@ analyse_interactome <- function( df,
                                  replicates, 
                                  by_conditions = TRUE, pool_background = TRUE, 
                                  log_test = TRUE, log_stoichio = TRUE,
-                                 substract_ctrl = TRUE){
+                                 substract_ctrl = TRUE,
+                                 use_mean_for_bait = TRUE){
   
   
   if(!by_conditions){
@@ -749,19 +766,26 @@ analyse_interactome <- function( df,
   names(stoichio_bio) <- as.character(ubio)
   
   intensity_bait <- vector("list",length(cond))
+  intensity_na_bait <- vector("list",length(cond))
   names(intensity_bait) <- as.character(cond)
+  names(intensity_na_bait) <- as.character(cond)
   intensity_ctrl <- vector("list",length(cond))
+  intensity_na_ctrl <- vector("list",length(cond))
   names(intensity_ctrl) <- as.character(cond)
+  names(intensity_na_ctrl) <- as.character(cond)
   for (i_bio in 1:length(ubio)){
     stoichio_bio[[i_bio]] <- vector("list",length(cond))
     names(stoichio_bio[[i_bio]])<-as.character(cond)
   }
   for (i_cond in 1:length(cond)){
-    
     intensity_bait[[i_cond]] <- vector("list",length(ubio))
+    intensity_na_bait[[i_cond]] <- vector("list",length(ubio))
     names(intensity_bait[[i_cond]])<-as.character(ubio)
+    names(intensity_na_bait[[i_cond]])<-as.character(ubio)
     intensity_ctrl[[i_cond]] <- vector("list",length(ubio))
+    intensity_na_ctrl[[i_cond]] <- vector("list",length(ubio))
     names(intensity_ctrl[[i_cond]])<-as.character(ubio)
+    names(intensity_na_ctrl[[i_cond]])<-as.character(ubio)
   }
   
   
@@ -788,7 +812,11 @@ analyse_interactome <- function( df,
                                   idx_bait=ibait,
                                   Npep=Npep,
                                   log = log_stoichio,
-                                  substract_ctrl = substract_ctrl)
+                                  substract_ctrl = substract_ctrl,
+                                  use_mean_for_bait = use_mean_for_bait,
+                                  idx_group_1_mean = which( background==name_bait ),
+                                  idx_group_2_mean = which( background == name_ctrl )
+                                  )
     for (i_bio in 1:length(ubio)){
       
       idx_ctrl_bio <- which( background == name_ctrl & replicates == ubio[i_bio])
@@ -803,9 +831,15 @@ analyse_interactome <- function( df,
                                                  idx_bait=ibait,
                                                  Npep=Npep,
                                                  log = log_stoichio,
-                                                 substract_ctrl = substract_ctrl)
+                                                 substract_ctrl = substract_ctrl,
+                                                 use_mean_for_bait = use_mean_for_bait,
+                                                 idx_group_1_mean = which( background==name_bait ),
+                                                 idx_group_2_mean = which( background == name_ctrl )
+                                                 )
       intensity_bait[[i]][[i_bio]] <- df[ , idx_bait_bio]
       intensity_ctrl[[i]][[i_bio]]<- df[ , idx_ctrl_bio]
+      intensity_na_bait[[i]][[i_bio]] <- Intensity[ , idx_bait_bio]
+      intensity_na_ctrl[[i]][[i_bio]]<- Intensity[ , idx_ctrl_bio]
     }
   }
   
@@ -822,7 +856,11 @@ analyse_interactome <- function( df,
              stoichio=stoichio,
              stoichio_bio = stoichio_bio,
              intensity_bait = intensity_bait,
-             intensity_ctrl = intensity_ctrl
+             intensity_ctrl = intensity_ctrl,
+             intensity_na_bait = intensity_na_bait,
+             intensity_na_ctrl = intensity_na_ctrl,
+             data = df,
+             data_na = Intensity
              )
   
   class(res) <- 'InteRactome'
@@ -1227,18 +1265,19 @@ merge_proteome <- function( res ){
 identify_interactors <- function(res, 
                                  var_p_val = "p_val", 
                                  p_val_thresh = 0.05, 
-                                 fold_change_thresh = 2, 
+                                 fold_change_thresh = 2,
+                                 conditions = res$conditions,
                                  n_success_min = 1, 
                                  consecutive_success = FALSE,
                                  ...){
   
   res_int <- res
   
-  n_cond <- length(res$conditions)
+  n_cond <- length(conditions)
   is_interactor <- rep(0, length(res$names))
   n_success <- rep(0, length(res$names))
   
-  M <- do.call(cbind, res[[var_p_val]]) <= p_val_thresh & do.call(cbind, res[["fold_change"]]) >= fold_change_thresh
+  M <- do.call(cbind, res[[var_p_val]][conditions]) <= p_val_thresh & do.call(cbind, res[["fold_change"]][conditions]) >= fold_change_thresh
   
   for (i in 1:length(res$names)){
     
@@ -1294,30 +1333,31 @@ discretize_values <- function( x, breaks = c(1,0.1,0.05,0.01), decreasing_order 
 #' @param p_val_breaks numeric vector to discretize p-value
 #' @return an \code{InteRactome}
 #' @export
-order_interactome <- function(res, var_p_val = "min_p_val", p_val_breaks=c(1,0.1,0.05,0.01)){
+order_interactome <- function(res, idx = NULL, var_p_val = "min_p_val", p_val_breaks = c(1,0.1,0.05,0.01) ){
   
   min_p_val_discrete <- discretize_values(res[[var_p_val]], breaks = p_val_breaks, decreasing_order = TRUE)
   
-  if( "interactor" %in% names(res)){
+  if(!is.null(idx)){
+    idx_order <- idx
+    if(length(idx_order)!=length(res$names)){
+      stop("Vector of ordering indexes does not have the proper length")
+    }
+  } else if( "interactor" %in% names(res)){
     Ndetect<-length(res$interactor)
     idx_order<-order(res$is_interactor, 1/min_p_val_discrete, res$max_stoichio, decreasing = TRUE)
-  } else {
-    stop("Interactors have not been identified")
   }
   
   
-  if(length(idx_order)!=length(res$names)){
-    stop("Vector of ordering indexes does not have the proper length")
-  }
+  
   res_order<-res;
-  for( var in setdiff( names(res), c("bait", "bckg_bait", "bckg_ctrl","groups","conditions", "interactor", "replicates") ) ){
+  for( var in setdiff( names(res), c("bait", "bckg_bait", "bckg_ctrl","groups","conditions", "interactor", "replicates", "data", "data_na") ) ){
     
     if(length(res[[var]]) == length(res$names)){
       res_order[[var]] <- res[[var]][idx_order]
     }
     else{
       names_var <- names(res[[var]])
-      if( setequal(names_var, res$conditions) & !is.element(var, c("intensity_ctrl", "intensity_bait")) ){
+      if( setequal(names_var, res$conditions) & !is.element(var, c("intensity_ctrl", "intensity_bait", "intensity_na_ctrl", "intensity_na_bait")) ){
         for(i in 1:length(names_var) ){
           res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
         }
@@ -2266,7 +2306,19 @@ summary_table <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
   #columns <- add_columns
-  columns <- setdiff(columns, c("bait", "bckg_bait", "bckg_ctrl", "groups","conditions", "interactor", "replicates", "intensity_bait", "intensity_ctrl"))
+  columns <- setdiff(columns, c("bait", 
+                                "bckg_bait", 
+                                "bckg_ctrl", 
+                                "groups",
+                                "conditions", 
+                                "interactor", 
+                                "replicates", 
+                                "intensity_bait", 
+                                "intensity_ctrl", 
+                                "intensity_na_bait", 
+                                "intensity_na_ctrl", 
+                                "data", 
+                                "data_na"))
   
   df<-data.frame( bait=rep(res$bait, length(res$names)) )
   names_df<-"bait"
@@ -2590,10 +2642,10 @@ plot_volcanos <- function( res,
     
     if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
       plist[[i]] <- plist[[i]] +
-        geom_polygon(data=data.frame(x=c(x1,x2,x2,x1),y=c(y1,y1,y2,y2)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
-        annotate("segment", x = -x2, xend = x2, y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
-        annotate("segment", x = -x1, xend = -x1, y = 0, yend = y2, colour = rgb(1,0,0,0.5) ) +
-        annotate("segment", x = x1, xend = x1, y = 0, yend = y2, colour = rgb(1,0,0,0.5) )
+        geom_polygon(data=data.frame(x=c(x1,xrange[2],xrange[2],x1),y=c(y1,y1,yrange[2],yrange[2])), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+        annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
+        annotate("segment", x = -x1, xend = -x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) ) +
+        annotate("segment", x = x1, xend = x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) )
     }
     
     plist[[i]] <- plist[[i]] + 
@@ -2879,7 +2931,7 @@ plot_stoichio <- function(res,
 
 #' Plot protein intensities per biological replicate and background
 #' @param res an \code{InteRactome}
-#' @param name name of the protein to display
+#' @param names name of the protein to display
 #' @param conditions set of conditions to display
 #' @param textsize size of labels corresponding to significance levels
 #' @param test name of the test function to compare intensities between background
@@ -2892,16 +2944,28 @@ plot_stoichio <- function(res,
 #' @import ggsignif
 #' @export
 plot_comparison <- function(res,
-                          name,
-                          conditions, 
-                          textsize = 3,
+                          names,
+                          conditions = res$conditions, 
+                          textsize = 4,
+                          comparisons = list(c(1,2)),
+                          ylims= NULL,
+                          var_x = "bckg",
+                          var_facet_x = "cond",
+                          var_facet_y = "name",
+                          var_color = "bio",
+                          levels_x = NULL,
+                          show_bar = FALSE,
+                          show_error_bar = FALSE,
+                          show_signif = TRUE,
+                          show_violin = TRUE,
                           test="t.test",
                           test.args = list("paired"=FALSE),
                           map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
                           position = "position_jitter",
                           position.args = list(width=0.3, height=0)){
   
-  plot_title <- paste(name, test, sep = " / ") 
+  #plot_title <- paste(name, test, sep = " / ") 
+  plot_title <- paste(test, sep = " / ") 
   
   if("paired" %in% names(test.args)){
     if(test.args$paired){
@@ -2909,55 +2973,113 @@ plot_comparison <- function(res,
     }
   }
   
-  
-  idx_match <- which(res$names == name)
-  
   df_tot <- NULL
-  for( cond in conditions){
-    for ( bio in res$replicates){
-      if (is.null(dim(res$intensity_bait[[cond]][[bio]])) ){
-        intensity <- res$intensity_bait[[cond]][[bio]][idx_match]
-      } else {
-        intensity <- res$intensity_bait[[cond]][[bio]][idx_match, ]
+  for(name in names){
+    idx_match <- which(res$names == name)
+    for( cond in conditions){
+      for ( bio in res$replicates){
+        if (is.null(dim(res$intensity_bait[[cond]][[bio]])) ){
+          intensity <- res$intensity_bait[[cond]][[bio]][idx_match]
+          intensity_na <- res$intensity_na_bait[[cond]][[bio]][idx_match]
+        } else {
+          intensity <- res$intensity_bait[[cond]][[bio]][idx_match, ]
+          intensity_na <- res$intensity_na_bait[[cond]][[bio]][idx_match, ]
+        }
+        df <- data.frame(intensity = intensity,
+                         intensity_na = intensity_na,
+                         bckg = rep("bait", length(intensity)), 
+                         bio = rep(bio, length(intensity)), 
+                         cond=  rep(cond, length(intensity)),
+                         name = rep(name, length(intensity)))
+        df_tot <- rbind(df_tot, df)
       }
-      df <- data.frame(intensity = intensity, bckg = rep("bait", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
-      df_tot <- rbind(df_tot, df)
     }
   }
-  for( cond in conditions){
-    for ( bio in res$replicates){
-      if (is.null(dim(res$intensity_ctrl[[cond]][[bio]])) ){
-        intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match]
-      } else {
-        intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match, ]
+    
+  for(name in names){
+    idx_match <- which(res$names == name)
+    for( cond in conditions){
+      for ( bio in res$replicates){
+        if (is.null(dim(res$intensity_ctrl[[cond]][[bio]])) ){
+          intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match]
+          intensity_na <- res$intensity_na_ctrl[[cond]][[bio]][idx_match]
+        } else {
+          intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match, ]
+          intensity_na <- res$intensity_na_ctrl[[cond]][[bio]][idx_match, ]
+        }
+        df <- data.frame(intensity = intensity,
+                         intensity_na = intensity_na,
+                         bckg = rep("ctrl", length(intensity)), 
+                         bio = rep(bio, length(intensity)), 
+                         cond=  rep(cond, length(intensity)),
+                         name = rep(name, length(intensity)))
+        df_tot <- rbind(df_tot, df)
       }
-      df <- data.frame(intensity = intensity, bckg = rep("ctrl", length(intensity)), bio = rep(bio, length(intensity)), cond=  rep(cond, length(intensity)))
-      df_tot <- rbind(df_tot, df)
     }
   }
-  df_tot$bckg <- factor(df_tot$bckg, levels = c("ctrl", "bait"))
+ 
+  df_tot$x <- df_tot[[var_x]]
+  if(!is.null(levels_x)){
+    df_tot$x <- factor(df_tot$x, levels = levels_x) 
+  }
   
-  comparisons <- list(c("ctrl","bait"))
+  df_tot$facet_x <- df_tot[[var_facet_x]]
+  df_tot$facet_y <- df_tot[[var_facet_y]]
+  df_tot$color <- df_tot[[var_color]]
+  df_tot$missing <- is.na(df_tot[["intensity_na"]])
   
-  p <- ggplot(df_tot, aes(x=bckg, y=log10(intensity))) + 
-    theme(axis.text = element_text(size=12)) +
+  p <- ggplot(df_tot, aes(x=x, y=log10(intensity))) + 
+    theme(axis.text = element_text(size=12),
+          axis.text.x = element_text(angle=90, vjust = 0.5)) +
     geom_point(size=0, alpha = 0) + 
-    geom_violin() + 
-    ggtitle(plot_title) + 
-    geom_point( data = df_tot, 
-                mapping = aes(x=bckg, y=log10(intensity), color=bio), 
-                size=3, 
-                alpha = 0.8,
-                position = do.call(position, position.args) ) + 
-    geom_signif(comparisons = comparisons, 
+    ggtitle(plot_title)
+
+  if(show_bar){
+    p <- p + geom_bar(stat = "summary", fun.y = "mean", alpha=0.5) 
+  }
+  
+  if(show_error_bar){
+    p <- p +geom_errorbar(stat = "summary", fun.data = "mean_sdl", fun.args = list(mult = 1), width = 0.1)
+  }
+  if(show_violin){
+    p <- p + geom_violin()
+  }
+     
+  p <- p + geom_point( data = df_tot, 
+                mapping = aes(x=x, y=log10(intensity), color=color, alpha = missing), 
+                size=2,
+                position = do.call(position, position.args) ) +
+      scale_alpha_manual(values = c("TRUE" = 0.33, "FALSE"=1))
+  
+  if(show_signif){
+    p <- p + geom_signif(comparisons = comparisons, 
                 step_increase = 0.1,
                 test = test,
                 textsize = textsize, 
                 test.args = test.args,
-                map_signif_level = map_signif_level
-    )
+                map_signif_level = map_signif_level)
+  }
   
-  p <- p + facet_grid(~ cond)
+  p <- p + scale_y_continuous(limits= c(min(log10(df_tot$intensity)), 
+                                        max(log10(df_tot$intensity)) + 
+                                          0.2*(max(log10(df_tot$intensity)) - 
+                                                 min(log10(df_tot$intensity)) )) )
+  
+  if(!is.null(ylims)){
+    if(ylims[1] <= min(log10(df_tot$intensity)) & ylims[2] >= max(log10(df_tot$intensity)) ){
+      p <- p + scale_y_continuous(limits = c(ylims[1], ylims[2]))
+    }
+  }
+  
+  p <- p + facet_grid(facet_y ~ facet_x)
+  # if(length(names) > 1 & length(conditions) > 1){
+  #   p <- p + facet_grid(cond ~ name)
+  # } else if (length(names) > 1 & length(conditions) == 1){
+  #   p <- p + facet_grid( ~ name)
+  # } else if (length(names) == 1 & length(conditions) > 1){
+  #   p <- p + facet_grid( ~ cond)
+  # }
+  
   
   return(p)
   
