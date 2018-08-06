@@ -10,6 +10,8 @@ order_interactome(res, idx = NULL, var_p_val = "min_p_val",
 \arguments{
 \item{res}{an \code{InteRactome}}
 
+\item{idx}{indices used to order proteins. Overrides ordering using \code{var_p_val} and \code{p_val_breaks}}
+
 \item{var_p_val}{name of the p-value variable}
 
 \item{p_val_breaks}{numeric vector to discretize p-value}

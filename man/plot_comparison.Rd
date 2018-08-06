@@ -5,10 +5,10 @@
 \title{Plot protein intensities per biological replicate and background}
 \usage{
 plot_comparison(res, names, conditions = res$conditions, textsize = 4,
-  comparisons = list(c(1, 2)), ylims = NULL, var_x = "bckg",
-  var_facet_x = "cond", var_facet_y = "name", var_color = "bio",
-  levels_x = NULL, show_bar = FALSE, show_error_bar = FALSE,
-  show_signif = TRUE, show_violin = TRUE, test = "t.test",
+  ylims = NULL, var_x = "bckg", var_facet_x = "cond",
+  var_facet_y = "name", var_color = "bio", levels_x = NULL,
+  show_bar = FALSE, show_error_bar = FALSE, show_signif = TRUE,
+  show_violin = TRUE, comparisons = list(c(1, 2)), test = "t.test",
   test.args = list(paired = FALSE), map_signif_level = c(`***` = 0.001, `**`
   = 0.01, `*` = 0.05), position = "position_jitter",
   position.args = list(width = 0.3, height = 0))
@@ -21,6 +21,28 @@ plot_comparison(res, names, conditions = res$conditions, textsize = 4,
 \item{conditions}{set of conditions to display}
 
 \item{textsize}{size of labels corresponding to significance levels}
+
+\item{ylims}{plot limits on the y axis}
+
+\item{var_x}{x variable}
+
+\item{var_facet_x}{variable used for faceting plots horizontally}
+
+\item{var_facet_y}{variable used for faceting plots vertically}
+
+\item{var_color}{variable used to color points}
+
+\item{levels_x}{defines factor levels for x variable}
+
+\item{show_bar}{logical, show bars using \code{geom_bar}}
+
+\item{show_error_bar}{logical, show error bars using \code{geom_errorbar}}
+
+\item{show_signif}{logical, show significance of comparison tests using \code{geom_signif}}
+
+\item{show_violin}{logical, show point distribution using \code{geom_violin}}
+
+\item{comparisons}{list of comparison pairs (as indices or x variable names)}
 
 \item{test}{name of the test function to compare intensities between background}
 

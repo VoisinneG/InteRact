@@ -41,6 +41,8 @@ analyse_interactome(df, Intensity, ibait, bait_gene_name, Npep, Protein.IDs,
 \item{log_stoichio}{logical, use the geometric mean instead of the arithmetic mean to compute stoichiometries}
 
 \item{substract_ctrl}{logical, substract ctrl intensities in the calculation of stoichiometries}
+
+\item{use_mean_for_bait}{logical, average bait intensities across all conditions to compute interaction stoichiometries}
 }
 \value{
 an object of class \code{InteRactome}, i.e a list including the following elements :

@@ -22,6 +22,12 @@ row_stoichio(df, idx_group_1, idx_group_2, idx_bait, Npep, log = TRUE,
 \item{log}{logical, use the geometric mean instead of the arithmetic mean}
 
 \item{substract_ctrl}{logical, substract ctrl intensities in the calculation of stoichiometries}
+
+\item{use_mean_for_bait}{logical, average bait intensities across all conditions to compute interaction stoichiometries}
+
+\item{idx_group_1_mean}{if \code{use_mean_for_bait} is TRUE, column indexes for the bait protein corresponding to the first group (bait background)}
+
+\item{idx_group_2_mean}{if \code{use_mean_for_bait} is TRUE, column indexes for the bait protein corresponding to the second group (ctrl background)}
 }
 \value{
 A numeric vector of interaction stoichiometries

@@ -37,6 +37,8 @@ in the control background used to replace missing values.}
 
 \item{substract_ctrl}{logical, substract ctrl intensities in the calculation of stoichiometries}
 
+\item{use_mean_for_bait}{logical, average bait intensities across all conditions to compute interaction stoichiometries}
+
 \item{preprocess_df}{list obtained by  the function \code{preprocess_data()}}
 
 \item{...}{Additional parameters passed to function \code{preprocess_data()} and \code{identify_conditions}}

@@ -13,6 +13,7 @@
 #' @param log_stoichio logical, use the geometric mean instead of the arithmetic mean to compute stoichiometries
 #' @param log_mean logical, use the geometric mean instead of the arithmetic mean to compute the mean \code{InteRactome}
 #' @param substract_ctrl logical, substract ctrl intensities in the calculation of stoichiometries
+#' @param use_mean_for_bait logical, average bait intensities across all conditions to compute interaction stoichiometries
 #' @param by_conditions option to perform the comparison between bait and control group for each condition
 #' @param preprocess_df list obtained by  the function \code{preprocess_data()}
 #' @param ... Additional parameters passed to function \code{preprocess_data()} and \code{identify_conditions}
@@ -653,6 +654,9 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
 #' @param Npep numeric vector containing the number of theoretically observable peptides for each protein
 #' @param log logical, use the geometric mean instead of the arithmetic mean
 #' @param substract_ctrl logical, substract ctrl intensities in the calculation of stoichiometries
+#' @param use_mean_for_bait logical, average bait intensities across all conditions to compute interaction stoichiometries
+#' @param idx_group_1_mean if \code{use_mean_for_bait} is TRUE, column indexes for the bait protein corresponding to the first group (bait background)
+#' @param idx_group_2_mean if \code{use_mean_for_bait} is TRUE, column indexes for the bait protein corresponding to the second group (ctrl background)
 #' @return A numeric vector of interaction stoichiometries
 row_stoichio <- function(df, 
                          idx_group_1, 
@@ -721,6 +725,7 @@ row_stoichio <- function(df,
 #' @param log_test logical, perform t-test on log transform intensities
 #' @param log_stoichio logical, use the geometric mean instead of the arithmetic mean to compute stoichiometries
 #' @param substract_ctrl logical, substract ctrl intensities in the calculation of stoichiometries
+#' @param use_mean_for_bait logical, average bait intensities across all conditions to compute interaction stoichiometries
 #' @param by_conditions option to perform the comparison between bait and control group for each condition
 #' @return an object of class \code{InteRactome}, i.e a list including the following elements :
 #' @return \code{conditions} : a vector of experimental conditions.
@@ -1254,6 +1259,7 @@ merge_proteome <- function( res ){
 #' @param var_p_val name of the p-value variable
 #' @param p_val_thresh p-value threshold
 #' @param fold_change_thresh fold-change threshold
+#' @param conditions Select conditions used to identify interactors
 #' @param n_success_min minimal number of conditions in which the interactor 
 #' must pass the the p-value and the fold-change thresholds
 #' @param consecutive_success logical, impose that the interactor must pass selection thresholds 
@@ -1329,6 +1335,7 @@ discretize_values <- function( x, breaks = c(1,0.1,0.05,0.01), decreasing_order 
 
 #' Order proteins within an \code{InteRactome}
 #' @param res an \code{InteRactome}
+#' @param idx indices used to order proteins. Overrides ordering using \code{var_p_val} and \code{p_val_breaks}
 #' @param var_p_val name of the p-value variable
 #' @param p_val_breaks numeric vector to discretize p-value
 #' @return an \code{InteRactome}
@@ -2934,6 +2941,17 @@ plot_stoichio <- function(res,
 #' @param names name of the protein to display
 #' @param conditions set of conditions to display
 #' @param textsize size of labels corresponding to significance levels
+#' @param ylims plot limits on the y axis
+#' @param var_x x variable 
+#' @param levels_x defines factor levels for x variable
+#' @param var_facet_x variable used for faceting plots horizontally
+#' @param var_facet_y variable used for faceting plots vertically
+#' @param var_color variable used to color points
+#' @param show_bar logical, show bars using \code{geom_bar}
+#' @param show_error_bar logical, show error bars using \code{geom_errorbar}
+#' @param show_signif logical, show significance of comparison tests using \code{geom_signif}
+#' @param show_violin logical, show point distribution using \code{geom_violin}
+#' @param comparisons list of comparison pairs (as indices or x variable names)
 #' @param test name of the test function to compare intensities between background
 #' @param test.args arguments passed to function \code{test}
 #' @param map_signif_level named vector with labels and corresponding significance levels
@@ -2947,7 +2965,6 @@ plot_comparison <- function(res,
                           names,
                           conditions = res$conditions, 
                           textsize = 4,
-                          comparisons = list(c(1,2)),
                           ylims= NULL,
                           var_x = "bckg",
                           var_facet_x = "cond",
@@ -2958,6 +2975,7 @@ plot_comparison <- function(res,
                           show_error_bar = FALSE,
                           show_signif = TRUE,
                           show_violin = TRUE,
+                          comparisons = list(c(1,2)),
                           test="t.test",
                           test.args = list("paired"=FALSE),
                           map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),

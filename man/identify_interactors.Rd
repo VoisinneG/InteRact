@@ -17,6 +17,8 @@ identify_interactors(res, var_p_val = "p_val", p_val_thresh = 0.05,
 
 \item{fold_change_thresh}{fold-change threshold}
 
+\item{conditions}{Select conditions used to identify interactors}
+
 \item{n_success_min}{minimal number of conditions in which the interactor 
 must pass the the p-value and the fold-change thresholds}
 
