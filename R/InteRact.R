@@ -1012,7 +1012,7 @@ merge_conditions <- function( res,  selected_conditions = NULL){
 #' df_merge <- merge_conditions(res)
 #' df_FDR <- compute_FDR_from_asymmetry(df_merge)
 #' Interactome <- append_FDR(res, df_FDR)
-compute_FDR_from_asymmetry <- function( df, 
+compute_FDR_from_asymmetry <- function( df,
                                         c = seq(from = 0, to =4, by = 0.1),
                                         x0 = seq(from = 0, to =3, by = 0.1)){
   
