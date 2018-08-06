@@ -4,7 +4,11 @@
 \alias{plot_comparison}
 \title{Plot protein intensities per biological replicate and background}
 \usage{
-plot_comparison(res, name, conditions, textsize = 3, test = "t.test",
+plot_comparison(res, names, conditions = res$conditions, textsize = 4,
+  comparisons = list(c(1, 2)), ylims = NULL, var_x = "bckg",
+  var_facet_x = "cond", var_facet_y = "name", var_color = "bio",
+  levels_x = NULL, show_bar = FALSE, show_error_bar = FALSE,
+  show_signif = TRUE, show_violin = TRUE, test = "t.test",
   test.args = list(paired = FALSE), map_signif_level = c(`***` = 0.001, `**`
   = 0.01, `*` = 0.05), position = "position_jitter",
   position.args = list(width = 0.3, height = 0))
@@ -12,7 +16,7 @@ plot_comparison(res, name, conditions, textsize = 3, test = "t.test",
 \arguments{
 \item{res}{an \code{InteRactome}}
 
-\item{name}{name of the protein to display}
+\item{names}{name of the protein to display}
 
 \item{conditions}{set of conditions to display}
 

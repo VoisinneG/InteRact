@@ -4,8 +4,8 @@
 \alias{order_interactome}
 \title{Order proteins within an \code{InteRactome}}
 \usage{
-order_interactome(res, var_p_val = "min_p_val", p_val_breaks = c(1, 0.1,
-  0.05, 0.01))
+order_interactome(res, idx = NULL, var_p_val = "min_p_val",
+  p_val_breaks = c(1, 0.1, 0.05, 0.01))
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

@@ -15,7 +15,8 @@ Imports:
 	networkD3,
 	ggsignif,
 	BiocInstaller,
-	PSICQUIC
+	PSICQUIC,
+	S4Vectors
 biocViews:
 LazyData: TRUE
 License: file LICENSE

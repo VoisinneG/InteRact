@@ -5,8 +5,8 @@
 \title{Identify specific interactors in an \code{InteRactome}}
 \usage{
 identify_interactors(res, var_p_val = "p_val", p_val_thresh = 0.05,
-  fold_change_thresh = 2, n_success_min = 1, consecutive_success = FALSE,
-  ...)
+  fold_change_thresh = 2, conditions = res$conditions, n_success_min = 1,
+  consecutive_success = FALSE, ...)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
