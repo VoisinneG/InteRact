@@ -60,33 +60,45 @@ ui <- fluidPage(
     column(3,
            br(),
            wellPanel(
-             h4("General parameters"),
-             textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
-             bsTooltip("bait_gene_name", 
-                       "The gene name of the bait protein"),
-             checkboxInput("pool_background", "pool ctrl intensities", value = FALSE),
-             bsTooltip("pool_background", 
-                       "Perform protein enrichment tests using control intensities from all conditions"),
-             checkboxInput("merge_conditions", "merge conditions", value = FALSE),
-             bsTooltip("merge_conditions", 
-                       "Perform protein enrichment tests using control intensities from all conditions against bait intensities from all conditions"),
-             checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
-             bsTooltip("substract_ctrl", 
-                       "Substract protein intensity from ctrl background to compute interaction stoichiometry"),
-             h4("Missing values :"),
-             numericInput("Nrep", "# replacements", value = 1),
-             bsTooltip("Nrep", 
-                       "Number of times missing values will be replaced. Use 0 if you do not want to replace missing values"),
-             selectInput("method", "Replacement method", choices = as.list(method_choices), selected = "default"),
-             bsTooltip("method", 
-                       "Method used for the replacement of missing values."),
-             actionButton("start", label = "Compute Interactome")
-             
+             selectInput("mode", "Select app mode", choices=c("compute","visualize"), selected = "compute"),
+             bsTooltip("mode", "compute : compute interactome from raw data, visualize : import pre-computed interactome", placement = "top")
+           ),
+           conditionalPanel(
+             condition = "input.mode == 'compute'",
+             wellPanel(
+               h4("General parameters"),
+               textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
+               bsTooltip("bait_gene_name", 
+                         "The gene name of the bait protein"),
+               checkboxInput("pool_background", "pool ctrl intensities", value = FALSE),
+               bsTooltip("pool_background", 
+                         "Perform protein enrichment tests using control intensities from all conditions"),
+               checkboxInput("merge_conditions", "merge conditions", value = FALSE),
+               bsTooltip("merge_conditions", 
+                         "Perform protein enrichment tests using control intensities from all conditions against bait intensities from all conditions"),
+               checkboxInput("substract_ctrl", "substract ctrl (stoichio)", value = FALSE),
+               bsTooltip("substract_ctrl", 
+                         "Substract protein intensity from ctrl background to compute interaction stoichiometry"),
+               checkboxInput("use_mean_for_bait", "Use mean bait intensity (stoichio)", value = FALSE),
+               bsTooltip("use_mean_for_bait", 
+                         "Use mean bait intensity across all conditions and biological repliactes to compute interaction stoichiometry"),
+               h4("Missing values :"),
+               numericInput("Nrep", "# replacements", value = 1),
+               bsTooltip("Nrep", 
+                         "Number of times missing values will be replaced. Use 0 if you do not want to replace missing values"),
+               selectInput("method", "Replacement method", choices = as.list(method_choices), selected = "default"),
+               bsTooltip("method", 
+                         "Method used for the replacement of missing values.", 
+                         placement = "right"),
+               actionButton("start", label = "Compute Interactome")
+             )
+
           ),
           wellPanel(
              h4("Interaction parameters"),
              selectInput("var_p_val", "p-value variable", choices=c("p_val","FDR"), selected = "p_val"),
-             bsTooltip("var_p_val", "p_val : p-value corresponding to the enrichment t-test; FDR : false discovery rate calculated using the asymmetry of the volcano plot."),
+             bsTooltip("var_p_val", "p_val : p-value corresponding to the enrichment t-test; FDR : false discovery rate calculated using the asymmetry of the volcano plot.", 
+                       placement = "top"),
              numericInput("p_val_thresh", "p-value (maximum)", value = 0.01),
              bsTooltip("p_val_thresh", "Threshold on interaction p-value"),
              numericInput("fold_change_thresh", "fold-change (minimum)", value = 2),
@@ -106,145 +118,179 @@ ui <- fluidPage(
            br(),
            tabsetPanel(id = "inTabset",
                        tabPanel("Import",
-                                column(4,
-                                       br(),
-                                       wellPanel(
-                                         fileInput("file", h4("Import file :"), placeholder = "Enter file here"),
-                                         checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
-                                       ),
-                                       wellPanel(
-                                         h4("Select columns"),
-                                         selectInput("column_gene_name",
-                                                     "column for gene name",
-                                                     choices = list(),
-                                                     selected = NULL),
-                                         bsTooltip("column_gene_name", 
-                                                   "Choose the column containing gene names. This is where the Bait (gene name) defined in the general parameters panel should be."),
-                                         selectInput("column_ID",
-                                                     "column for protein ID",
-                                                     choices = list(),
-                                                     selected = NULL),
-                                         bsTooltip("column_ID", 
-                                                   "Choose the column containing protein IDs (from uniprot). This information is used to retrieve additional information such as GO annotations.")
-                                       )
+                                
+                                conditionalPanel(
+                                  condition = "input.mode == 'compute'",
+                                  column(4,
+                                         br(),
+                                         wellPanel(
+                                           fileInput("file", h4("Import file :"), placeholder = "Enter file here"),
+                                           checkboxInput("delim", "Use comma as delimiter", value = FALSE),
+                                           checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
+                                         ),
+                                         wellPanel(
+                                           h4("Select columns"),
+                                           selectInput("column_gene_name",
+                                                       "column for gene name",
+                                                       choices = list(),
+                                                       selected = NULL),
+                                           bsTooltip("column_gene_name", 
+                                                     "Choose the column containing gene names. This is where the Bait (gene name) defined in the general parameters panel should be.", 
+                                                     placement = "top"
+                                                     ),
+                                           selectInput("column_ID",
+                                                       "column for protein ID",
+                                                       choices = list(),
+                                                       selected = NULL),
+                                           bsTooltip("column_ID", 
+                                                     "Choose the column containing protein IDs (from uniprot). This information is used to retrieve additional information such as GO annotations.", 
+                                                     placement = "top")
+                                         )
+                                  ),
+                                  column(8,
+                                         br(),
+                                         dataTableOutput("data_summary")
+                                  )
+                                
                                 ),
-                                column(8,
-                                       br(),
-                                       dataTableOutput("data_summary")
+                                
+                                conditionalPanel(
+                                  condition = "input.mode == 'visualize'",
+                                  column(4,
+                                         br(),
+                                         wellPanel(
+                                           fileInput("load", h4("Load interactome :"), placeholder = "Enter file here")
+                                         )
+                                  )
                                 )
                        ),
                        tabPanel("Group",
-
-                                column(4,
-                                       br(),
-                                       wellPanel(
-                                         h4("Select background"),
-                                         selectInput("bckg_bait", "Bait background", choices = list(), selected = NULL ),
-                                         bsTooltip("bckg_bait", 
-                                                   "Enter the name of the bait background (as displayed in the table on the right)."),
-                                         selectInput("bckg_ctrl", "Control background", choices = list(), selected = NULL ),
-                                         #textInput("bckg_ctrl", "Control background", value = "WT"),
-                                         bsTooltip("bckg_ctrl", 
-                                                   "Enter the name of the control background (as displayed in the table on the right).")
-                                         
-                                       ),
-                                       wellPanel(
-                                         h4("Map samples"),
-                                         checkboxInput("manual_mapping", "manual mapping", value = FALSE),
-                                         bsTooltip("manual_mapping", "Option to import custom definition of samples"),
-                                         conditionalPanel(
-                                           condition = "input.manual_mapping == false",
-                                           textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
-                                           bsTooltip("pattern", "Columns whose name contains this pattern will be identified as protein intensity columns. Regular expressions are supported."),
-                                           textInput("split", "split character", value = "_"),
-                                           bsTooltip("split", "split character used to divide column names in multiple substrings"),
-                                           h4("Enter position of:"),
-                                           numericInput("bckg_pos", "background", value = 1),
-                                           bsTooltip("bckg_pos", "Position, within column names, of the substrings containing the background name (id)"),
-                                           numericInput("bio_pos", "biological replicates", value = 2),
-                                           bsTooltip("bio_pos", "Position, within column names, of the substrings containing the name (id) of the biological replicate"),
-                                           numericInput("time_pos", "experimental conditions", value = 3),
-                                           bsTooltip("time_pos", "Position, within column names, of the substrings containing the name (id) of the experimental condition"),
-                                           numericInput("tech_pos", "technical replicates", value = 4),
-                                           bsTooltip("tech_pos", "Position, within column names, of the substrings containing the name (id) of the technical replicate")
+                                conditionalPanel(
+                                  condition = "input.mode == 'compute'",
+                                  column(4,
+                                         br(),
+                                         wellPanel(
+                                           h4("Select background"),
+                                           selectInput("bckg_bait", "Bait background", choices = list(), selected = NULL ),
+                                           bsTooltip("bckg_bait", 
+                                                     "Enter the name of the bait background (as displayed in the table on the right).", 
+                                                     placement = "top"),
+                                           selectInput("bckg_ctrl", "Control background", choices = list(), selected = NULL ),
+                                           #textInput("bckg_ctrl", "Control background", value = "WT"),
+                                           bsTooltip("bckg_ctrl", 
+                                                     "Enter the name of the control background (as displayed in the table on the right).", 
+                                                     placement = "top")
                                            
                                          ),
-                                         conditionalPanel(
-                                           condition = "input.manual_mapping == true",
-                                           fileInput("file_cond", h4("Import file :"), placeholder = "Enter file here"),
-                                           checkboxInput("sep_cond", "Use comma as separator", value = FALSE),
-                                           checkboxInput("transpose", "transpose", value = FALSE),
-                                           bsTooltip("transpose", "Invert rows/columns. Rows should correspond to protein intensity column names (corresponding to those shown in the import tab)"),
-                                           h4("Choose column for:"),
-                                           selectInput("column_name",
-                                                       "column name",
-                                                       choices = list(),
-                                                       selected = NULL),
-                                           bsTooltip("column_name", "Choose column containing protein intensity column names (corresponding to those shown in the import tab)"),
-                                           selectInput("manual_bckg",
-                                                              "background",
-                                                              choices = list(),
-                                                              selected = NULL),
-                                           bsTooltip("manual_bckg", "Choose column containing the background name (id) for each sample"),
-                                           selectInput("manual_bio",
-                                                              "biological replicates",
-                                                              choices = list(),
-                                                              selected = NULL),
-                                           bsTooltip("manual_bio", "Choose column containing the name (id) of the biological replicate for each sample"),
-                                           selectInput("manual_tech",
-                                                              "technical replicates",
-                                                              choices = list(),
-                                                              selected = NULL),
-                                           bsTooltip("manual_tech", "Choose column containing the name (id) of the technical replicate for each sample"),
-                                           selectInput("manual_time",
-                                                              "experimental conditions",
-                                                              choices = list(),
-                                                              selected = NULL),
-                                           bsTooltip("manual_time", "Choose column containing the name (id) of the experimental condition for each sample")
-                                         )
-                                       ),
-                                       conditionalPanel(
-                                         condition = "input.manual_mapping == false",
                                          wellPanel(
-                                           h4("Format column names"),
-                                           selectInput("format_function",
-                                                       "Function",
-                                                       choices = c("gsub", "sub"),
-                                                       selected = "gsub"),
-                                           bsTooltip("format_function", "Name of the function used to modify column names. The function gsub replaces all occurences of pattern by replacement while the function sub replaces only the first occurence."),
-                                           textInput("format_pattern", "pattern", value = "."),
-                                           bsTooltip("format_pattern", "pattern to be replaced in column names"),
-                                           textInput("format_replacement", "replacement", value = "_"),
-                                           bsTooltip("format_replacement", "character string replacing pattern"),
-                                           actionButton("format_names","Format column names")
+                                           h4("Map samples"),
+                                           checkboxInput("manual_mapping", "manual mapping", value = FALSE),
+                                           bsTooltip("manual_mapping", "Option to import custom definition of samples"),
+                                           conditionalPanel(
+                                             condition = "input.manual_mapping == false",
+                                             textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
+                                             bsTooltip("pattern", "Columns whose name contains this pattern will be identified as protein intensity columns. Regular expressions are supported."),
+                                             textInput("split", "split character", value = "_"),
+                                             bsTooltip("split", "split character used to divide column names in multiple substrings"),
+                                             h4("Enter position of:"),
+                                             numericInput("bckg_pos", "background", value = 1),
+                                             bsTooltip("bckg_pos", "Position, within column names, of the substrings containing the background name (id)"),
+                                             numericInput("bio_pos", "biological replicates", value = 2),
+                                             bsTooltip("bio_pos", "Position, within column names, of the substrings containing the name (id) of the biological replicate"),
+                                             numericInput("time_pos", "experimental conditions", value = 3),
+                                             bsTooltip("time_pos", "Position, within column names, of the substrings containing the name (id) of the experimental condition"),
+                                             numericInput("tech_pos", "technical replicates", value = 4),
+                                             bsTooltip("tech_pos", "Position, within column names, of the substrings containing the name (id) of the technical replicate")
+                                             
+                                           ),
+                                           conditionalPanel(
+                                             condition = "input.manual_mapping == true",
+                                             fileInput("file_cond", h4("Import file :"), placeholder = "Enter file here"),
+                                             checkboxInput("sep_cond", "Use comma as separator", value = FALSE),
+                                             checkboxInput("transpose", "transpose", value = FALSE),
+                                             bsTooltip("transpose", "Invert rows/columns. Rows should correspond to protein intensity column names (corresponding to those shown in the import tab)"),
+                                             h4("Choose column for:"),
+                                             selectInput("column_name",
+                                                         "column name",
+                                                         choices = list(),
+                                                         selected = NULL),
+                                             bsTooltip("column_name", "Choose column containing protein intensity column names (corresponding to those shown in the import tab)", 
+                                                       placement = "right"),
+                                             selectInput("manual_bckg",
+                                                         "background",
+                                                         choices = list(),
+                                                         selected = NULL),
+                                             bsTooltip("manual_bckg", "Choose column containing the background name (id) for each sample", 
+                                                       placement = "right"),
+                                             selectInput("manual_bio",
+                                                         "biological replicates",
+                                                         choices = list(),
+                                                         selected = NULL),
+                                             bsTooltip("manual_bio", "Choose column containing the name (id) of the biological replicate for each sample", 
+                                                       placement = "right"),
+                                             selectInput("manual_tech",
+                                                         "technical replicates",
+                                                         choices = list(),
+                                                         selected = NULL),
+                                             bsTooltip("manual_tech", "Choose column containing the name (id) of the technical replicate for each sample", 
+                                                       placement = "right"),
+                                             selectInput("manual_time",
+                                                         "experimental conditions",
+                                                         choices = list(),
+                                                         selected = NULL),
+                                             bsTooltip("manual_time", "Choose column containing the name (id) of the experimental condition for each sample", 
+                                                       placement = "right")
+                                           )
+                                         ),
+                                         conditionalPanel(
+                                           condition = "input.manual_mapping == false",
+                                           wellPanel(
+                                             h4("Format column names"),
+                                             selectInput("format_function",
+                                                         "Function",
+                                                         choices = c("gsub", "sub"),
+                                                         selected = "gsub"),
+                                             bsTooltip("format_function", "Name of the function used to modify column names. The function gsub replaces all occurences of pattern by replacement while the function sub replaces only the first occurence.", 
+                                                       placement = "top"),
+                                             textInput("format_pattern", "pattern", value = "."),
+                                             bsTooltip("format_pattern", "pattern to be replaced in column names"),
+                                             textInput("format_replacement", "replacement", value = "_"),
+                                             bsTooltip("format_replacement", "character string replacing pattern"),
+                                             actionButton("format_names","Format column names")
+                                           )
+                                           
                                          )
-                                         
-                                       )
-                                ),
-                                column(8,
-                                       br(),
-                                       dataTableOutput("condTable")
+                                  ),
+                                  column(8,
+                                         br(),
+                                         dataTableOutput("condTable")
+                                  )
+
                                 )
                        ),
                        tabPanel("QC / Select",
-                                column(4,
-                                    br(),
-                                    wellPanel(
-                                        h4("Select samples"),
-                                        selectizeInput("bio_selected", "Biological replicates", choices = list(), multiple = TRUE),
-                                        selectizeInput("tech_selected", "Technical replicates", choices = list(), multiple = TRUE),
-                                        selectizeInput("time_selected", "Experimental conditions (ordered)", choices = list(), multiple = TRUE),
-                                        actionButton("apply_filter", label = "Apply")
-                                    ),
-                                    wellPanel(
-                                      selectInput("QC_selected", "Select QC plot",
-                                                  choices = c("Intensity correlation", "Bait purification", "Missing values"), 
-                                                  selected = "Bait purification") 
-                                    )
-                                ),
-                                column(8,
-                                  br(),
-                                  plotOutput("QCPlot", width="400",height="350")
+                                conditionalPanel(
+                                  condition = "input.mode == 'compute'",
+                                  column(4,
+                                         br(),
+                                         wellPanel(
+                                           h4("Select samples"),
+                                           selectizeInput("bio_selected", "Biological replicates", choices = list(), multiple = TRUE),
+                                           selectizeInput("tech_selected", "Technical replicates", choices = list(), multiple = TRUE),
+                                           selectizeInput("time_selected", "Experimental conditions (ordered)", choices = list(), multiple = TRUE),
+                                           actionButton("apply_filter", label = "Apply")
+                                         ),
+                                         wellPanel(
+                                           selectInput("QC_selected", "Select QC plot",
+                                                       choices = c("Intensity correlation", "Bait purification", "Missing values"), 
+                                                       selected = "Bait purification") 
+                                         )
+                                  ),
+                                  column(8,
+                                         br(),
+                                         plotOutput("QCPlot", width="400",height="350")
+                                  )
+                                
                                 )
                        ),
                        tabPanel("Volcano",
@@ -469,7 +515,7 @@ server <- function(input, output, session) {
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
 
-  saved_df <- reactiveValues(cond = NULL, data = NULL, annot = NULL, enrichment = NULL)
+  saved_df <- reactiveValues(res = NULL, cond = NULL, data = NULL, annot = NULL, enrichment = NULL)
  
   annotation<- reactiveValues(selected = NULL, 
                               loaded = NULL, 
@@ -493,7 +539,8 @@ server <- function(input, output, session) {
     )
     
     df <- read.csv(input$file$datapath, 
-             sep="\t", fill=TRUE, 
+             sep=ifelse(input$delim,";","\t"), 
+             fill=TRUE, 
              na.strings="", 
              dec=ifelse(input$dec,",",".") )
     
@@ -738,60 +785,78 @@ server <- function(input, output, session) {
   })
   
   
-  
-  res<- eventReactive(input$start, {
+  observeEvent(input$start, {
     
-    validate(
-      need(!is.null(saved_df$data), "Please import data (see the Import tab)") %then%
-      need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
-      need(input$start, "Please click on the Compute Interactome button in General parameters")
-    )
-    
-    # Create a Progress object
-    progress <- shiny::Progress$new(min = 0, max = 100)
-    progress$set(message = "Compute interactome...", value = 0)
-    on.exit(progress$close())
-    updateProgress <- function(value = NULL, detail = NULL) {
-      progress$set(value = value, detail = detail)
-    }
+      validate(
+        need(!is.null(saved_df$data), "Please import data (see the Import tab)") %then%
+          need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
+          need(input$start, "Please click on the Compute Interactome button in General parameters")
+      )
+      
+      # Create a Progress object
+      progress <- shiny::Progress$new(min = 0, max = 100)
+      progress$set(message = "Compute interactome...", value = 0)
+      on.exit(progress$close())
+      updateProgress <- function(value = NULL, detail = NULL) {
+        progress$set(value = value, detail = detail)
+      }
+      
+      
+      preprocess_df <- prep_data()
+      
+      if(input$merge_conditions){
+        preprocess_df$conditions$time <- rep("merge", length(preprocess_df$conditions$time))
+      }
+      
+      res_int <- InteRact(preprocess_df = preprocess_df,
+                          N_rep=input$Nrep,
+                          method = input$method,
+                          pool_background = input$pool_background,
+                          updateProgress = updateProgress,
+                          substract_ctrl = input$substract_ctrl,
+                          use_mean_for_bait = input$use_mean_for_bait)
+      
+      res_int$Interactome <- merge_proteome(res_int$Interactome)
+      df_merge <- merge_conditions(res_int$Interactome)
+      df_FDR <- compute_FDR_from_asymmetry(df_merge)
+      res_int$Interactome <- append_FDR(res_int$Interactome, df_FDR)
+      res_int$Interactome <- append_PPI(res_int$Interactome)
+      
 
-    
-    preprocess_df <- prep_data()
-    
-    if(input$merge_conditions){
-      preprocess_df$conditions$time <- rep("merge", length(preprocess_df$conditions$time))
-    }
-    
-    res_int <- InteRact(preprocess_df = preprocess_df,
-                      N_rep=input$Nrep,
-                      method = input$method,
-                      pool_background = input$pool_background,
-                      updateProgress = updateProgress,
-                      substract_ctrl = input$substract_ctrl)
-           
-    res_int$Interactome <- merge_proteome(res_int$Interactome)
-    df_merge <- merge_conditions(res_int$Interactome)
-    df_FDR <- compute_FDR_from_asymmetry(df_merge)
-    res_int$Interactome <- append_FDR(res_int$Interactome, df_FDR)
-    
+      saved_df$res <- res_int
+  })
+  
+  observeEvent(input$load, {
+    Interactome_name <- load(input$load$datapath)
+    saved_df$res <- list(Interactome = get(Interactome_name))
+  })
+  
+  res<- reactive({
     updateSelectInput(session, "volcano_cond",
-                      choices = as.list(res_int$Interactome$conditions),
+                      choices = as.list(saved_df$res$Interactome$conditions),
                       selected = NULL)
     updateSelectInput(session, "Stoichio2D_cond",
-                      choices = as.list(c("max", res_int$Interactome$conditions)),
+                      choices = as.list(c("max", saved_df$res$Interactome$conditions)),
                       selected = "max")
-    
-    res_int
-    
+    saved_df$res
   })
+  
+  
 
   ordered_Interactome <- reactive({
+    
     validate(
-      need(!is.null(saved_df$data), "Please import data (see the Import tab)") %then%
-        need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
-        need(input$start, "Please click on the Compute Interactome button in General parameters")
+      need(!is.null(saved_df$res), "Please import data (see the Import tab)")
     )
-    res_int <- identify_interactors (res()$Interactome,
+    
+    
+    if(input$mode == "compute"){
+      validate(
+          need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
+          need(input$start, "Please click on the Compute Interactome button in General parameters")
+      )
+    }
+    res_int <- identify_interactors(res()$Interactome,
                                      var_p_val = input$var_p_val, 
                                      p_val_thresh = input$p_val_thresh, 
                                      fold_change_thresh = input$fold_change_thresh, 
@@ -804,6 +869,7 @@ server <- function(input, output, session) {
   })
   
   annotated_Interactome <- reactive({
+    
       results <- append_annotations(ordered_Interactome(), saved_df$annot )
       names_excluded <- c("names","bait", "groups", "conditions")
       updateCheckboxGroupInput(session, "columns_displayed",
@@ -1071,7 +1137,8 @@ server <- function(input, output, session) {
     p <- plot_per_condition(ordered_Interactome(),
                             color_var = input$var_p_val,   
                             idx_rows = min(input$Nmax, Ninteractors$x),
-                            idx_cols = match(input$time_selected, ordered_Interactome()$conditions),
+                            #idx_cols = match(input$time_selected, ordered_Interactome()$conditions),
+                            idx_cols = ordered_Interactome()$conditions,
                             clustering = input$clustering)
                             
     idx_order$cluster <- p$idx_order
@@ -1093,7 +1160,8 @@ server <- function(input, output, session) {
     plot_volcanos( ordered_Interactome(),
                    p_val_thresh = input$p_val_thresh,
                    fold_change_thresh = input$fold_change_thresh,
-                   N_print=input$N_print )
+                   N_print=input$N_print,
+                   asinh_transform = input$asinh_transform )
   })
   
   annotPlot <- reactive({
@@ -1124,7 +1192,7 @@ server <- function(input, output, session) {
                   name = select_dotPlot$name,
                   test = "t.test",
                   test.args = list("paired" = FALSE),
-                  conditions = input$time_selected)
+                  conditions = ordered_Interactome()$conditions)
    
   })
   
@@ -1134,8 +1202,11 @@ server <- function(input, output, session) {
       need(select_dotPlot$name %in% ordered_Interactome()$names, "Protein not found. Please select another one.")
     )
     plot_comparison(ordered_Interactome(), 
-                    name = select_dotPlot$name,
-                    condition = input$time_selected)
+                    names = select_dotPlot$name,
+                    condition = ordered_Interactome()$conditions,
+                    var_facet_x = "cond",
+                    levels_x = c("ctrl", "bait"),
+                    var_facet_y = "name")
   })
   
   observe({
@@ -1178,7 +1249,10 @@ server <- function(input, output, session) {
     
     plot_comparison(ordered_Interactome(), 
                     name = ordered_Interactome()$names[select_volcanoPlot$i_min],
-                    condition = ordered_Interactome()$conditions)
+                    condition = ordered_Interactome()$conditions,
+                    var_facet_x = "cond",
+                    levels_x = c("ctrl", "bait"),
+                    var_facet_y = "name")
   })
   
   QCPlot <- reactive({
@@ -1335,7 +1409,7 @@ server <- function(input, output, session) {
       
       if( "stoichio plots" %in% input$saved_items){
         # print stoichio plots
-        pdf(paste("./stoichio_per_interactor.pdf", sep=""), 2, 3)
+        pdf(paste("./stoichio_per_interactor.pdf", sep=""), 3, 3)
         print(lapply(ordered_Interactome()$interactor, 
                      function(x){
                        plot_stoichio(res = ordered_Interactome(), 
@@ -1348,12 +1422,15 @@ server <- function(input, output, session) {
       
       if( "enrichment plots" %in% input$saved_items){
         # print stoichio 2D plots
-        pdf(paste("./enrichment_per_interactor.pdf", sep=""), 2*length(ordered_Interactome()$conditions), 5)
+        pdf(paste("./enrichment_per_interactor.pdf", sep=""), 2 + length(ordered_Interactome()$conditions), 3)
         print(lapply(ordered_Interactome()$interactor, 
                      function(x){
                        plot_comparison(res = ordered_Interactome(), 
                                      name = x,
-                                     conditions =  ordered_Interactome()$conditions)
+                                     conditions =  input$time_selected,
+                                     var_facet_x = "cond",
+                                     levels_x = c("ctrl", "bait"),
+                                     var_facet_y = "name")
                      }))
         dev.off()
       }
@@ -1370,10 +1447,10 @@ server <- function(input, output, session) {
         save(Interactome, file = "./Interactome.Rda")
       }
       
-      if("preprocessed data" %in% input$saved_items){
-        prep_data <- res()$data
-        save(prep_data, file = "./prep_data.Rda")
-      }
+      # if("preprocessed data" %in% input$saved_items){
+      #   prep_data <- res()$data
+      #   save(prep_data, file = "./prep_data.Rda")
+      # }
       
       if("correlation network" %in% input$saved_items){
         write.table(df_corr(), file = "./correlation_network.txt", sep = "\t", dec = ".", row.names = FALSE)
