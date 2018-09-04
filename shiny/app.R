@@ -5,8 +5,7 @@ library(shinyBS)
 
 library("InteRact")
 
-#source("../R/InteRact.R")
-
+# source("../R/InteRact.R")
 # library(ggrepel)
 # library(ggsignif)
 # library(grid)
@@ -59,12 +58,9 @@ ui <- fluidPage(
   fluidRow(
     column(3,
            br(),
-           wellPanel(
-             selectInput("mode", "Select app mode", choices=c("compute","visualize"), selected = "compute"),
-             bsTooltip("mode", "compute : compute interactome from raw data, visualize : import pre-computed interactome", placement = "top")
-           ),
-           conditionalPanel(
-             condition = "input.mode == 'compute'",
+           
+           #conditionalPanel(
+             #condition = "input.mode == 'compute'",
              wellPanel(
                h4("General parameters"),
                textInput("bait_gene_name", "Bait (gene name)", value = "Bait"),
@@ -83,17 +79,17 @@ ui <- fluidPage(
                bsTooltip("use_mean_for_bait", 
                          "Use mean bait intensity across all conditions and biological repliactes to compute interaction stoichiometry"),
                h4("Missing values :"),
-               numericInput("Nrep", "# replacements", value = 1),
-               bsTooltip("Nrep", 
+               numericInput("N_rep", "# replacements", value = 1),
+               bsTooltip("N_rep", 
                          "Number of times missing values will be replaced. Use 0 if you do not want to replace missing values"),
                selectInput("method", "Replacement method", choices = as.list(method_choices), selected = "default"),
                bsTooltip("method", 
                          "Method used for the replacement of missing values.", 
                          placement = "right"),
                actionButton("start", label = "Compute Interactome")
-             )
+             ),
 
-          ),
+          #),
           wellPanel(
              h4("Interaction parameters"),
              selectInput("var_p_val", "p-value variable", choices=c("p_val","FDR"), selected = "p_val"),
@@ -118,11 +114,14 @@ ui <- fluidPage(
            br(),
            tabsetPanel(id = "inTabset",
                        tabPanel("Import",
-                                
-                                conditionalPanel(
-                                  condition = "input.mode == 'compute'",
-                                  column(4,
-                                         br(),
+                                column(4,
+                                       br(),
+                                       wellPanel(
+                                         selectInput("mode", "Select data type", choices=c("Raw data","Interactome"), selected = "raw data"),
+                                         bsTooltip("mode", "Raw data : file with protein intensity values (.txt or .csv), Interactome : a pre-computed interactome", placement = "top")
+                                       ),
+                                       conditionalPanel(
+                                         condition = "input.mode == 'Raw data'",
                                          wellPanel(
                                            fileInput("file", h4("Import file :"), placeholder = "Enter file here"),
                                            checkboxInput("delim", "Use comma as delimiter", value = FALSE),
@@ -137,7 +136,7 @@ ui <- fluidPage(
                                            bsTooltip("column_gene_name", 
                                                      "Choose the column containing gene names. This is where the Bait (gene name) defined in the general parameters panel should be.", 
                                                      placement = "top"
-                                                     ),
+                                           ),
                                            selectInput("column_ID",
                                                        "column for protein ID",
                                                        choices = list(),
@@ -146,27 +145,24 @@ ui <- fluidPage(
                                                      "Choose the column containing protein IDs (from uniprot). This information is used to retrieve additional information such as GO annotations.", 
                                                      placement = "top")
                                          )
+                                      ),
+                                      conditionalPanel(
+                                        condition = "input.mode == 'Interactome'",
+                                        wellPanel(
+                                          fileInput("load", h4("Load interactome :"), placeholder = "Enter file here")
+                                        )  
+                                      )   
                                   ),
                                   column(8,
                                          br(),
-                                         dataTableOutput("data_summary")
-                                  )
-                                
-                                ),
-                                
-                                conditionalPanel(
-                                  condition = "input.mode == 'visualize'",
-                                  column(4,
-                                         br(),
-                                         wellPanel(
-                                           fileInput("load", h4("Load interactome :"), placeholder = "Enter file here")
+                                         conditionalPanel(
+                                           condition = "input.mode == 'Raw data'",
+                                           dataTableOutput("data_summary")
                                          )
-                                  )
-                                )
+                                  )  
                        ),
                        tabPanel("Group",
-                                conditionalPanel(
-                                  condition = "input.mode == 'compute'",
+                                
                                   column(4,
                                          br(),
                                          wellPanel(
@@ -182,95 +178,105 @@ ui <- fluidPage(
                                                      placement = "top")
                                            
                                          ),
-                                         wellPanel(
-                                           h4("Map samples"),
-                                           checkboxInput("manual_mapping", "manual mapping", value = FALSE),
-                                           bsTooltip("manual_mapping", "Option to import custom definition of samples"),
-                                           conditionalPanel(
-                                             condition = "input.manual_mapping == false",
-                                             textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
-                                             bsTooltip("pattern", "Columns whose name contains this pattern will be identified as protein intensity columns. Regular expressions are supported."),
-                                             textInput("split", "split character", value = "_"),
-                                             bsTooltip("split", "split character used to divide column names in multiple substrings"),
-                                             h4("Enter position of:"),
-                                             numericInput("bckg_pos", "background", value = 1),
-                                             bsTooltip("bckg_pos", "Position, within column names, of the substrings containing the background name (id)"),
-                                             numericInput("bio_pos", "biological replicates", value = 2),
-                                             bsTooltip("bio_pos", "Position, within column names, of the substrings containing the name (id) of the biological replicate"),
-                                             numericInput("time_pos", "experimental conditions", value = 3),
-                                             bsTooltip("time_pos", "Position, within column names, of the substrings containing the name (id) of the experimental condition"),
-                                             numericInput("tech_pos", "technical replicates", value = 4),
-                                             bsTooltip("tech_pos", "Position, within column names, of the substrings containing the name (id) of the technical replicate")
-                                             
+                                         conditionalPanel(
+                                           condition = "input.mode == 'Raw data'",
+                                           wellPanel(
+                                             h4("Map samples"),
+                                             checkboxInput("manual_mapping", "manual mapping", value = FALSE),
+                                             bsTooltip("manual_mapping", "Option to import custom definition of samples"),
+                                             conditionalPanel(
+                                               condition = "input.manual_mapping == false",
+                                               textInput("pattern", "Pattern for intensity columns", value = "^Intensity."),
+                                               bsTooltip("pattern", "Columns whose name contains this pattern will be identified as protein intensity columns. Regular expressions are supported."),
+                                               textInput("split", "split character", value = "_"),
+                                               bsTooltip("split", "split character used to divide column names in multiple substrings"),
+                                               h4("Enter position of:"),
+                                               numericInput("bckg_pos", "background", value = 1),
+                                               bsTooltip("bckg_pos", "Position, within column names, of the substrings containing the background name (id)"),
+                                               numericInput("bio_pos", "biological replicates", value = 2),
+                                               bsTooltip("bio_pos", "Position, within column names, of the substrings containing the name (id) of the biological replicate"),
+                                               numericInput("time_pos", "experimental conditions", value = 3),
+                                               bsTooltip("time_pos", "Position, within column names, of the substrings containing the name (id) of the experimental condition"),
+                                               numericInput("tech_pos", "technical replicates", value = 4),
+                                               bsTooltip("tech_pos", "Position, within column names, of the substrings containing the name (id) of the technical replicate")
+                                               
+                                             ),
+                                             conditionalPanel(
+                                               condition = "input.manual_mapping == true",
+                                               fileInput("file_cond", h4("Import file :"), placeholder = "Enter file here"),
+                                               checkboxInput("sep_cond", "Use comma as separator", value = FALSE),
+                                               checkboxInput("transpose", "transpose", value = FALSE),
+                                               bsTooltip("transpose", "Invert rows/columns. Rows should correspond to protein intensity column names (corresponding to those shown in the import tab)"),
+                                               h4("Choose column for:"),
+                                               selectInput("column_name",
+                                                           "column name",
+                                                           choices = list(),
+                                                           selected = NULL),
+                                               bsTooltip("column_name", "Choose column containing protein intensity column names (corresponding to those shown in the import tab)", 
+                                                         placement = "right"),
+                                               selectInput("manual_bckg",
+                                                           "background",
+                                                           choices = list(),
+                                                           selected = NULL),
+                                               bsTooltip("manual_bckg", "Choose column containing the background name (id) for each sample", 
+                                                         placement = "right"),
+                                               selectInput("manual_bio",
+                                                           "biological replicates",
+                                                           choices = list(),
+                                                           selected = NULL),
+                                               bsTooltip("manual_bio", "Choose column containing the name (id) of the biological replicate for each sample", 
+                                                         placement = "right"),
+                                               selectInput("manual_tech",
+                                                           "technical replicates",
+                                                           choices = list(),
+                                                           selected = NULL),
+                                               bsTooltip("manual_tech", "Choose column containing the name (id) of the technical replicate for each sample", 
+                                                         placement = "right"),
+                                               selectInput("manual_time",
+                                                           "experimental conditions",
+                                                           choices = list(),
+                                                           selected = NULL),
+                                               bsTooltip("manual_time", "Choose column containing the name (id) of the experimental condition for each sample", 
+                                                         placement = "right")
+                                             )
                                            ),
                                            conditionalPanel(
-                                             condition = "input.manual_mapping == true",
-                                             fileInput("file_cond", h4("Import file :"), placeholder = "Enter file here"),
-                                             checkboxInput("sep_cond", "Use comma as separator", value = FALSE),
-                                             checkboxInput("transpose", "transpose", value = FALSE),
-                                             bsTooltip("transpose", "Invert rows/columns. Rows should correspond to protein intensity column names (corresponding to those shown in the import tab)"),
-                                             h4("Choose column for:"),
-                                             selectInput("column_name",
-                                                         "column name",
-                                                         choices = list(),
-                                                         selected = NULL),
-                                             bsTooltip("column_name", "Choose column containing protein intensity column names (corresponding to those shown in the import tab)", 
-                                                       placement = "right"),
-                                             selectInput("manual_bckg",
-                                                         "background",
-                                                         choices = list(),
-                                                         selected = NULL),
-                                             bsTooltip("manual_bckg", "Choose column containing the background name (id) for each sample", 
-                                                       placement = "right"),
-                                             selectInput("manual_bio",
-                                                         "biological replicates",
-                                                         choices = list(),
-                                                         selected = NULL),
-                                             bsTooltip("manual_bio", "Choose column containing the name (id) of the biological replicate for each sample", 
-                                                       placement = "right"),
-                                             selectInput("manual_tech",
-                                                         "technical replicates",
-                                                         choices = list(),
-                                                         selected = NULL),
-                                             bsTooltip("manual_tech", "Choose column containing the name (id) of the technical replicate for each sample", 
-                                                       placement = "right"),
-                                             selectInput("manual_time",
-                                                         "experimental conditions",
-                                                         choices = list(),
-                                                         selected = NULL),
-                                             bsTooltip("manual_time", "Choose column containing the name (id) of the experimental condition for each sample", 
-                                                       placement = "right")
+                                             condition = "input.manual_mapping == false",
+                                             wellPanel(
+                                               h4("Format column names"),
+                                               selectInput("format_function",
+                                                           "Function",
+                                                           choices = c("gsub", "sub"),
+                                                           selected = "gsub"),
+                                               bsTooltip("format_function", "Name of the function used to modify column names. The function gsub replaces all occurences of pattern by replacement while the function sub replaces only the first occurence.", 
+                                                         placement = "top"),
+                                               textInput("format_pattern", "pattern", value = "."),
+                                               bsTooltip("format_pattern", "pattern to be replaced in column names"),
+                                               textInput("format_replacement", "replacement", value = "_"),
+                                               bsTooltip("format_replacement", "character string replacing pattern"),
+                                               actionButton("format_names","Format column names")
+                                             )
+                                             
                                            )
-                                         ),
-                                         conditionalPanel(
-                                           condition = "input.manual_mapping == false",
-                                           wellPanel(
-                                             h4("Format column names"),
-                                             selectInput("format_function",
-                                                         "Function",
-                                                         choices = c("gsub", "sub"),
-                                                         selected = "gsub"),
-                                             bsTooltip("format_function", "Name of the function used to modify column names. The function gsub replaces all occurences of pattern by replacement while the function sub replaces only the first occurence.", 
-                                                       placement = "top"),
-                                             textInput("format_pattern", "pattern", value = "."),
-                                             bsTooltip("format_pattern", "pattern to be replaced in column names"),
-                                             textInput("format_replacement", "replacement", value = "_"),
-                                             bsTooltip("format_replacement", "character string replacing pattern"),
-                                             actionButton("format_names","Format column names")
-                                           )
-                                           
                                          )
+                                         
                                   ),
                                   column(8,
                                          br(),
+                                         uiOutput("warning"),
                                          dataTableOutput("condTable")
                                   )
 
-                                )
+                                
+                                # conditionalPanel(
+                                #   condition = "input.mode == 'Interactome'",
+                                #   br(),
+                                #   helpText("Not available for imported interactomes")
+                                # )
                        ),
                        tabPanel("QC / Select",
-                                conditionalPanel(
-                                  condition = "input.mode == 'compute'",
+                                #conditionalPanel(
+                                #  condition = "input.mode == 'Raw data'",
                                   column(4,
                                          br(),
                                          wellPanel(
@@ -291,7 +297,7 @@ ui <- fluidPage(
                                          plotOutput("QCPlot", width="400",height="350")
                                   )
                                 
-                                )
+                                #)
                        ),
                        tabPanel("Volcano",
                                 column(4,
@@ -514,8 +520,15 @@ server <- function(input, output, session) {
   ranges <- reactiveValues(x = c(-1.5,0.5), y = c(-1,1))
   ranges_volcano <- reactiveValues(x = NULL, y = NULL)
   ranges_dotPlot <- reactiveValues(x = NULL, y = NULL)
-
-  saved_df <- reactiveValues(res = NULL, cond = NULL, data = NULL, annot = NULL, enrichment = NULL)
+  saved_df <- reactiveValues(res = NULL, 
+                             cond = NULL,
+                             cond_data = NULL,
+                             cond_select = NULL,
+                             data = NULL, 
+                             annot = NULL, 
+                             enrichment = NULL, 
+                             summary = NULL, 
+                             params = NULL)
  
   annotation<- reactiveValues(selected = NULL, 
                               loaded = NULL, 
@@ -529,8 +542,51 @@ server <- function(input, output, session) {
   select_volcanoPlot <- reactiveValues(i_min = 1, min_dist1 = 0)
   select_stoichioPlot <- reactiveValues(i_min = 1, min_dist1 = 0)
   idx_order <- reactiveValues(cluster = NULL)
+  check_var <- reactiveValues(is_numeric = NULL, ncol = NULL)
   
+  saved_df$params <- list(N_rep = 3, 
+                          method = "default", 
+                          #quantile_rep = 0.05, 
+                          #by_conditions = TRUE,
+                          pool_background = FALSE,
+                          #log_test = TRUE,
+                          #log_stoichio = TRUE,
+                          substract_ctrl = FALSE,
+                          use_mean_for_bait = FALSE,
+                          var_p_val = "p_val",
+                          p_val_thresh = 0.01,
+                          fold_change_thresh = 5,
+                          #conditions = c(),
+                          n_success_min = 1,
+                          consecutive_success = FALSE)
+
   #Main reactive functions -------------------------------------------------------------------------
+  
+  observe({
+    updateNumericInput(session, "N_rep", value = saved_df$params$N_rep)
+    updateTextInput(session, "method", value = saved_df$params$method)
+    #updateCheckboxInput(session, "by_conditions", value = saved_df$params$by_conditions)
+    updateCheckboxInput(session, "pool_background", value = saved_df$params$pool_background)
+    updateCheckboxInput(session, "substract_ctrl", value = saved_df$params$substract_ctrl)
+    updateCheckboxInput(session, "use_mean_for_bait", value = saved_df$params$use_mean_for_bait)
+    updateTextInput(session, "var_p_val", value = saved_df$params$var_p_val)
+    updateNumericInput(session, "p_val_thresh", value = saved_df$params$p_val_thresh)
+    updateNumericInput(session, "fold_change_thresh", value = saved_df$params$fold_change_thresh)
+    updateNumericInput(session, "n_success_min", value = saved_df$params$n_success_min)
+    updateCheckboxInput(session, "consecutive_success", value = saved_df$params$consecutive_success)
+  })
+  
+  observeEvent(input$load, {
+    Interactome_name <- load(input$load$datapath)
+    saved_df$res <- get(Interactome_name)
+    saved_df$params <- saved_df$res$params
+    saved_df$cond <- saved_df$res$data$conditions
+    saved_df$cond_select <- saved_df$cond
+    saved_df$cond_data <- saved_df$cond
+    
+    updateTextInput(session, "bait_gene_name", value = saved_df$res$bait)
+    
+  })
   
   data_raw <- reactive({
     
@@ -565,7 +621,7 @@ server <- function(input, output, session) {
     saved_df$data
   })
   
-  data_cond <- reactive({
+  observe({
     
     if(input$manual_mapping){
       
@@ -610,24 +666,24 @@ server <- function(input, output, session) {
                                choices = as.list(names(df_cond)),
                                selected = NULL)
       
-      df_cond
+      saved_df$cond_data <- df_cond
       
-    } else {
-      cond()
-    }
+    } 
+
     
     
   })
   
-  cond <- reactive({
+  observe({
     
     if(input$manual_mapping){
       
+      
       validate(
-        need(dim(data_cond())[1]>0, "No data imported for conditions")
+        need(dim(saved_df$cond_data)[1]>0, "No data imported for conditions")
       )
       
-      df_cond <- data_cond()
+      df_cond <- saved_df$cond_data
       
       col_I <- df_cond[[input$column_name]]
       bckg <- df_cond[[input$manual_bckg]]
@@ -636,9 +692,8 @@ server <- function(input, output, session) {
       tech <- df_cond[[input$manual_tech]]
       
       cond_int <- data.frame(idx=seq_along(col_I), column=col_I, bckg, time = time, bio, tech, stringsAsFactors = FALSE)
-
-
-                      
+      saved_df$cond <- cond_int
+      
     } else {
       
       match_pattern <- grep(input$pattern, names(data()))
@@ -659,50 +714,118 @@ server <- function(input, output, session) {
                                       time_pos = input$time_pos, 
                                       tech_pos = input$tech_pos,
                                       split = input$split)
+      saved_df$cond_data <- cond_int
+      saved_df$cond <- cond_int
       
     }
     
-    cond_int
+    
+    # ibait <- which(as.character(data()[[input$column_gene_name]]) == input$bait_gene_name);
+    # 
+    # validate(
+    #   #need(!is.factor(data()[[input$column_gene_name]]), "Column for 'Gene.Names' contains factors. Please try changing the decimal separator (most likely '.' or ',') used for importing the data") %then%
+    #   need(length(ibait)>0,
+    #        paste("Could not find bait '", input$bait_gene_name,
+    #              "' in column '",input$column_gene_name,
+    #              "'. Please either :
+    #               modify bait gene name in General Parameters,
+    #               select another column for gene names
+    #               or change the decimal separator (most likely '.' or ',') used for importing the data.", 
+    #              sep=""))
+    # )
+    
+    #saved_df$cond <- cond_int
+    
+    #cond_int
+    
+  })
+  
+  
+  observe({
+    check_var$is_numeric <- sapply(match(saved_df$cond$column, names(data())), function(x){is.numeric(data()[[x]])})
+    check_var$ncol <- length(saved_df$cond$column)
+  })
+  
+  
+  
+  # is_factor <- sapply(match(saved_df$cond$column, names(data())), function(x){is.factor(data()[[x]])})
+  # 
+  # validate(
+  #   need( sum( is_factor ) < length(is_factor) , "All intensity columns are factors, try changing:
+  #         the decimal separator (most likely '.' or ',') used for importing the data 
+  #         the pattern used to identify intensity columns")
+  #   )
+  
+  output$warning <- renderUI({
+    if( input$mode == "Raw data"){
+      if(!is.null(check_var$is_numeric)){
+        if(sum( !check_var$is_numeric ) >0 ){
+          wellPanel(
+            helpText( paste( "Warning : ",sum( !check_var$is_numeric ), " intensity columns out of ", check_var$ncol, " were not numeric and will be discarded.
+                             Try changing the decimal separator used for importing the data", sep="") )
+            )
+        }
+        }
+      else{
+        NULL
+      }
+    }else{
+      NULL
+    }
+    
     
   })
   
   observe({
-    idx_ctrl_guess <- grep("WT", toupper(unique(cond()$bckg)))
-    if(length(idx_ctrl_guess) > 0){
-      ctrl_guess <- unique(cond()$bckg)[idx_ctrl_guess[1]]     
-    }else{
-      ctrl_guess <- unique(cond()$bckg)[1]
+    if(input$mode == "Raw data"){
+      idx_ctrl_guess <- grep("WT", toupper(unique(saved_df$cond$bckg)))
+      if(length(idx_ctrl_guess) > 0){
+        ctrl_guess <- unique(saved_df$cond$bckg)[idx_ctrl_guess[1]]     
+      }else{
+        ctrl_guess <- unique(saved_df$cond$bckg)[1]
+      }
+      bait_guess <- setdiff(unique(saved_df$cond$bckg), ctrl_guess)[1]
+      
+      updateSelectInput(session, "bckg_bait",
+                        choices = as.list(unique(saved_df$cond$bckg)),
+                        selected = bait_guess)
+      
+      updateSelectInput(session, "bckg_ctrl",
+                        choices = as.list(unique(saved_df$cond$bckg)),
+                        selected = ctrl_guess)
+      
+      if(nchar(input$bait_gene_name) == 0 ){
+        updateTextInput(session, "bait_gene_name", value = bait_guess)
+      }
+    }else if(input$mode == "Interactome"){
+      updateSelectInput(session, "bckg_bait",
+                        choices = as.list(unique(saved_df$cond$bckg)),
+                        selected = saved_df$res$bckg_bait)
+      
+      updateSelectInput(session, "bckg_ctrl",
+                        choices = as.list(unique(saved_df$cond$bckg)),
+                        selected = saved_df$res$bckg_ctrl)
     }
-    bait_guess <- setdiff(unique(cond()$bckg), ctrl_guess)[1]
     
-    updateSelectInput(session, "bckg_bait",
-                      choices = as.list(unique(cond()$bckg)),
-                      selected = bait_guess)
-    
-    updateSelectInput(session, "bckg_ctrl",
-                      choices = as.list(unique(cond()$bckg)),
-                      selected = ctrl_guess)
-    
-    updateTextInput(session, "bait_gene_name", value = bait_guess)
     
   })
   
   observe({
      updateSelectInput(session, "time_selected",
-                       choices = as.list(unique(cond()$time)),
-                       selected = as.list(unique(cond()$time)))
+                       choices = as.list(unique(as.character(saved_df$cond$time))),
+                       selected = as.list(unique(as.character(saved_df$cond$time))))
   })
   
   observe({
     updateSelectInput(session, "tech_selected",
-                             choices = as.list(unique(cond()$tech)),
-                             selected = as.list(unique(cond()$tech))) 
+                             choices = as.list(unique(as.character(saved_df$cond$tech))),
+                             selected = as.list(unique(as.character(saved_df$cond$tech)))) 
   })
   
   observe({
     updateSelectInput(session, "bio_selected",
-                             choices = as.list(unique(cond()$bio)),
-                             selected = as.list(unique(cond()$bio))) 
+                             choices = as.list(unique(as.character(saved_df$cond$bio))),
+                             selected = as.list(unique(as.character(saved_df$cond$bio))))
   })
   
   observe({
@@ -711,14 +834,23 @@ server <- function(input, output, session) {
   
   observeEvent(input$apply_filter,{
 
-    cond_int <- cond()
+    cond_int <- saved_df$cond
     cond_int$time <- factor(cond_int$time, levels=input$time_selected)
     cond_int$bio <- factor(cond_int$bio, levels=input$bio_selected)
-    cond_int$tech <- factor(cond_int$tech, levels=input$tech_selected)
+    if(length(input$tech_selected)>0){
+      cond_int$tech <- factor(cond_int$tech, levels=input$tech_selected)
+    }else{
+      cond_int$tech <- rep("tech_0", dim(cond_int)[1])
+    }
+    
     idx_cond_selected <- which(rowSums(is.na(cond_int)) == 0)
     cond_int <- cond_int[idx_cond_selected, ]
-    saved_df$cond <- cond_int
+    saved_df$cond_select <- cond_int
 
+    if(input$mode == "Interactome"){
+      saved_df$cond_data <- saved_df$cond_select
+    }
+    
   })
   
   observeEvent(saved_df$data,{
@@ -727,71 +859,98 @@ server <- function(input, output, session) {
   
   prep_data <- reactive({
     
-    validate(
-      need(dim(saved_df$cond)[1]>0, "No sample selected. Please select samples and/or validate your sample selection in the QC / Select tab") %then%
-      need( length(setdiff(c("column", "bckg", "time", "bio", "tech"), names(saved_df$cond))) == 0 , "No data")
-    )
+    if(input$mode == "Raw data"){
+      validate(
+        need(dim(saved_df$cond_select)[1]>0, "No sample selected. Please select samples and/or validate your sample selection in the QC / Select tab") %then%
+          need( length(setdiff(c("column", "bckg", "time", "bio", "tech"), names(saved_df$cond))) == 0 , "Please identify conditions")
+      )
+      
+      ibait <- which(data()[[input$column_gene_name]] == input$bait_gene_name);
+      check_two_bckg <- length(unique(saved_df$cond_select$bckg))>1
+      
+      bio_sel <- setdiff(unique(saved_df$cond_select$bio), input$filter_bio)
+      check_two_bckg_per_cond <- sum(sapply(unique(saved_df$cond_select$time[saved_df$cond_select$bio %in% bio_sel]),
+                                            function(x) { 
+                                              input$bckg_bait %in% saved_df$cond_select$bckg[saved_df$cond_select$time==x] & 
+                                                input$bckg_ctrl %in% saved_df$cond_select$bckg[saved_df$cond_select$time==x] 
+                                            }
+      )
+      ) == length(unique(saved_df$cond_select$time[saved_df$cond_select$bio %in% bio_sel]))
+      
+      
+      check_two_bio_rep <- length(unique(saved_df$cond_select$bio))>1
+      found_bait_bckg <- input$bckg_bait %in% saved_df$cond_select$bckg
+      found_ctrl_bckg <- input$bckg_ctrl %in% saved_df$cond_select$bckg
+      
+      validate(
+        need( sum(is.na(match(saved_df$cond_select$column, names(data())))) == 0, "Some column names could not be mapped to original sample names. Please check the file used to map samples" )
+      )
+      
+      #is_factor <- sapply(match(saved_df$cond$column, names(data())), function(x){is.factor(data()[[x]])})
+      
+      validate(
+        #need( sum( is_factor ) < length(is_factor) , "All intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")%then%
+        need(check_two_bckg, "Could not identify distinct backgrounds. Please verify the mapping of samples") %then%
+          need(check_two_bio_rep, "Could not identify distinct biological replicates. Please verify the mapping of samples") %then%
+          need(found_bait_bckg, paste("Could not find", input$bckg_bait ," in possible backgrounds. Please change the background name the Group tab")) %then%
+          need(found_ctrl_bckg, paste("Could not find", input$bckg_ctrl ," in possible backgrounds. Please change the background name the Group tab")) %then%
+          need(check_two_bckg_per_cond, "Could not identify bait and ctrl backgrounds for each experimental condition. Please verify the mapping of samples") %then%
+          need(input$column_ID, "Please select the column containing protein IDs in the Import tab") %then%
+          need(input$column_gene_name, "Please select the column containing gene names in the Import tab") %then%
+          need(!input$bait_gene_name %in% c("", "Bait"), "Please enter the gene name of the bait (in General Parameters)") %then%
+          need(length(ibait)>0,
+               paste("Could not find bait '", input$bait_gene_name,"' in column '",input$column_gene_name,"'. Please modify bait gene name in General Parameters.", sep=""))
+        
+      )
+      
+      Column_gene_name <- input$column_gene_name #names(data())[grep("GENE", toupper(names(data())))[1]]
+      Column_ID <- input$column_ID #names(data())[grep("ID", toupper(names(data())))[1]]
+      
+      
+      preprocess_data(  df = data(),
+                        Column_intensity_pattern = input$pattern,
+                        bait_gene_name = input$bait_gene_name,
+                        Column_gene_name = Column_gene_name,
+                        Column_ID = Column_ID,
+                        bckg_bait = input$bckg_bait,
+                        bckg_ctrl = input$bckg_ctrl,
+                        condition = saved_df$cond_select
+      )
+      
+    } else if( input$mode == "Interactome"){
+      validate(
+        need(!is.null(saved_df$res), "Please load an Interactome")
+      )
+      
+      idx_match <- match(rownames(saved_df$res$data$Intensity), saved_df$res$names)
+      idx_match_col <- match(saved_df$cond_select$column, colnames(saved_df$res$data$Intensity) )
+      list(
+        Intensity = saved_df$res$data$Intensity[ , idx_match_col],
+        conditions = saved_df$cond_select,
+        Npep = saved_df$res$Npep[idx_match],
+        Protein.IDs = saved_df$res$Protein.IDs[idx_match],
+        names = saved_df$res$names[idx_match],
+        bckg_bait = saved_df$res$bckg_bait,
+        bckg_ctrl = saved_df$res$bckg_ctrl,
+        bait_gene_name = saved_df$res$bait
+      )
+        
+      
+    }
     
-    ibait <- which(data()[[input$column_gene_name]] == input$bait_gene_name);
-    check_two_bckg <- length(unique(saved_df$cond$bckg))>1
-    
-    bio_sel <- setdiff(unique(saved_df$cond$bio), input$filter_bio)
-    check_two_bckg_per_cond <- sum(sapply(unique(saved_df$cond$time[saved_df$cond$bio %in% bio_sel]),
-                                         function(x) { 
-                                           input$bckg_bait %in% saved_df$cond$bckg[saved_df$cond$time==x] & 
-                                             input$bckg_ctrl %in% saved_df$cond$bckg[saved_df$cond$time==x] 
-                                         }
-                                  )
-                               ) == length(unique(saved_df$cond$time[saved_df$cond$bio %in% bio_sel]))
-            
-    
-    check_two_bio_rep <- length(unique(saved_df$cond$bio))>1
-    found_bait_bckg <- input$bckg_bait %in% saved_df$cond$bckg
-    found_ctrl_bckg <- input$bckg_ctrl %in% saved_df$cond$bckg
-    
-    validate(
-      need( sum(is.na(match(saved_df$cond$column, names(data())))) == 0, "Some column names could not be mapped to original sample names. Please check the file used to map samples" )
-    )
-
-    is_factor <- sapply(match(saved_df$cond$column, names(data())), function(x){is.factor(data()[[x]])})
-    
-    validate(
-      need(check_two_bckg, "Could not identify distinct backgrounds. Please verify the mapping of samples") %then%
-      need(check_two_bio_rep, "Could not identify distinct biological replicates. Please verify the mapping of samples") %then%
-      need(found_bait_bckg, paste("Could not find", input$bckg_bait ," in possible backgrounds. Please change the background name the Group tab")) %then%
-      need(found_ctrl_bckg, paste("Could not find", input$bckg_ctrl ," in possible backgrounds. Please change the background name the Group tab")) %then%
-      need(check_two_bckg_per_cond, "Could not identify bait and ctrl backgrounds for each experimental condition. Please verify the mapping of samples") %then%
-      need(input$column_ID, "Please select the column containing protein IDs in the Import tab") %then%
-      need(input$column_gene_name, "Please select the column containing gene names in the Import tab") %then%
-      need(!input$bait_gene_name %in% c("", "Bait"), "Please enter the gene name of the bait (in General Parameters)") %then%
-      need(length(ibait)>0,
-           paste("Could not find bait '", input$bait_gene_name,"' in column '",input$column_gene_name,"'. Please modify bait gene name in General Parameters.", sep=""))%then%
-      need( sum( is_factor ) < length(is_factor) , "All intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
-    )
-
-    Column_gene_name <- input$column_gene_name #names(data())[grep("GENE", toupper(names(data())))[1]]
-    Column_ID <- input$column_ID #names(data())[grep("ID", toupper(names(data())))[1]]
-
-    
-    preprocess_data(  df = data(),
-                      Column_intensity_pattern = input$pattern,
-                      bait_gene_name = input$bait_gene_name,
-                      Column_gene_name = Column_gene_name,
-                      Column_ID = Column_ID,
-                      bckg_bait = input$bckg_bait,
-                      bckg_ctrl = input$bckg_ctrl,
-                      condition = saved_df$cond
-                      )
   })
   
   
   observeEvent(input$start, {
     
+    if(input$mode == "Raw data"){
       validate(
         need(!is.null(saved_df$data), "Please import data (see the Import tab)") %then%
           need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
           need(input$start, "Please click on the Compute Interactome button in General parameters")
       )
+    }
+      
       
       # Create a Progress object
       progress <- shiny::Progress$new(min = 0, max = 100)
@@ -809,34 +968,31 @@ server <- function(input, output, session) {
       }
       
       res_int <- InteRact(preprocess_df = preprocess_df,
-                          N_rep=input$Nrep,
+                          N_rep=input$N_rep,
                           method = input$method,
                           pool_background = input$pool_background,
                           updateProgress = updateProgress,
                           substract_ctrl = input$substract_ctrl,
                           use_mean_for_bait = input$use_mean_for_bait)
       
-      res_int$Interactome <- merge_proteome(res_int$Interactome)
-      df_merge <- merge_conditions(res_int$Interactome)
+      #res_int <- merge_proteome(res_int)
+      df_merge <- merge_conditions(res_int)
       df_FDR <- compute_FDR_from_asymmetry(df_merge)
-      res_int$Interactome <- append_FDR(res_int$Interactome, df_FDR)
-      res_int$Interactome <- append_PPI(res_int$Interactome)
+      res_int <- append_FDR(res_int, df_FDR)
+      #res_int <- append_PPI(res_int)
       
-
       saved_df$res <- res_int
+      
   })
   
-  observeEvent(input$load, {
-    Interactome_name <- load(input$load$datapath)
-    saved_df$res <- list(Interactome = get(Interactome_name))
-  })
+  
   
   res<- reactive({
     updateSelectInput(session, "volcano_cond",
-                      choices = as.list(saved_df$res$Interactome$conditions),
+                      choices = as.list(saved_df$res$conditions),
                       selected = NULL)
     updateSelectInput(session, "Stoichio2D_cond",
-                      choices = as.list(c("max", saved_df$res$Interactome$conditions)),
+                      choices = as.list(c("max", saved_df$res$conditions)),
                       selected = "max")
     saved_df$res
   })
@@ -845,25 +1001,28 @@ server <- function(input, output, session) {
 
   ordered_Interactome <- reactive({
     
-    validate(
-      need(!is.null(saved_df$res), "Please import data (see the Import tab)")
-    )
+    if(input$mode == "Interactome"){
+      validate(
+        need(!is.null(saved_df$res), "No interactome loaded. Please import an interactome (see Import tab)")
+      )
+    }
     
-    
-    if(input$mode == "compute"){
+    if(input$mode == "Raw data"){
       validate(
           need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
           need(input$start, "Please click on the Compute Interactome button in General parameters")
       )
     }
-    res_int <- identify_interactors(res()$Interactome,
+    
+    res_int <- identify_interactors( res(),
                                      var_p_val = input$var_p_val, 
                                      p_val_thresh = input$p_val_thresh, 
                                      fold_change_thresh = input$fold_change_thresh, 
                                      n_success_min = input$n_success_min, 
                                      consecutive_success = input$consecutive_success)
+    
     Ninteractors$x <- length(res_int$interactor)
-    res_int <- order_interactome(res_int)
+    #res_int <- order_interactome(res_int)
     res_int
       
   })
@@ -871,11 +1030,8 @@ server <- function(input, output, session) {
   annotated_Interactome <- reactive({
     
       results <- append_annotations(ordered_Interactome(), saved_df$annot )
-      names_excluded <- c("names","bait", "groups", "conditions")
-      updateCheckboxGroupInput(session, "columns_displayed",
-                             choices = as.list( setdiff(names(results), names_excluded)),
-                             selected=c("max_stoichio", "max_fold_change", "min_p_val") )
       results
+      
   })
 
   #Observe functions -------------------------------------------------------------------
@@ -903,7 +1059,7 @@ server <- function(input, output, session) {
       if( !("Entry" %in% annotation$loaded) ){
         Sys.sleep(1)
         progress$set(message = "Append annotations...", value = 0)
-        saved_df$annot <- get_annotations(data(), updateProgress = updateProgress)
+        saved_df$annot <- get_annotations(res(), updateProgress = updateProgress)
       }
       if( "KEGG" %in% annotation$to_load ){
         progress$set(message = "Add KEGG annotations...", value = 0)
@@ -1053,12 +1209,23 @@ server <- function(input, output, session) {
   })
   
   condTable <- reactive({
-    data_cond()
+    #data_cond()
     #cond_filter()
+    saved_df$cond_data
   })
+  
+  
+  observe({
+    saved_df$summary <- summary_table(annotated_Interactome())
+    updateCheckboxGroupInput(session, "columns_displayed",
+                             choices = names(saved_df$summary),
+                             selected=c("names", "max_stoichio", "max_fold_change", "min_p_val") )
     
+  })  
   summaryTable <- reactive({
-    summary_table(annotated_Interactome(),  add_columns = input$columns_displayed)
+    
+     saved_df$summary[ , input$columns_displayed]
+    
   })
   
   
@@ -1120,6 +1287,9 @@ server <- function(input, output, session) {
   })
   
   Stoichio2D_zoom <- reactive({
+    validate(
+      need("Copy_Number" %in% names(ordered_Interactome()), "Protein abundance not available")
+    )
     plot_2D_stoichio(ordered_Interactome(),
                      xlim = ranges$x,
                      ylim=ranges$y,
@@ -1128,6 +1298,9 @@ server <- function(input, output, session) {
   })
   
   Stoichio2D <- reactive({
+    validate(
+      need("Copy_Number" %in% names(ordered_Interactome()), "Protein abundance not available")
+    )
     plot_2D_stoichio(ordered_Interactome(),
                      condition = input$Stoichio2D_cond,
                      N_display = min(Ninteractors$x, input$Nmax2D) )[[1]]
@@ -1205,7 +1378,6 @@ server <- function(input, output, session) {
                     names = select_dotPlot$name,
                     condition = ordered_Interactome()$conditions,
                     var_facet_x = "cond",
-                    levels_x = c("ctrl", "bait"),
                     var_facet_y = "name")
   })
   
@@ -1251,7 +1423,6 @@ server <- function(input, output, session) {
                     name = ordered_Interactome()$names[select_volcanoPlot$i_min],
                     condition = ordered_Interactome()$conditions,
                     var_facet_x = "cond",
-                    levels_x = c("ctrl", "bait"),
                     var_facet_y = "name")
   })
   
@@ -1429,7 +1600,6 @@ server <- function(input, output, session) {
                                      name = x,
                                      conditions =  input$time_selected,
                                      var_facet_x = "cond",
-                                     levels_x = c("ctrl", "bait"),
                                      var_facet_y = "name")
                      }))
         dev.off()
