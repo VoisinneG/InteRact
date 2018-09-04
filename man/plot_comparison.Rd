@@ -5,13 +5,16 @@
 \title{Plot protein intensities per biological replicate and background}
 \usage{
 plot_comparison(res, names, conditions = res$conditions, textsize = 4,
-  ylims = NULL, var_x = "bckg", var_facet_x = "cond",
-  var_facet_y = "name", var_color = "bio", levels_x = NULL,
-  show_bar = FALSE, show_error_bar = FALSE, show_signif = TRUE,
-  show_violin = TRUE, comparisons = list(c(1, 2)), test = "t.test",
-  test.args = list(paired = FALSE), map_signif_level = c(`***` = 0.001, `**`
-  = 0.01, `*` = 0.05), position = "position_jitter",
-  position.args = list(width = 0.3, height = 0))
+  ylims = NULL, mapping = "point", var_x = "bckg", var_facet_x = "cond",
+  var_facet_y = "name", var_color = "bio", var_alpha = "missing",
+  levels_x = c(res$bckg_ctrl, res$bckg_bait), labels_x = c(res$bckg_ctrl,
+  res$bckg_bait), color_values = NULL, alpha_values = c(`TRUE` = 0.5,
+  `FALSE` = 1), show_bar = FALSE, show_error_bar = FALSE,
+  show_signif = TRUE, show_violin = TRUE, offset_bar = FALSE,
+  comparisons = list(c(1, 2)), test = "t.test", test.args = list(paired =
+  FALSE), map_signif_level = c(`***` = 0.001, `**` = 0.01, `*` = 0.05),
+  position = "position_jitter", position.args = list(width = 0.3, height =
+  0))
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -24,15 +27,25 @@ plot_comparison(res, names, conditions = res$conditions, textsize = 4,
 
 \item{ylims}{plot limits on the y axis}
 
+\item{mapping}{name of the plot elemnet on which the aestethics color and alpha are mapped. Can be either "point" or "bar".}
+
 \item{var_x}{x variable}
 
 \item{var_facet_x}{variable used for faceting plots horizontally}
 
 \item{var_facet_y}{variable used for faceting plots vertically}
 
-\item{var_color}{variable used to color points}
+\item{var_color}{variable used for the color aestethic}
+
+\item{var_alpha}{variable used for the alpha aestethic}
 
 \item{levels_x}{defines factor levels for x variable}
+
+\item{labels_x}{defines the labels for the levels of the x variable}
+
+\item{color_values}{named vector of colors.}
+
+\item{alpha_values}{named vector of alpha values.}
 
 \item{show_bar}{logical, show bars using \code{geom_bar}}
 
@@ -41,6 +54,8 @@ plot_comparison(res, names, conditions = res$conditions, textsize = 4,
 \item{show_signif}{logical, show significance of comparison tests using \code{geom_signif}}
 
 \item{show_violin}{logical, show point distribution using \code{geom_violin}}
+
+\item{offset_bar}{logical, use an offset to ensure all values are positive}
 
 \item{comparisons}{list of comparison pairs (as indices or x variable names)}
 

@@ -4,17 +4,17 @@
 \alias{analyse_interactome}
 \title{Construct an interactome by comparing bait and control background across experimental conditions}
 \usage{
-analyse_interactome(df, Intensity, ibait, bait_gene_name, Npep, Protein.IDs,
-  name_bait, name_ctrl, background, conditions, replicates,
+analyse_interactome(Intensity, Intensity_na_replaced = Intensity, conditions,
+  bait_gene_name, Npep, Protein.IDs, names, bckg_bait, bckg_ctrl,
   by_conditions = TRUE, pool_background = TRUE, log_test = TRUE,
   log_stoichio = TRUE, substract_ctrl = TRUE, use_mean_for_bait = TRUE)
 }
 \arguments{
-\item{df}{a data frame of protein intensities. columns are experimental samples and rows are proteins}
-
 \item{Intensity}{a data frame of protein intensities (without replacement of missing values). columns are experimental samples and rows are proteins}
 
-\item{ibait}{: row index corresponding to the bait protein}
+\item{Intensity_na_replaced}{a data frame of protein intensities (with replacement of missing values). columns are experimental samples and rows are proteins}
+
+\item{conditions}{: data frame describing the conditions corresponding to the columns of the data frame \code{Intensity}}
 
 \item{bait_gene_name}{: The gene name of the bait}
 
@@ -22,15 +22,11 @@ analyse_interactome(df, Intensity, ibait, bait_gene_name, Npep, Protein.IDs,
 
 \item{Protein.IDs}{: vector containing protein IDs (same length as \code{dim(df)[1]})}
 
-\item{name_bait}{: name of the bait as appearing in the background vector}
+\item{names}{: vector containing protein names (same length as \code{dim(df)[1]})}
 
-\item{name_ctrl}{: name of the control as appearing in the background vector}
+\item{bckg_bait}{: Name of the bait background as found in \code{conditions$bckg}}
 
-\item{background}{: vector of background names for each experimental sample}
-
-\item{conditions}{: vector of conditions for each each experimental sample}
-
-\item{replicates}{: vector of biological replicates for each each experimental sample}
+\item{bckg_ctrl}{: Name of the control background as found in \code{conditions$bckg}}
 
 \item{by_conditions}{option to perform the comparison between bait and control group for each condition}
 

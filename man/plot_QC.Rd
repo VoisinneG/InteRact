@@ -4,10 +4,10 @@
 \alias{plot_QC}
 \title{Quality check plots for preprocessed AP-MS data}
 \usage{
-plot_QC(prep_data)
+plot_QC(data)
 }
 \arguments{
-\item{prep_data}{preprocessed data as obtained using function \code{preprocess_data()}}
+\item{data}{an \code{Interactome} or preprocessed data as obtained using function \code{preprocess_data()}}
 }
 \value{
 Several QC plots

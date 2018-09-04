@@ -21,7 +21,7 @@ Append a FDR column to an \code{InteRactome}
 #' #load data :
 data("proteinGroups_Cbl")
 #Run InteRact with default parameters
-res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")$Interactome
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 df_merge <- merge_conditions(res)
 df_FDR <- compute_FDR_from_asymmetry(df_merge)
 Interactome <- append_FDR(res, df_FDR)

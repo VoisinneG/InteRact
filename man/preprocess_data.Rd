@@ -26,7 +26,7 @@ preprocess_data(df, Column_gene_name = "Gene.names", Column_score = "Score",
 
 \item{bait_gene_name}{The gene name of the bait}
 
-\item{condition}{data.frame with columns "sample", bckg", "bio", "time" and "tech" indicating 
+\item{condition}{data.frame with columns "column", bckg", "bio", "time" and "tech" indicating 
 for each intensity column ("sample") its corresponding background ("bckg"), biologicla replicate ("bio), 
 experimental condition ("tine) and technical replicate ("tech).}
 

@@ -27,7 +27,8 @@ Average protein intensities over technical replicates
 \examples{
 #load data :
 data("proteinGroups_Cbl")
-cond <- identify_conditions(proteinGroups_Cbl)
+df <- proteinGroups_Cbl
+cond <- identify_conditions(df)
 Column_intensity_pattern <- "^Intensity."
-df_int <- proteinGroups_Cbl[ , grep(Column_intensity_pattern, colnames(df))]
+df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
 }

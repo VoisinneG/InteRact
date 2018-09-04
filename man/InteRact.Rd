@@ -63,7 +63,7 @@ Analysis of AP-MS data
 #load data :
 data("proteinGroups_Cbl")
 #Run InteRact with default parameters
-res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")$Interactome
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 
 #You now have an \\code{InteRactome}. See its elements.
 class(res)

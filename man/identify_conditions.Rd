@@ -39,5 +39,5 @@ data("proteinGroups_Cbl")
 cond <- identify_conditions(proteinGroups_Cbl)
 print.data.frame(cond)
 # and use it as parameters for function InteRact()
-res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl", condition = cond)$Interactome
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl", condition = cond)
 }
