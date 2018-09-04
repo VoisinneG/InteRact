@@ -975,11 +975,11 @@ server <- function(input, output, session) {
                           substract_ctrl = input$substract_ctrl,
                           use_mean_for_bait = input$use_mean_for_bait)
       
-      #res_int <- merge_proteome(res_int)
+      res_int <- merge_proteome(res_int)
       df_merge <- merge_conditions(res_int)
       df_FDR <- compute_FDR_from_asymmetry(df_merge)
       res_int <- append_FDR(res_int, df_FDR)
-      #res_int <- append_PPI(res_int)
+      res_int <- append_PPI(res_int)
       
       saved_df$res <- res_int
       
