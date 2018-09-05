@@ -155,10 +155,11 @@ ui <- fluidPage(
                                   ),
                                   column(8,
                                          br(),
-                                         conditionalPanel(
-                                           condition = "input.mode == 'Raw data'",
-                                           dataTableOutput("data_summary")
-                                         )
+                                         # conditionalPanel(
+                                         #   condition = "input.mode == 'Raw data'",
+                                         #   dataTableOutput("data_summary")
+                                         # )
+                                         dataTableOutput("data_summary")
                                   )  
                        ),
                        tabPanel("Group",
@@ -544,7 +545,7 @@ server <- function(input, output, session) {
   idx_order <- reactiveValues(cluster = NULL)
   check_var <- reactiveValues(is_numeric = NULL, ncol = NULL)
   
-  saved_df$params <- list(N_rep = 3, 
+  saved_df$params <- list(N_rep = 3,
                           method = "default", 
                           #quantile_rep = 0.05, 
                           #by_conditions = TRUE,
@@ -576,6 +577,7 @@ server <- function(input, output, session) {
     updateCheckboxInput(session, "consecutive_success", value = saved_df$params$consecutive_success)
   })
   
+  # load Interactome
   observeEvent(input$load, {
     Interactome_name <- load(input$load$datapath)
     saved_df$res <- get(Interactome_name)
@@ -584,14 +586,23 @@ server <- function(input, output, session) {
     saved_df$cond_select <- saved_df$cond
     saved_df$cond_data <- saved_df$cond
     
-    updateTextInput(session, "bait_gene_name", value = saved_df$res$bait)
+    idx_match <- match(rownames(saved_df$res$data$Intensity), saved_df$res$names)
     
+    saved_df$data <- cbind(data.frame(Protein.IDs = saved_df$res$Protein.IDs[idx_match],
+                                      names = saved_df$res$names[idx_match],
+                                      Npep = saved_df$res$Npep[idx_match]
+                                      ),
+                           saved_df$res$data$Intensity
+                           )
+    
+    updateTextInput(session, "bait_gene_name", value = saved_df$res$bait)
   })
   
-  data_raw <- reactive({
+  # load raw data
+  observe({
     
     validate(
-      need(input$file$datapath, "Please select a file to import")
+      need(input$file$datapath, "Please select a file to import 2")
     )
     
     df <- read.csv(input$file$datapath, 
@@ -611,9 +622,8 @@ server <- function(input, output, session) {
                       choices = as.list(names(df)),
                       selected = id_selected) 
     
+    saved_df$cond <- NULL
     saved_df$data <- df
-    
-    df
     
   })
   
@@ -621,12 +631,13 @@ server <- function(input, output, session) {
     saved_df$data
   })
   
+  # import definition of experimental conditions from file
   observe({
     
     if(input$manual_mapping){
       
       validate(
-        need(input$file_cond$datapath, "Please select a file to import")
+        need(input$file_cond$datapath, "Please select a file to import 2")
       )
       
       df_cond <- read.table(input$file_cond$datapath, 
@@ -645,6 +656,8 @@ server <- function(input, output, session) {
         df_cond <- df_cond_int
         
       }
+      
+      saved_df$cond_data <- df_cond
       
       updateSelectInput(session, "column_name",
                         choices = as.list(names(df_cond)),
@@ -666,14 +679,13 @@ server <- function(input, output, session) {
                                choices = as.list(names(df_cond)),
                                selected = NULL)
       
-      saved_df$cond_data <- df_cond
+      
       
     } 
 
-    
-    
   })
   
+  # format manually definied conditions
   observe({
     
     if(input$manual_mapping){
@@ -694,7 +706,12 @@ server <- function(input, output, session) {
       cond_int <- data.frame(idx=seq_along(col_I), column=col_I, bckg, time = time, bio, tech, stringsAsFactors = FALSE)
       saved_df$cond <- cond_int
       
-    } else {
+    }
+  })
+  
+  # identify conditions from column names
+  observe({
+    if(!input$manual_mapping){
       
       match_pattern <- grep(input$pattern, names(data()))
       
@@ -716,48 +733,20 @@ server <- function(input, output, session) {
                                       split = input$split)
       saved_df$cond_data <- cond_int
       saved_df$cond <- cond_int
+      saved_df$cond_select <- cond_int
       
     }
-    
-    
-    # ibait <- which(as.character(data()[[input$column_gene_name]]) == input$bait_gene_name);
-    # 
-    # validate(
-    #   #need(!is.factor(data()[[input$column_gene_name]]), "Column for 'Gene.Names' contains factors. Please try changing the decimal separator (most likely '.' or ',') used for importing the data") %then%
-    #   need(length(ibait)>0,
-    #        paste("Could not find bait '", input$bait_gene_name,
-    #              "' in column '",input$column_gene_name,
-    #              "'. Please either :
-    #               modify bait gene name in General Parameters,
-    #               select another column for gene names
-    #               or change the decimal separator (most likely '.' or ',') used for importing the data.", 
-    #              sep=""))
-    # )
-    
-    #saved_df$cond <- cond_int
-    
-    #cond_int
-    
   })
   
   
-  observe({
-    check_var$is_numeric <- sapply(match(saved_df$cond$column, names(data())), function(x){is.numeric(data()[[x]])})
-    check_var$ncol <- length(saved_df$cond$column)
-  })
-  
-  
-  
-  # is_factor <- sapply(match(saved_df$cond$column, names(data())), function(x){is.factor(data()[[x]])})
-  # 
-  # validate(
-  #   need( sum( is_factor ) < length(is_factor) , "All intensity columns are factors, try changing:
-  #         the decimal separator (most likely '.' or ',') used for importing the data 
-  #         the pattern used to identify intensity columns")
-  #   )
-  
+  # Verify that intensity columns are numeric
   output$warning <- renderUI({
+    
     if( input$mode == "Raw data"){
+  
+      check_var$is_numeric <- sapply(match(saved_df$cond$column, names(data())), function(x){is.numeric(data()[[x]])})
+      check_var$ncol <- length(saved_df$cond$column)
+      
       if(!is.null(check_var$is_numeric)){
         if(sum( !check_var$is_numeric ) >0 ){
           wellPanel(
@@ -773,18 +762,22 @@ server <- function(input, output, session) {
       NULL
     }
     
-    
   })
   
+
+  # Guess the names of the bait and ctrl backgounds
   observe({
+    
+    idx_ctrl_guess <- grep("WT", toupper(unique(saved_df$cond$bckg)))
+    
+    if(length(idx_ctrl_guess) > 0){
+      ctrl_guess <- unique(saved_df$cond$bckg)[idx_ctrl_guess[1]]     
+    }else{
+      ctrl_guess <- unique(saved_df$cond$bckg)[1]
+    }
+    bait_guess <- setdiff(unique(saved_df$cond$bckg), ctrl_guess)[1]
+    
     if(input$mode == "Raw data"){
-      idx_ctrl_guess <- grep("WT", toupper(unique(saved_df$cond$bckg)))
-      if(length(idx_ctrl_guess) > 0){
-        ctrl_guess <- unique(saved_df$cond$bckg)[idx_ctrl_guess[1]]     
-      }else{
-        ctrl_guess <- unique(saved_df$cond$bckg)[1]
-      }
-      bait_guess <- setdiff(unique(saved_df$cond$bckg), ctrl_guess)[1]
       
       updateSelectInput(session, "bckg_bait",
                         choices = as.list(unique(saved_df$cond$bckg)),
@@ -797,6 +790,7 @@ server <- function(input, output, session) {
       if(nchar(input$bait_gene_name) == 0 ){
         updateTextInput(session, "bait_gene_name", value = bait_guess)
       }
+      
     }else if(input$mode == "Interactome"){
       updateSelectInput(session, "bckg_bait",
                         choices = as.list(unique(saved_df$cond$bckg)),
@@ -810,6 +804,7 @@ server <- function(input, output, session) {
     
   })
   
+  #update choices for conditions
   observe({
      updateSelectInput(session, "time_selected",
                        choices = as.list(unique(as.character(saved_df$cond$time))),
@@ -832,6 +827,8 @@ server <- function(input, output, session) {
     updateSelectInput(session, "name_focus", choices = ordered_Interactome()$names, selected = NULL)
   })
   
+  
+  # Select conditions
   observeEvent(input$apply_filter,{
 
     cond_int <- saved_df$cond
@@ -843,6 +840,8 @@ server <- function(input, output, session) {
       cond_int$tech <- rep("tech_0", dim(cond_int)[1])
     }
     
+    
+    
     idx_cond_selected <- which(rowSums(is.na(cond_int)) == 0)
     cond_int <- cond_int[idx_cond_selected, ]
     saved_df$cond_select <- cond_int
@@ -851,12 +850,13 @@ server <- function(input, output, session) {
       saved_df$cond_data <- saved_df$cond_select
     }
     
+    cat(input$time_selected)
+    cat(saved_df$cond_select$time)
+    
   })
   
-  observeEvent(saved_df$data,{
-    saved_df$cond <- NULL
-  })
-  
+
+  # Preprocess data
   prep_data <- reactive({
     
     if(input$mode == "Raw data"){
@@ -918,29 +918,25 @@ server <- function(input, output, session) {
       )
       
     } else if( input$mode == "Interactome"){
+      
       validate(
-        need(!is.null(saved_df$res), "Please load an Interactome")
+        need(!is.null(saved_df$data), "Please load an Interactome")
       )
       
-      idx_match <- match(rownames(saved_df$res$data$Intensity), saved_df$res$names)
-      idx_match_col <- match(saved_df$cond_select$column, colnames(saved_df$res$data$Intensity) )
-      list(
-        Intensity = saved_df$res$data$Intensity[ , idx_match_col],
-        conditions = saved_df$cond_select,
-        Npep = saved_df$res$Npep[idx_match],
-        Protein.IDs = saved_df$res$Protein.IDs[idx_match],
-        names = saved_df$res$names[idx_match],
-        bckg_bait = saved_df$res$bckg_bait,
-        bckg_ctrl = saved_df$res$bckg_ctrl,
-        bait_gene_name = saved_df$res$bait
+      preprocess_data(  df = saved_df$data,
+                        bait_gene_name = input$bait_gene_name,
+                        Column_gene_name = "names",
+                        Column_ID = "Protein.IDs",
+                        bckg_bait = input$bckg_bait,
+                        bckg_ctrl = input$bckg_ctrl,
+                        condition = saved_df$cond_select
       )
-        
       
     }
     
   })
   
-  
+  # Compute Interactome
   observeEvent(input$start, {
     
     if(input$mode == "Raw data"){
@@ -985,17 +981,29 @@ server <- function(input, output, session) {
       
   })
   
-  
-  
-  res<- reactive({
+  observe({
+    
     updateSelectInput(session, "volcano_cond",
                       choices = as.list(saved_df$res$conditions),
                       selected = NULL)
+    
     updateSelectInput(session, "Stoichio2D_cond",
                       choices = as.list(c("max", saved_df$res$conditions)),
                       selected = "max")
-    saved_df$res
+    
   })
+  
+  # res<- reactive({
+  #   
+  #   updateSelectInput(session, "volcano_cond",
+  #                     choices = as.list(saved_df$res$conditions),
+  #                     selected = NULL)
+  #   
+  #   updateSelectInput(session, "Stoichio2D_cond",
+  #                     choices = as.list(c("max", saved_df$res$conditions)),
+  #                     selected = "max")
+  #   saved_df$res
+  # })
   
   
 
@@ -1014,7 +1022,7 @@ server <- function(input, output, session) {
       )
     }
     
-    res_int <- identify_interactors( res(),
+    res_int <- identify_interactors( saved_df$res,
                                      var_p_val = input$var_p_val, 
                                      p_val_thresh = input$p_val_thresh, 
                                      fold_change_thresh = input$fold_change_thresh, 
@@ -1028,7 +1036,7 @@ server <- function(input, output, session) {
   })
   
   annotated_Interactome <- reactive({
-    
+      
       results <- append_annotations(ordered_Interactome(), saved_df$annot )
       results
       
@@ -1194,7 +1202,13 @@ server <- function(input, output, session) {
   
   
   data_summary <- reactive({
-    df <- data_raw()
+    
+    validate(
+      need(length(input$file)>0 |length(input$load)>0, "Please select a file to import") %then%
+      need(dim(saved_df$data)[2]>0, "Empty data set")
+    )
+    
+    df <- saved_df$data
     columns <- names(df)
     data_class <- sapply(1:dim(df)[2], FUN=function(x){class(df[,x])})
     data_median <- sapply(1:dim(df)[2], FUN=function(x){ 
@@ -1209,8 +1223,6 @@ server <- function(input, output, session) {
   })
   
   condTable <- reactive({
-    #data_cond()
-    #cond_filter()
     saved_df$cond_data
   })
   
@@ -1432,7 +1444,8 @@ server <- function(input, output, session) {
     
   #Output Table functions -------------------------------------------------------------------------
   
-  output$condTable <- renderDataTable(condTable())
+  output$condTable <- renderDataTable(#condTable() 
+                                      saved_df$cond_data)
   output$condTable_bis <- renderDataTable(condTable())
   output$data_summary <- renderDataTable(data_summary())
   output$summaryTable <- renderDataTable({summaryTable()})
