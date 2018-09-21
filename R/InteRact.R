@@ -158,11 +158,144 @@ InteRact <- function(
                              quantile_rep  = quantile_rep),
                         res_mean$params)
   
+  res_mean$data <- c(res_mean$data, 
+                     list(Intensity_no_filter = avg$Intensity_no_filter, 
+                          conditions_no_filter = avg$conditions_no_filter))
+
   return(res_mean)
   
 }
 
 
+#' Identify indirect interactions by comparing stoichiometries between two interactomes.
+#' @param resA reference interactome
+#' @param resB intermediate interactome.
+#' @param conditions set of conditions for which stoichiometries will be compared. If \code{NULL} then all shared conditions will be used.
+#' @export
+#' @import reshape2
+identify_indirect_interactions <- function(resA, resB, conditions = NULL){
+  
+  shared_cond <- intersect(resA$conditions, resB$conditions)
+  common_interactors <- setdiff(intersect(resA$interactor, resB$interactor), c(resA$bait, resB$bait) )
+  
+  # Verify that the analysis can be performed
+  if(!(resB$bait %in% resA$interactor)){
+    cat("B is not an interactor of bait A")
+    return(NULL)
+  }
+  if(length(common_interactors) == 0){
+    cat("Empty set of shared interactors")
+    return(NULL)
+  }
+    
+  #identify conditions for which interaction stoichiometries will be compared
+  
+  if(is.null(conditions)){
+    if(length(shared_cond)==0){
+      cond <- "max"
+      warning("No shared condition. Analysis will be performed using the maximum stoichiometry across conditions.")
+    }else{
+      cond <- shared_cond
+    }
+  }else{
+    if( length(intersect(conditions, shared_cond)) == 0){
+      cond <- "max"
+      warning("Specified conditions are not shared by both interactomes. Analysis will be performed using the maximum stoichiometry across conditions.")
+    }else{
+      cond <- conditions
+    }
+  }
+  
+  #cat(common_interactors)
+  #cat(cond)
+  
+  idxA <- match(common_interactors, resA$names)
+  idxB <- match(common_interactors, resB$names)
+  idxB_in_A <- match(resB$bait, resA$names)
+  
+  
+  stA <- data.frame(do.call(cbind, resA$stoichio),  row.names = resA$names)
+  stB <- data.frame(do.call(cbind, resB$stoichio),  row.names = resB$names)
+  names(stA)<- resA$conditions
+  names(stB)<- resB$conditions
+  
+  stoichio_direct <- sapply(shared_cond, function(x){stA[idxA, x]} )
+  rownames(stoichio_direct) <- common_interactors
+  stoichio_direct <- data.frame(stoichio_direct, check.names = FALSE)
+  
+  stoichio_indirect <- sapply(shared_cond, function(x){stB[idxB, x]*stA[idxB_in_A, x]} )
+  rownames(stoichio_indirect) <- common_interactors
+  stoichio_indirect <- data.frame(stoichio_indirect, check.names = FALSE)
+  
+  delta_stoichio_log <- log10(stoichio_direct) - log10(stoichio_indirect)
+  max_delta_stoichio_log <- apply(abs(delta_stoichio_log), MARGIN = 1, max)
+  
+  return(list(interactors = common_interactors,
+              conditions = shared_cond,
+              stoichio_direct = stoichio_direct, 
+              stoichio_indirect=stoichio_indirect,
+              delta_stoichio_log = delta_stoichio_log,
+              max_delta_stoichio_log = max_delta_stoichio_log,
+              bait_A = resA$bait,
+              bait_B = resB$bait)
+         )
+  
+}
+
+#' Plot indirect interactions
+#' @param score output of the \code{identify_indirect_interactions} function
+#' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
+#' @param save_file path were the plot will be saved
+#' @export
+#' @import reshape2
+plot_indirect_interactions <- function(score, threshold = 1.0, save_file = NULL){
+  
+  if(sum(score$max_delta_stoichio_log <= threshold) == 0){
+    p <- NULL
+  }else{
+    if(dim(score$stoichio_direct)[2] > 1){
+      s_direct <- score$stoichio_direct[score$max_delta_stoichio_log <= threshold, ]
+      s_direct$names <- score$interactor[score$max_delta_stoichio_log <= threshold]
+      s_direct$type <- rep("direct", length(s_direct$names))
+      
+      s_indirect <- score$stoichio_indirect[score$max_delta_stoichio_log <= threshold, ]
+      s_indirect$names <- score$interactor[score$max_delta_stoichio_log <= threshold]
+      s_indirect$type <- rep("indirect", length(s_indirect$names))
+    }else{
+      
+      s_direct <- data.frame(s = score$stoichio_direct[score$max_delta_stoichio_log <= threshold, ],
+                            names = score$interactor[score$max_delta_stoichio_log <= threshold],
+                            type = rep("direct", sum(score$max_delta_stoichio_log <= threshold)))
+      names(s_direct)[1] <- colnames(score$stoichio_direct)
+      s_indirect <- data.frame(s = score$stoichio_indirect[score$max_delta_stoichio_log <= threshold, ],
+                            names = score$interactor[score$max_delta_stoichio_log <= threshold],
+                            type = rep("indirect", sum(score$max_delta_stoichio_log <= threshold)))
+      names(s_indirect)[1] <- colnames(score$stoichio_indirect)
+    }
+    
+    
+    df <- rbind(s_direct, s_indirect)
+    
+    df_melt <- melt(df, id=c("names", "type"))
+    
+    p <- ggplot(df_melt, aes(x=variable, y=log10(value), color = type, group = type)) +
+      theme(axis.text.x = element_text(angle=90, hjust = 1)) +
+      ggtitle(paste(score$bait_A,"<",score$bait_B,"<X", sep="")) +
+      geom_line() +
+      geom_point() +
+      facet_grid( ~ names)
+  
+  }
+  
+  if(!is.null(save_file)){
+    pdf(save_file, 2 + sum(score$max_delta_stoichio_log <= threshold), 3)
+    print(p)
+    dev.off()
+  }
+  
+  return(p)
+  
+}
 
 
 #' Preprocessing of raw data
@@ -307,6 +440,8 @@ preprocess_data <- function(df,
   
   avg <- average_technical_replicates(T_int_norm, cond_filter, log = log)
   
+  avg$Intensity_no_filter <- T_int_norm
+  avg$conditions_no_filter <- cond
   avg$Npep <- df$Npep
   avg$Protein.IDs <- df[[Column_ID]]
   avg$names <- df$gene_name
@@ -391,13 +526,14 @@ identify_conditions <- function(df,
 
 #' Average protein intensities over technical replicates
 #' @param df A data frame of protein intensities
-#' @param cond A data frame containing the description of df's columns (i.e "idx", bckg", "time", "bio"  and "tech") 
+#' @param cond A data frame containing the description of df's columns (i.e "bckg", "time", "bio"  and "tech") 
 #' as returned by function \code{identify_conditions()}
 #' @param log use geometric mean
 #' @return A list containing :
 #' @return \code{Intensity}, a data frame of protein intensities averaged over technical replicates;
 #' @return \code{conditions}, a data frame containing the description of \code{Intensity}'s columns
 #' @importFrom dplyr group_by summarize
+#' @export
 #' @examples
 #' #load data :
 #' data("proteinGroups_Cbl")
@@ -1326,14 +1462,20 @@ discretize_values <- function( x, breaks = c(1,0.1,0.05,0.01), decreasing_order 
 
 #' Order proteins within an \code{InteRactome}
 #' @param res an \code{InteRactome}
-#' @param idx indices used to order proteins. Overrides ordering using \code{var_p_val} and \code{p_val_breaks}
-#' @param var_p_val name of the p-value variable
+#' @param idx indices used to order proteins. Overrides ordering using \code{var_p_val}, \code{p_val_breaks} and \code{var_order}
+#' @param var_min_p_val name of the p-value variable
 #' @param p_val_breaks numeric vector to discretize p-value
+#' @param var_order Variable used to order interactors for each p-value
+#' @param bait_first logical, puts bait in first position
 #' @return an \code{InteRactome}
 #' @export
-order_interactome <- function(res, idx = NULL, var_p_val = "min_p_val", p_val_breaks = c(1,0.1,0.05,0.01) ){
+order_interactome <- function(res, idx = NULL, 
+                              var_min_p_val = "min_p_val", 
+                              p_val_breaks = c(1,0.1,0.05,0.01), 
+                              var_order = "max_stoichio",
+                              bait_first = TRUE){
   
-  min_p_val_discrete <- discretize_values(res[[var_p_val]], breaks = p_val_breaks, decreasing_order = TRUE)
+  min_p_val_discrete <- discretize_values(res[[var_min_p_val]], breaks = p_val_breaks, decreasing_order = TRUE)
   
   if(!is.null(idx)){
     idx_order <- idx
@@ -1342,12 +1484,16 @@ order_interactome <- function(res, idx = NULL, var_p_val = "min_p_val", p_val_br
     }
   } else if( "interactor" %in% names(res)){
     Ndetect<-length(res$interactor)
-    idx_order<-order(res$is_interactor, 1/min_p_val_discrete, res$max_stoichio, decreasing = TRUE)
+    idx_order<-order(res$is_interactor, 1/min_p_val_discrete, res[[var_order]], decreasing = TRUE)
   } else{
     stop("idx not provided")
   }
   
-  
+  if(bait_first){
+    idx_bait <- which(res_order$names == res_order$bait)
+    idx_order_bait <- which(idx_order == idx_bait)
+    idx_order <- c(idx_bait, idx_order[-idx_order_bait])
+  }
   
   res_order<-res;
   for( var in setdiff( names(res), c("bait", "bckg_bait", "bckg_ctrl","conditions", "interactor", "replicates", "data", "params") ) ){
@@ -1382,7 +1528,11 @@ order_interactome <- function(res, idx = NULL, var_p_val = "min_p_val", p_val_br
     }
     
   }
+  
+  
   output = res_order
+  
+  
 }
 
 #' Perform enrichment analysis
