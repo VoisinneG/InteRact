@@ -4,12 +4,12 @@
 \alias{preprocess_data}
 \title{Preprocessing of raw data}
 \usage{
-preprocess_data(df, Column_gene_name = "Gene.names", Column_score = "Score",
-  Column_ID = "Protein.IDs", Column_Npep = NULL,
-  Column_intensity_pattern = "^Intensity.", bait_gene_name,
-  condition = NULL, bckg_bait = bait_gene_name, bckg_ctrl = "WT",
-  log = TRUE, filter_time = NULL, filter_bio = NULL, filter_tech = NULL,
-  ...)
+preprocess_data(df, Column_gene_name = "Gene.names",
+  Column_score = "Score", Column_ID = "Protein.IDs",
+  Column_Npep = NULL, Column_intensity_pattern = "^Intensity.",
+  bait_gene_name, condition = NULL, bckg_bait = bait_gene_name,
+  bckg_ctrl = "WT", log = TRUE, filter_time = NULL,
+  filter_bio = NULL, filter_tech = NULL, ...)
 }
 \arguments{
 \item{df}{Data.frame with protein intensities}

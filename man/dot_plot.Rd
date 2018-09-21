@@ -5,7 +5,8 @@
 \title{Dot plot representation of matrices}
 \usage{
 dot_plot(Dot_Size, Dot_Color = NULL, title = "Dot Plot",
-  size_range = range(Dot_Size), size_var = "size", color_var = "color")
+  size_range = range(Dot_Size), size_var = "size",
+  color_var = "color")
 }
 \arguments{
 \item{Dot_Size}{a matrix of dot sizes}

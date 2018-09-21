@@ -4,17 +4,22 @@
 \alias{order_interactome}
 \title{Order proteins within an \code{InteRactome}}
 \usage{
-order_interactome(res, idx = NULL, var_p_val = "min_p_val",
-  p_val_breaks = c(1, 0.1, 0.05, 0.01))
+order_interactome(res, idx = NULL, var_min_p_val = "min_p_val",
+  p_val_breaks = c(1, 0.1, 0.05, 0.01), var_order = "max_stoichio",
+  bait_first = TRUE)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
-\item{idx}{indices used to order proteins. Overrides ordering using \code{var_p_val} and \code{p_val_breaks}}
+\item{idx}{indices used to order proteins. Overrides ordering using \code{var_p_val}, \code{p_val_breaks} and \code{var_order}}
 
-\item{var_p_val}{name of the p-value variable}
+\item{var_min_p_val}{name of the p-value variable}
 
 \item{p_val_breaks}{numeric vector to discretize p-value}
+
+\item{var_order}{Variable used to order interactors for each p-value}
+
+\item{bait_first}{logical, puts bait in first position}
 }
 \value{
 an \code{InteRactome}

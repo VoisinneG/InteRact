@@ -19,9 +19,8 @@ Imports:
 biocViews:
 LazyData: TRUE
 License: file LICENSE
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
 Depends:
   S4Vectors,
   mice (>= 2.46),
   R (>= 2.10)
-

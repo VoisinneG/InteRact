@@ -5,16 +5,16 @@
 \title{Plot protein intensities per biological replicate and background}
 \usage{
 plot_comparison(res, names, conditions = res$conditions, textsize = 4,
-  ylims = NULL, mapping = "point", var_x = "bckg", var_facet_x = "cond",
-  var_facet_y = "name", var_color = "bio", var_alpha = "missing",
-  levels_x = c(res$bckg_ctrl, res$bckg_bait), labels_x = c(res$bckg_ctrl,
-  res$bckg_bait), color_values = NULL, alpha_values = c(`TRUE` = 0.5,
-  `FALSE` = 1), show_bar = FALSE, show_error_bar = FALSE,
-  show_signif = TRUE, show_violin = TRUE, offset_bar = FALSE,
-  comparisons = list(c(1, 2)), test = "t.test", test.args = list(paired =
-  FALSE), map_signif_level = c(`***` = 0.001, `**` = 0.01, `*` = 0.05),
-  position = "position_jitter", position.args = list(width = 0.3, height =
-  0))
+  ylims = NULL, mapping = "point", var_x = "bckg",
+  var_facet_x = "cond", var_facet_y = "name", var_color = "bio",
+  var_alpha = "missing", levels_x = c(res$bckg_ctrl, res$bckg_bait),
+  labels_x = c(res$bckg_ctrl, res$bckg_bait), color_values = NULL,
+  alpha_values = c(`TRUE` = 0.5, `FALSE` = 1), show_bar = FALSE,
+  show_error_bar = FALSE, show_signif = TRUE, show_violin = TRUE,
+  offset_bar = FALSE, comparisons = list(c(1, 2)), test = "t.test",
+  test.args = list(paired = FALSE), map_signif_level = c(`***` = 0.001,
+  `**` = 0.01, `*` = 0.05), position = "position_jitter",
+  position.args = list(width = 0.3, height = 0))
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

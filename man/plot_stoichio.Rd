@@ -5,9 +5,9 @@
 \title{Plot interaction stoichiometries per biological replicate}
 \usage{
 plot_stoichio(res, name, conditions = res$conditions,
-  ref_condition = conditions[1], test = "t.test", test.args = list(paired
-  = TRUE), map_signif_level = c(`***` = 0.001, `**` = 0.01, `*` = 0.05),
-  save_file = NULL)
+  ref_condition = conditions[1], test = "t.test",
+  test.args = list(paired = TRUE), map_signif_level = c(`***` = 0.001,
+  `**` = 0.01, `*` = 0.05), save_file = NULL)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

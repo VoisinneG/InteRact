@@ -6,7 +6,8 @@
 from column names}
 \usage{
 identify_conditions(df, Column_intensity_pattern = "^Intensity.",
-  split = "_", bckg_pos = 1, bio_pos = 3, time_pos = 2, tech_pos = 4)
+  split = "_", bckg_pos = 1, bio_pos = 3, time_pos = 2,
+  tech_pos = 4)
 }
 \arguments{
 \item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 

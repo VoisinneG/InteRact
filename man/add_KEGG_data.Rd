@@ -4,8 +4,8 @@
 \alias{add_KEGG_data}
 \title{Add KEGG pathway annotations}
 \usage{
-add_KEGG_data(df, map_id = "Cross.reference..KEGG.", organism = "mouse",
-  updateProgress = NULL)
+add_KEGG_data(df, map_id = "Cross.reference..KEGG.",
+  organism = "mouse", updateProgress = NULL)
 }
 \arguments{
 \item{df}{a data.frame with KEGG IDs in column \code{map_id}}

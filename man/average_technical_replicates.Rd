@@ -9,7 +9,7 @@ average_technical_replicates(df, cond, log = TRUE)
 \arguments{
 \item{df}{A data frame of protein intensities}
 
-\item{cond}{A data frame containing the description of df's columns (i.e "idx", bckg", "time", "bio"  and "tech") 
+\item{cond}{A data frame containing the description of df's columns (i.e "bckg", "time", "bio"  and "tech") 
 as returned by function \code{identify_conditions()}}
 
 \item{log}{use geometric mean}
