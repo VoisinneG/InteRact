@@ -15,6 +15,8 @@ library("InteRact")
 # library(networkD3)
 # library(dplyr)
 
+library(tools)
+library(readxl)
 library(Hmisc)
 library(ggplot2)
 library(networkD3)
@@ -125,7 +127,11 @@ ui <- fluidPage(
                                          wellPanel(
                                            fileInput("file", h4("Import file :"), placeholder = "Enter file here"),
                                            checkboxInput("delim", "Use comma as delimiter", value = FALSE),
-                                           checkboxInput("dec", "Use comma as decimal separator", value = FALSE)
+                                           checkboxInput("dec", "Use comma as decimal separator", value = FALSE),
+                                           selectInput("excel_sheet",
+                                                       "Select sheet",
+                                                       choices = list(),
+                                                       selected = NULL)
                                          ),
                                          wellPanel(
                                            h4("Select columns"),
@@ -144,6 +150,20 @@ ui <- fluidPage(
                                            bsTooltip("column_ID", 
                                                      "Choose the column containing protein IDs (from uniprot). This information is used to retrieve additional information such as GO annotations.", 
                                                      placement = "top")
+                                         ),
+                                         wellPanel(
+                                           h4("Filter protein"),
+                                           checkboxInput("filter_gene_name", "discard proteins with no gene name", value = TRUE),
+                                           selectInput("Column_score",
+                                                       "Column for selection score",
+                                                       choices = list(),
+                                                       selected = NULL),
+                                           bsTooltip("Column_score", 
+                                                     "Choose the column containing a selection score.", 
+                                                     placement = "top"
+                                           ),
+                                           numericInput("min_score", "Min. score", value = 0)
+                                           
                                          )
                                       ),
                                       conditionalPanel(
@@ -529,7 +549,9 @@ server <- function(input, output, session) {
                              annot = NULL, 
                              enrichment = NULL, 
                              summary = NULL, 
-                             params = NULL)
+                             params = NULL,
+                             sheet_list = NULL
+                             )
  
   annotation<- reactiveValues(selected = NULL, 
                               loaded = NULL, 
@@ -559,7 +581,8 @@ server <- function(input, output, session) {
                           fold_change_thresh = 5,
                           #conditions = c(),
                           n_success_min = 1,
-                          consecutive_success = FALSE)
+                          consecutive_success = FALSE
+                          )
 
   #Main reactive functions -------------------------------------------------------------------------
   
@@ -598,32 +621,72 @@ server <- function(input, output, session) {
     updateTextInput(session, "bait_gene_name", value = saved_df$res$bait)
   })
   
+  
+  observe({
+    
+    validate(
+      need(input$file$datapath, "Please select a file to import")
+    )
+    
+    file_type <- file_ext(input$file$datapath)
+    
+    if(file_type %in% c("xlsx", "xls")){
+      saved_df$sheet_list <- excel_sheets(input$file$datapath)
+      
+      updateSelectInput(session, "excel_sheet",
+                        choices = saved_df$sheet_list,
+                        selected = saved_df$sheet_list[1] ) 
+    }
+    
+  })
+  
   # load raw data
   observe({
     
     validate(
-      need(input$file$datapath, "Please select a file to import 2")
+      need(input$file$datapath, "Please select a file to import")
     )
     
-    df <- read.csv(input$file$datapath, 
-             sep=ifelse(input$delim,";","\t"), 
-             fill=TRUE, 
-             na.strings="", 
-             dec=ifelse(input$dec,",",".") )
+    file_type <- file_ext(input$file$datapath)
     
-    gn_selected <- names(df)[grep("GENE", toupper(names(df)))[1]]
-    id_selected <- names(df)[grep("ID", toupper(names(df)))[1]]
-    
-    updateSelectInput(session, "column_gene_name",
-                      choices = as.list(names(df)),
-                      selected = gn_selected) 
-    
-    updateSelectInput(session, "column_ID",
-                      choices = as.list(names(df)),
-                      selected = id_selected) 
+    if(file_type %in% c("txt", "csv")){
+      
+      df <- read.csv(input$file$datapath, 
+                     sep=ifelse(input$delim,";","\t"), 
+                     fill=TRUE, 
+                     na.strings="", 
+                     dec=ifelse(input$dec,",",".") )
+      
+    }else if(file_type %in% c("xlsx", "xls")){
+      
+      if(input$excel_sheet %in% saved_df$sheet_list){
+        df <- read_excel(input$file$datapath, sheet = input$excel_sheet)
+      }
+      
+      
+    }
     
     saved_df$cond <- NULL
     saved_df$data <- df
+    
+  })
+  
+  observe({
+    gn_selected <- names(saved_df$data)[grep("GENE", toupper(names(saved_df$data)))[1]]
+    id_selected <- names(saved_df$data)[grep("ID", toupper(names(saved_df$data)))[1]]
+    score_selected <- names(saved_df$data)[grep("Score", toupper(names(saved_df$data)))[1]]
+    
+    updateSelectInput(session, "column_gene_name",
+                      choices = as.list(names(saved_df$data)),
+                      selected = gn_selected) 
+    
+    updateSelectInput(session, "column_ID",
+                      choices = as.list(names(saved_df$data)),
+                      selected = id_selected)
+    
+    updateSelectInput(session, "Column_score",
+                      choices = as.list(names(saved_df$data)),
+                      selected = score_selected)
     
   })
   
@@ -850,8 +913,9 @@ server <- function(input, output, session) {
       saved_df$cond_data <- saved_df$cond_select
     }
     
-    cat(input$time_selected)
-    cat(saved_df$cond_select$time)
+    #cat(input$time_selected)
+    #cat(saved_df$cond_select$time)
+    
     
   })
   
@@ -914,7 +978,11 @@ server <- function(input, output, session) {
                         Column_ID = Column_ID,
                         bckg_bait = input$bckg_bait,
                         bckg_ctrl = input$bckg_ctrl,
-                        condition = saved_df$cond_select
+                        condition = saved_df$cond_select,
+                        min_score = input$min_score,
+                        Column_score = input$Column_score,
+                        filter_gene_name = input$filter_gene_name
+                        
       )
       
     } else if( input$mode == "Interactome"){
@@ -1067,7 +1135,7 @@ server <- function(input, output, session) {
       if( !("Entry" %in% annotation$loaded) ){
         Sys.sleep(1)
         progress$set(message = "Append annotations...", value = 0)
-        saved_df$annot <- get_annotations(res(), updateProgress = updateProgress)
+        saved_df$annot <- get_annotations(ordered_Interactome(), updateProgress = updateProgress)
       }
       if( "KEGG" %in% annotation$to_load ){
         progress$set(message = "Add KEGG annotations...", value = 0)
@@ -1210,10 +1278,10 @@ server <- function(input, output, session) {
     
     df <- saved_df$data
     columns <- names(df)
-    data_class <- sapply(1:dim(df)[2], FUN=function(x){class(df[,x])})
+    data_class <- sapply(1:dim(df)[2], FUN=function(x){class(df[[x]])})
     data_median <- sapply(1:dim(df)[2], FUN=function(x){ 
-                                              if(is.numeric(df[,x])){
-                                                median(df[,x], na.rm=TRUE)
+                                              if(is.numeric(df[[x]])){
+                                                median(df[[x]], na.rm=TRUE)
                                               } else {
                                                 NA
                                               }
