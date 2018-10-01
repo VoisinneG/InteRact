@@ -180,11 +180,11 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
   
   # Verify that the analysis can be performed
   if(!(resB$bait %in% resA$interactor)){
-    cat("B is not an interactor of bait A")
+    cat("B is not an interactor of bait A\n")
     return(NULL)
   }
   if(length(common_interactors) == 0){
-    cat("Empty set of shared interactors")
+    cat("Empty set of shared interactors\n")
     return(NULL)
   }
     
@@ -220,12 +220,32 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
   names(stB)<- resB$conditions
   
   stoichio_direct <- sapply(shared_cond, function(x){stA[idxA, x]} )
+  if(length(common_interactors)==1){
+    stoichio_direct <- t(stoichio_direct)
+  }
   rownames(stoichio_direct) <- common_interactors
   stoichio_direct <- data.frame(stoichio_direct, check.names = FALSE)
   
   stoichio_indirect <- sapply(shared_cond, function(x){stB[idxB, x]*stA[idxB_in_A, x]} )
+  if(length(common_interactors)==1){
+    stoichio_indirect <- t(stoichio_indirect)
+  }
   rownames(stoichio_indirect) <- common_interactors
   stoichio_indirect <- data.frame(stoichio_indirect, check.names = FALSE)
+  
+  stoichio_C_in_B <- sapply(shared_cond, function(x){stB[idxB, x]} )
+  if(length(common_interactors)==1){
+    stoichio_C_in_B <- t(stoichio_C_in_B)
+  }
+  rownames(stoichio_C_in_B) <- common_interactors
+  stoichio_C_in_B <- data.frame(stoichio_C_in_B, check.names = FALSE)
+  
+  perc_C_in_B <- sapply(shared_cond, function(x){stB[idxB, x]*resB$Copy_Number[resB$names == resB$bait]/resB$Copy_Number[idxB]} )
+  if(length(common_interactors)==1){
+    perc_C_in_B <- t(perc_C_in_B)
+  }
+  rownames(perc_C_in_B) <- common_interactors
+  perc_C_in_B <- data.frame(perc_C_in_B, check.names = FALSE)
   
   delta_stoichio_log <- log10(stoichio_direct) - log10(stoichio_indirect)
   max_delta_stoichio_log <- apply(abs(delta_stoichio_log), MARGIN = 1, max)
@@ -234,6 +254,8 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
               conditions = shared_cond,
               stoichio_direct = stoichio_direct, 
               stoichio_indirect=stoichio_indirect,
+              stoichio_C_in_B=stoichio_C_in_B,
+              perc_C_in_B = perc_C_in_B,
               delta_stoichio_log = delta_stoichio_log,
               max_delta_stoichio_log = max_delta_stoichio_log,
               bait_A = resA$bait,
@@ -248,7 +270,7 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
 #' @param save_file path were the plot will be saved
 #' @export
 #' @import reshape2
-plot_indirect_interactions <- function(score, threshold = 1.0, save_file = NULL){
+plot_indirect_interactions <- function(score, threshold = 1.0, save_file = NULL, facet = FALSE, plot_width = NULL, plot_height = NULL){
   
   if(sum(score$max_delta_stoichio_log <= threshold) == 0){
     p <- NULL
@@ -275,25 +297,53 @@ plot_indirect_interactions <- function(score, threshold = 1.0, save_file = NULL)
     
     
     df <- rbind(s_direct, s_indirect)
-    
     df_melt <- melt(df, id=c("names", "type"))
     
     p <- ggplot(df_melt, aes(x=variable, y=log10(value), color = type, group = type)) +
       theme(axis.text.x = element_text(angle=90, hjust = 1)) +
       ggtitle(paste(score$bait_A,"<",score$bait_B,"<X", sep="")) +
       geom_line() +
-      geom_point() +
-      facet_grid( ~ names)
+      geom_point()
+    
+    plist <- list()
+    unames <- unique(df_melt$names)
+    for(i in 1:length(unames)){
+      plist[[i]] <- ggplot(df_melt[df_melt$names==unames[i], ], aes(x=variable, y=log10(value), color = type, group = type)) +
+        theme(axis.text.x = element_text(angle=90, hjust = 1)) +
+        ggtitle(paste(score$bait_A,"<",score$bait_B,"<", unames[i], sep="")) +
+        geom_line() +
+        geom_point()
+    }
+    
+    
   
   }
   
   if(!is.null(save_file)){
-    pdf(save_file, 2 + sum(score$max_delta_stoichio_log <= threshold), 3)
-    print(p)
-    dev.off()
+    if(facet){
+      pdf(save_file, 
+          width = ifelse(is.null(plot_width), 2 + sum(score$max_delta_stoichio_log <= threshold), plot_width), 
+          height = ifelse(is.null(plot_height), 2, plot_height))
+      print(p+facet_grid( ~ names))
+      dev.off()
+    }else{
+      pdf(save_file, 
+          width = ifelse(is.null(plot_width), 3, plot_width), 
+          height = ifelse(is.null(plot_height), 2, plot_height))
+      print(plist)
+      dev.off()
+    }
+      
+    
   }
   
-  return(p)
+  if(facet){
+    return(p)
+  }
+  else{
+    return(plist)
+  }
+      
   
 }
 
@@ -315,6 +365,8 @@ plot_indirect_interactions <- function(score, threshold = 1.0, save_file = NULL)
 #' @param filter_time vector of experimental conditions to exclude from analysis
 #' @param filter_bio vector of biological replicates to exclude from analysis
 #' @param filter_tech vector of technical replicates to exclude from analysis
+#' @param min_score threshold on identification score
+#' @param filter_gene_name logical, filter out proteins withy empty gene name
 #' @param ... Additional parameters passed to function \code{identify_conditions}
 #' @export
 preprocess_data <- function(df,
@@ -331,6 +383,8 @@ preprocess_data <- function(df,
                      filter_time=NULL,
                      filter_bio=NULL,
                      filter_tech=NULL,
+                     min_score = 0, 
+                     filter_gene_name = TRUE, 
                      ...            
 ){
   
@@ -400,10 +454,15 @@ preprocess_data <- function(df,
   }
 
   #format gene name
-  df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
+  #df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
   
   # Filter protein with no gene name and a low score
-  df <- filter_Proteins(df, Column_gene_name = Column_gene_name, Column_score = Column_score);
+  df <- filter_Proteins(df, 
+                        min_score = min_score, 
+                        filter_gene_name = filter_gene_name, 
+                        Column_ID = Column_ID, 
+                        Column_gene_name = Column_gene_name, 
+                        Column_score = Column_score)
   
   # Compute number of theoretically observable peptides
   df$Npep <- estimate_Npep(df, Column_Npep = Column_Npep)
@@ -571,12 +630,18 @@ average_technical_replicates<-function(df, cond, log = TRUE){
 #' @param Column_score The name of df's column containing protein identification score
 #' @param split_param Character used to split gene names into substrings. 
 #' @return A filtered data frame. Contains an extra column with the first substring of the column \code{Column_gene_name}
-filter_Proteins <- function( df, min_score=0, Column_gene_name = "Gene.names", Column_score= "Score", split_param=";"){
+filter_Proteins <- function( df, 
+                             min_score=0, 
+                             filter_gene_name =TRUE, 
+                             Column_ID = "Protein.IDs", 
+                             Column_gene_name = "Gene.names", 
+                             Column_score= "Score", 
+                             split_param=";"){
 
   idx_row = 1:dim(df)[1]
-  if( Column_score %in% colnames(df)){
+  if( nchar(Column_score)>0 & Column_score %in% colnames(df)){
     if(class(df[[Column_score]]) == "numeric"){
-      idx_row= which( df[[Column_score]] > min_score )
+      idx_row = which( df[[Column_score]] > min_score )
       df<-df[idx_row, ]
       cat("Data Filtered based on portein identification score\n")
     }else{
@@ -590,23 +655,40 @@ filter_Proteins <- function( df, min_score=0, Column_gene_name = "Gene.names", C
   
   if( Column_gene_name %in% colnames(df)){
     
-    idx_cont <- grep("KRT",toupper(df[[Column_gene_name]]))
+    idx_cont <- unique( c(grep("KRT",toupper(df[[Column_gene_name]])),
+                          grep("CON_",toupper(df[[Column_gene_name]])),
+                          grep("REV_",toupper(df[[Column_gene_name]]))
+                          ))
+    
     if (length(idx_cont) > 0){
       df<-df[ - grep("KRT",toupper(df[[Column_gene_name]])), ]
       cat("Contaminant proteins discarded\n")
     }
     
-    idx_name <- which( nchar(as.character(df[[Column_gene_name]])) > 0  )
-    if(length(idx_name) > 0){
-      df <- df[ idx_name, ]
-      cat("Proteins with no gene name available discarded\n")
+    df$gene_name <- df[[Column_gene_name]]
+    
+    length_name <- nchar(as.character(df[[Column_gene_name]]))    
+    
+    idx_no_name <- which( length_name == 0  | is.na(length_name) )
+    if(length(idx_no_name) > 0){
+      df$gene_name[idx_no_name] <- df[[Column_ID]][idx_no_name]
     }
+    
+    
+    if(filter_gene_name){
+      if(length(idx_no_name) > 0){
+        df <- df[ -idx_no_name, ]
+        cat("Proteins with no gene name available discarded\n")
+      }
+    }
+    
+    df$gene_name <- sapply(df$gene_name, function(x) strsplit(as.character(x),split=split_param)[[1]][1] )
     
   }else{
     warning(paste("Column gene_name '", Column_gene_name, "' not available",sep=""))
   }
   
-  df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=split_param)[[1]][1] )
+  
   
   return(df)
 }
@@ -1428,14 +1510,13 @@ identify_interactors <- function(res,
   
   res_int <- order_interactome(res_int, idx = NULL, ...)
   
-  res_int$params <- c(res_int$params, list(var_p_val = var_p_val, 
-                                           p_val_thresh = p_val_thresh, 
-                                           fold_change_thresh = fold_change_thresh,
-                                           conditions = conditions,
-                                           n_success_min = n_success_min, 
-                                           consecutive_success = consecutive_success
-                                           )
-                      )
+  res_int$params$var_p_val <- var_p_val
+  res_int$params$p_val_thresh <- p_val_thresh
+  res_int$params$fold_change_thresh <- fold_change_thresh
+  res_int$params$conditions <- conditions
+  res_int$params$n_success_min <- n_success_min 
+  res_int$params$consecutive_success <- consecutive_success
+  
   return(res_int)
   
 }
@@ -1490,7 +1571,7 @@ order_interactome <- function(res, idx = NULL,
   }
   
   if(bait_first){
-    idx_bait <- which(res_order$names == res_order$bait)
+    idx_bait <- which(res$names == res$bait)
     idx_order_bait <- which(idx_order == idx_bait)
     idx_order <- c(idx_bait, idx_order[-idx_order_bait])
   }
@@ -2333,13 +2414,25 @@ create_summary_table_PPI <- function(gene_name){
 #' PPI are retrieved from databases IntAct, MINT, BioGRID and HPRD
 #' @param res an \code{InteRactome}
 #' @param mapping name of the \code{InteRactome}'s variable containing gene names
+#' @param df_summary data.frame with PPI information obatined from a call to \code{create_summary_table_PPI()}
 #' @return an \code{InteRactome}
 #' @export
-append_PPI <- function( res, mapping = "names"){
+append_PPI <- function( res, mapping = "names", df_summary = NULL){
   
   res_int <- res
   
-  df_ppi <- create_summary_table_PPI( res$bait )
+  if(is.null(df_summary)){
+    df_ppi <- create_summary_table_PPI( res$bait )
+  }else{
+    if(length(unique(df_summary$gene_name_A))>1 | toupper(df_summary$gene_name_A[1]) != toupper(res$bait)){
+      warning("incorrect PPI data")
+      return(res)
+    }else{
+      df_ppi <- df_summary
+    }
+    
+  }
+  
   uInteractors <- df_ppi$gene_name_B
   
   sh_preys<-intersect(toupper(res[[mapping]]), uInteractors)
@@ -2392,11 +2485,13 @@ append_PPI <- function( res, mapping = "names"){
 #' computed across all conditions for each biological replicate. Pearson correlations are used.
 #' @param res an \code{InteRactome}
 #' @param idx indexes of the set of proteins for which correlations will be computed
+#' @param log logical, use log-transformed stoichiometries
+#' @param nmax integer, limits the number of connections per node
 #' @return a data.frame with protein correlation information 
 #' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
 #' @importFrom Hmisc rcorr
 #' @export
-compute_correlations <- function(res, idx = NULL){
+compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL){
   
   # build matrix on which correlations will be computed
   idx_selected <- 1:length(res$names)
@@ -2412,41 +2507,58 @@ compute_correlations <- function(res, idx = NULL){
   names_df <- NULL
   for (bio in res$replicates){
     for (cond in res$conditions){
-      df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
-      names_df <- c(names_df, paste("stoichio_bio_",bio,"_",cond,sep=""))
+      if(log){
+        df <- cbind(df, log10(res$stoichio_bio[[bio]][[cond]][idx_selected]))
+      }else{
+        df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
+      }
+      
+      
     }
-  }
-  
-  for (i in dim(df)[1]){
-    if( sum(is.na(df[i, ])) < dim(df)[2] ){
-      df[i, ] <- df[i, ]/max(df[i, ], na.rm=TRUE)
-    }
-    
   }
   
   M <- as.matrix(df)
   row.names(M) <- names
-  colnames(M) <- names_df
   
   
   R <- Hmisc::rcorr(t(M))
   n <- dim(R$r)[1]
+  M_transpose <- matrix(0, n, n)
+  
   r_corr <- rep(NA, n*(n-1)/2)
   p_corr <- rep(NA, n*(n-1)/2)
   name_1 <- rep("", n*(n-1)/2)
   name_2 <- rep("", n*(n-1)/2)
+  
   count<-0
   for (i in 1:(n-1)){
-    for (j in (i+1):n){
-      count<-count+1
-      r_corr[count] <- R$r[i, j]
-      p_corr[count] <- R$P[i, j]
-      name_1[count] <- names[i]
-      name_2[count] <- names[j]
+    
+    idx <- order(R$r[i, ], decreasing = TRUE)
+    
+    for (j in idx[ 2 : ( min(1 + nmax, n) - 1 )]){
+      if(M_transpose[j, i] == 0){
+        count<-count+1
+        r_corr[count] <- R$r[i, j]
+        p_corr[count] <- R$P[i, j]
+        name_1[count] <- names[i]
+        name_2[count] <- names[j]
+        M_transpose[i, j] <- 1
+      }
+      
     }
+    
   }
-  df_corr <- data.frame( name_1 = name_1, name_2 = name_2, r_corr = r_corr, p_corr = p_corr)
+  
+  df_corr <- data.frame( bait = rep(res$bait, length(name_1)),
+                         name_1 = name_1, 
+                         name_2 = name_2, 
+                         r_corr = r_corr, 
+                         p_corr = p_corr)
+  
+  
   df_corr <- df_corr[!is.na(df_corr$r_corr) & !is.na(df_corr$p_corr) & df_corr$p_corr>0, ]
+  df_corr$p_corr_bonferroni <- p.adjust(df_corr$p_corr, method="bonferroni")
+  df_corr$p_corr_fdr <- p.adjust(df_corr$p_corr, method="fdr")
   
   return(df_corr)
 }
@@ -2826,6 +2938,7 @@ plot_volcanos <- function( res,
 
 #' Dot plot representation of interaction as a function of experimental conditions
 #' @param res an \code{InteRactome}
+#' @param names vector of names to be displayed
 #' @param idx_cols numeric vector to select and order conditions to be displayed
 #' @param idx_rows numeric vector to select proteins to display
 #' @param size_var name of the variable corresponding to dot size
@@ -2847,18 +2960,20 @@ plot_volcanos <- function( res,
 #' @importFrom stats dist hclust
 #' @export
 plot_per_condition <- function( res,
-                                 idx_cols = 1:length(res$conditions),
-                                 idx_rows=1:20,
-                                 size_var="norm_stoichio",
-                                 size_range=c(0,1),
-                                 color_var="p_val", 
-                                 color_breaks=c(1,0.1,0.05,0.01), 
-                                 #color_values=rgb(t(col2rgb(c("black", "blue","purple","red")))/255),
-                                 color_default = 1,
-                                 save_file=NULL,
-                                 plot_width=2.5 + length(res$conditions)/5,
-                                 plot_height=2 + length(idx_rows)/5,
-                                 clustering = FALSE){
+                                names = NULL,
+                                idx_cols = 1:length(res$conditions),
+                                idx_rows=1:20,
+                                size_var="norm_stoichio",
+                                size_range=c(0,1),
+                                color_var="p_val", 
+                                color_breaks=c(1,0.1,0.05,0.01), 
+                                #color_values=rgb(t(col2rgb(c("black", "blue","purple","red")))/255),
+                                color_default = 1,
+                                save_file=NULL,
+                                plot_width=2.5 + length(res$conditions)/5,
+                                plot_height=2 + length(idx_rows)/5,
+                                clustering = FALSE){
+                                 
   
   if(length(idx_rows)==1){
     idx_rows<-1:idx_rows
@@ -2866,8 +2981,12 @@ plot_per_condition <- function( res,
   
   M<-do.call(cbind, res[[size_var]])
   M1<-do.call(cbind, res[[color_var]])
-    
+  
   row.names(M) <- unlist(lapply(res$names, function(x) substr(x,1,min(8,nchar(x))) ) )
+  if(!is.null(names)){
+    row.names(M) <- names
+  }  
+  
   Mcol<-M
   Mcol[!is.null(M)]<-color_default
   
@@ -2928,6 +3047,9 @@ plot_per_condition <- function( res,
 #' @param size_range range of dot sizes to display
 #' @param size_var name of the variable corresponding to dot size
 #' @param color_var name of the variable corresponding to dot color
+#' @param color_values values parameter passed to \code{scale_color_manual()}
+#' @param size_label_y size of y-axis labels
+#' @param size_label_x size of x-axis labels
 #' @return a plot
 #' @import ggplot2
 #' @export
@@ -2936,7 +3058,10 @@ dot_plot <- function(Dot_Size,
                      title="Dot Plot", 
                      size_range=range(Dot_Size) , 
                      size_var ="size", 
-                     color_var="color"){
+                     color_var="color",
+                     color_values = c( "red", "purple",  "blue", "black" ),
+                     size_label_y = NULL,
+                     size_label_x = NULL){
 
   # Dot_Size: matrix of dot size
   
@@ -2986,8 +3111,12 @@ dot_plot <- function(Dot_Size,
   df$color<-as.factor(df$color)
   
   unique_col <- unique(df$color);
-  size_label_y <- max(6, 16 - (dim(M)[1] %/% 10)*1.5 )
-  size_label_x <- max(6, 16 - (dim(M)[2] %/% 5)*1.5 )
+  if(is.null(size_label_y)){
+    size_label_y <- max(6, 16 - (dim(M)[1] %/% 10)*1.5 )
+  }
+  if(is.null(size_label_x)){
+    size_label_x <- max(6, 16 - (dim(M)[2] %/% 5)*1.5 )
+  }
   
   p <- ggplot(df, aes(x=xpos, y=ypos, size=size, col=color ) ) +
     theme(#plot.margin=unit(c(0.2,0,0,0), "cm"),
@@ -2995,7 +3124,7 @@ dot_plot <- function(Dot_Size,
       axis.text.y= element_text(size=size_label_y), 
       axis.text.x = element_text(size=size_label_x, angle = 90, hjust = 1,vjust=0.5) ) +
     ggtitle(title)+
-    scale_color_manual( values=c( "red", "purple",  "blue", "black" ) , name=color_var) +
+    scale_color_manual( values=color_values , name=color_var) +
     scale_radius(limits=size_range, name=size_var) +
     #scale_colour_manual(values=setNames(unique_col, c( "red", "purple",  "blue", "black" ) )) +
     xlab("") +
@@ -3469,37 +3598,81 @@ plot_QC <- function(data){
 
 #' Plot an interactive correlation network with communities highlighted
 #' @param res an \code{InteRactome}
-#' @param idx indexes of the set of proteins in \code{res} for which correlations will be computed
-#' @param df_corr a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res} and \code{idx}.
+#' @param idx indexes of the set of proteins in \code{res} for which correlations will be computed.
+#' @param df_corr a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res}.
+#' @param source variable of \code{df_corr} with the names of the source protein
+#' @param target variable of \code{df_corr} with the names of the target protein
+#' @param cluster named vector containing the cluster number for each node
+#' @param var_p_val variable for which the threshold \code{p_val_thresh} will be applied. Set to \code{p_corr} by default
 #' @param r_corr_thresh threshold for variable 'r_corr' (min)
-#' @param p_val_thresh threshold for ariable 'p_corr' (max)
+#' @param p_val_thresh threshold for variable \code{var_p_val} (max)
+#' @param ... other parameters passed to function \code{compute_correlations()}
 #' @return an interactive networkD3 plot
 #' @import igraph
 #' @import networkD3
 #' @export
-plot_correlation_network <- function(res, idx = NULL, df_corr = NULL, r_corr_thresh = 0.8, p_val_thresh = 0.05){
+plot_correlation_network <- function(res, 
+                                     idx = NULL, 
+                                     source = "name_1", 
+                                     target = "name_2",
+                                     cluster = NULL,
+                                     df_corr = NULL, 
+                                     var_p_val = "p_corr", 
+                                     var_r_corr = "r_corr", 
+                                     r_corr_thresh = 0.8, 
+                                     p_val_thresh = 0.05, 
+                                     ...){
   
   if(is.null(df_corr)){
     if(is.null(idx)){
       if("interactor" %in% names(res)){
-        idx <- which(res$is_interactor > 0)
+        idx_filter <- which(res$is_interactor > 0)
       }else{
-        idx <- 1:length(res$names)
+        idx_filter <- 1:length(res$names)
       }
+    }else{
+      idx_filter = idx
     }
-    df_corr <- compute_correlations(res = res, idx = idx)
+    df_corr <- compute_correlations(res = res, idx = idx_filter, ...)
+    
+    if(var_r_corr %in% names(df_corr) & var_p_val %in% names(df_corr)){
+      idx_filter_corr <- which(df_corr[[var_r_corr]]>=r_corr_thresh & df_corr[[var_p_val]]<=p_val_thresh)
+      df_corr_filtered <- df_corr[idx_filter_corr, c(source, target)]
+    }else{
+      df_corr_filtered <- df_corr[ , c(source, target)]
+    }
+    
+  }else{
+    if(is.null(idx)){
+      if(var_r_corr %in% names(df_corr) & var_p_val %in% names(df_corr)){
+        idx_filter_corr <- which(df_corr[[var_r_corr]]>=r_corr_thresh & df_corr[[var_p_val]]<=p_val_thresh)
+        df_corr_filtered <- df_corr[idx_filter_corr, c(source, target)]
+      }else{
+        df_corr_filtered <- df_corr[ , c(source, target)]
+      }
+      
+    }else{
+      idx_filter_corr <- idx
+      df_corr_filtered <- df_corr[idx_filter_corr, c(source, target)]
+    }
   }
   
-  df_corr_filtered <- df_corr[df_corr$r_corr>=r_corr_thresh & df_corr$p_corr<=p_val_thresh, ]
+  
   
   net <- igraph::graph.data.frame(df_corr_filtered, directed=FALSE)
   net <- igraph::simplify(net)
-  cfg <- igraph::cluster_fast_greedy(as.undirected(net))
   
   #plot(cfg, as.undirected(net.s))
   #plot(igraph::as.undirected(net.s), mark.groups = igraph::communities(cfg))
   
-  net_d3 <- networkD3::igraph_to_networkD3(net, group = cfg$membership)
+  if(!is.null(cluster)){
+    idx_match <- match(vertex.attributes(net)$name, names(cluster))
+    group = cluster[idx_match]
+  }else{
+    cfg <- igraph::cluster_fast_greedy(as.undirected(net))
+    group = cfg$membership
+  }
+  net_d3 <- networkD3::igraph_to_networkD3(net, group = group)
   
   forceNetwork(Links = net_d3$links, Nodes = net_d3$nodes,
                Source = 'source', Target = 'target',
@@ -3510,5 +3683,33 @@ plot_correlation_network <- function(res, idx = NULL, df_corr = NULL, r_corr_thr
                linkColour = rgb(0.75, 0.75, 0.75),
                fontSize = 12, bounded = TRUE, zoom=TRUE, opacityNoHover = 1
   )
+  
+}
+
+#' Plot points with density background with correlation coefficient
+#' @param df a data.frame
+#' @param var_x name of the x variable
+#' @param var_y name of the y variable
+#' @return a plot
+#' @import ggplot2
+#' @import Hmisc
+#' @export
+plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2]){
+  
+  df$x <- df[[var_x]]
+  df$y <- df[[var_y]]
+  Pcorr <- rcorr(x=df[[var_x]], y=df[[var_y]]  )
+  
+  p <- ggplot(df, aes(y=y, x=x  ) ) +
+    theme(axis.text=element_text(size=16), plot.title = element_text(size=16))+
+    stat_density2d(aes(alpha=..level.., fill=..level..), size=2, geom="polygon", bins=20) + 
+    scale_fill_gradient(low = "yellow", high = "red") +
+    scale_alpha(range = c(0.00, 0.5), guide = FALSE) +
+    geom_point(alpha=0.2, size=1.5)+
+    xlab(var_x) +
+    ylab(var_y) +
+    ggtitle(paste('Pearson R=',signif(Pcorr$r[1,2],5),", n=",dim(df)[1],sep="") )
+  
+  return(p)
   
 }
