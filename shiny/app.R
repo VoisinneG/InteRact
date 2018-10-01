@@ -25,9 +25,9 @@ library(BiocInstaller)
 
 `%then%` <- shiny:::`%OR%`
 
-options(repos = BiocInstaller::biocinstallRepos())
-#getOption("repos")
-options(shiny.maxRequestSize = 100*1024^2) #maximum file size is set to 100MB
+options(repos = BiocInstaller::biocinstallRepos(), shiny.maxRequestSize = 100*1024^2)
+getOption("repos")
+#getOption()
 
 method_choices <- c("default",
                     "pmm", 
