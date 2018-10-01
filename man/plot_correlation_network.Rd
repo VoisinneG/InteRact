@@ -4,19 +4,31 @@
 \alias{plot_correlation_network}
 \title{Plot an interactive correlation network with communities highlighted}
 \usage{
-plot_correlation_network(res, idx = NULL, df_corr = NULL,
-  r_corr_thresh = 0.8, p_val_thresh = 0.05)
+plot_correlation_network(res, idx = NULL, source = "name_1",
+  target = "name_2", cluster = NULL, df_corr = NULL,
+  var_p_val = "p_corr", var_r_corr = "r_corr", r_corr_thresh = 0.8,
+  p_val_thresh = 0.05, ...)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
-\item{idx}{indexes of the set of proteins in \code{res} for which correlations will be computed}
+\item{idx}{indexes of the set of proteins in \code{res} for which correlations will be computed.}
 
-\item{df_corr}{a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res} and \code{idx}.}
+\item{source}{variable of \code{df_corr} with the names of the source protein}
+
+\item{target}{variable of \code{df_corr} with the names of the target protein}
+
+\item{cluster}{named vector containing the cluster number for each node}
+
+\item{df_corr}{a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res}.}
+
+\item{var_p_val}{variable for which the threshold \code{p_val_thresh} will be applied. Set to \code{p_corr} by default}
 
 \item{r_corr_thresh}{threshold for variable 'r_corr' (min)}
 
-\item{p_val_thresh}{threshold for ariable 'p_corr' (max)}
+\item{p_val_thresh}{threshold for variable \code{var_p_val} (max)}
+
+\item{...}{other parameters passed to function \code{compute_correlations()}}
 }
 \value{
 an interactive networkD3 plot

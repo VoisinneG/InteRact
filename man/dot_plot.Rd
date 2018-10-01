@@ -6,7 +6,8 @@
 \usage{
 dot_plot(Dot_Size, Dot_Color = NULL, title = "Dot Plot",
   size_range = range(Dot_Size), size_var = "size",
-  color_var = "color")
+  color_var = "color", color_values = c("red", "purple", "blue",
+  "black"), size_label_y = NULL, size_label_x = NULL)
 }
 \arguments{
 \item{Dot_Size}{a matrix of dot sizes}
@@ -20,6 +21,12 @@ dot_plot(Dot_Size, Dot_Color = NULL, title = "Dot Plot",
 \item{size_var}{name of the variable corresponding to dot size}
 
 \item{color_var}{name of the variable corresponding to dot color}
+
+\item{color_values}{values parameter passed to \code{scale_color_manual()}}
+
+\item{size_label_y}{size of y-axis labels}
+
+\item{size_label_x}{size of x-axis labels}
 }
 \value{
 a plot

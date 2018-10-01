@@ -4,12 +4,14 @@
 \alias{append_PPI}
 \title{Append protein-protein interaction}
 \usage{
-append_PPI(res, mapping = "names")
+append_PPI(res, mapping = "names", df_summary = NULL)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
 \item{mapping}{name of the \code{InteRactome}'s variable containing gene names}
+
+\item{df_summary}{data.frame with PPI information obatined from a call to \code{create_summary_table_PPI()}}
 }
 \value{
 an \code{InteRactome}

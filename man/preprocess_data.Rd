@@ -9,7 +9,8 @@ preprocess_data(df, Column_gene_name = "Gene.names",
   Column_Npep = NULL, Column_intensity_pattern = "^Intensity.",
   bait_gene_name, condition = NULL, bckg_bait = bait_gene_name,
   bckg_ctrl = "WT", log = TRUE, filter_time = NULL,
-  filter_bio = NULL, filter_tech = NULL, ...)
+  filter_bio = NULL, filter_tech = NULL, min_score = 0,
+  filter_gene_name = TRUE, ...)
 }
 \arguments{
 \item{df}{Data.frame with protein intensities}
@@ -41,6 +42,10 @@ experimental condition ("tine) and technical replicate ("tech).}
 \item{filter_bio}{vector of biological replicates to exclude from analysis}
 
 \item{filter_tech}{vector of technical replicates to exclude from analysis}
+
+\item{min_score}{threshold on identification score}
+
+\item{filter_gene_name}{logical, filter out proteins withy empty gene name}
 
 \item{...}{Additional parameters passed to function \code{identify_conditions}}
 }

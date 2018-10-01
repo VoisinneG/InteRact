@@ -4,8 +4,9 @@
 \alias{plot_per_condition}
 \title{Dot plot representation of interaction as a function of experimental conditions}
 \usage{
-plot_per_condition(res, idx_cols = 1:length(res$conditions),
-  idx_rows = 1:20, size_var = "norm_stoichio", size_range = c(0, 1),
+plot_per_condition(res, names = NULL,
+  idx_cols = 1:length(res$conditions), idx_rows = 1:20,
+  size_var = "norm_stoichio", size_range = c(0, 1),
   color_var = "p_val", color_breaks = c(1, 0.1, 0.05, 0.01),
   color_default = 1, save_file = NULL, plot_width = 2.5 +
   length(res$conditions)/5, plot_height = 2 + length(idx_rows)/5,
@@ -13,6 +14,8 @@ plot_per_condition(res, idx_cols = 1:length(res$conditions),
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
+
+\item{names}{vector of names to be displayed}
 
 \item{idx_cols}{numeric vector to select and order conditions to be displayed}
 

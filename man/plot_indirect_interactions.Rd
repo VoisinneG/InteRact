@@ -4,7 +4,8 @@
 \alias{plot_indirect_interactions}
 \title{Plot indirect interactions}
 \usage{
-plot_indirect_interactions(score, threshold = 1, save_file = NULL)
+plot_indirect_interactions(score, threshold = 1, save_file = NULL,
+  facet = FALSE, plot_width = NULL, plot_height = NULL)
 }
 \arguments{
 \item{score}{output of the \code{identify_indirect_interactions} function}

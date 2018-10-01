@@ -4,12 +4,16 @@
 \alias{compute_correlations}
 \title{Compute correlation in protein recruitment}
 \usage{
-compute_correlations(res, idx = NULL)
+compute_correlations(res, idx = NULL, log = FALSE, nmax = NULL)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
 \item{idx}{indexes of the set of proteins for which correlations will be computed}
+
+\item{log}{logical, use log-transformed stoichiometries}
+
+\item{nmax}{integer, limits the number of connections per node}
 }
 \value{
 a data.frame with protein correlation information 
