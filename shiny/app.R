@@ -674,7 +674,7 @@ server <- function(input, output, session) {
   observe({
     gn_selected <- names(saved_df$data)[grep("GENE", toupper(names(saved_df$data)))[1]]
     id_selected <- names(saved_df$data)[grep("ID", toupper(names(saved_df$data)))[1]]
-    score_selected <- names(saved_df$data)[grep("Score", toupper(names(saved_df$data)))[1]]
+    score_selected <- names(saved_df$data)[grep("^SCORE", toupper(names(saved_df$data)))[1]]
     
     updateSelectInput(session, "column_gene_name",
                       choices = as.list(names(saved_df$data)),
