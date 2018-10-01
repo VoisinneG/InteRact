@@ -661,7 +661,7 @@ filter_Proteins <- function( df,
                           ))
     
     if (length(idx_cont) > 0){
-      df<-df[ - grep("KRT",toupper(df[[Column_gene_name]])), ]
+      df<-df[ -idx_cont, ]
       cat("Contaminant proteins discarded\n")
     }
     
