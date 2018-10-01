@@ -653,11 +653,11 @@ filter_Proteins <- function( df,
   
   #Remove contaminants from dataset
   
-  if( Column_gene_name %in% colnames(df)){
+  if( Column_gene_name %in% colnames(df) & Column_ID %in% colnames(df)){
     
     idx_cont <- unique( c(grep("KRT",toupper(df[[Column_gene_name]])),
-                          grep("CON_",toupper(df[[Column_gene_name]])),
-                          grep("REV_",toupper(df[[Column_gene_name]]))
+                          grep("CON_",toupper(df[[Column_ID]])),
+                          grep("REV_",toupper(df[[Column_ID]]))
                           ))
     
     if (length(idx_cont) > 0){
