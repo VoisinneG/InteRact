@@ -1,3 +1,6 @@
+#rsconnect::appDependencies()
+#sessionInfo()
+
 #Load packages ----
 
 library(shiny)
@@ -15,6 +18,8 @@ library("InteRact")
 # library(networkD3)
 # library(dplyr)
 
+
+
 library(tools)
 library(readxl)
 library(Hmisc)
@@ -25,9 +30,10 @@ library(BiocInstaller)
 
 `%then%` <- shiny:::`%OR%`
 
+#run before publishing the app
 options(repos = BiocInstaller::biocinstallRepos(), shiny.maxRequestSize = 100*1024^2)
 getOption("repos")
-#getOption()
+
 
 method_choices <- c("default",
                     "pmm", 
@@ -1086,7 +1092,8 @@ server <- function(input, output, session) {
     if(input$mode == "Raw data"){
       validate(
           need(!is.null(saved_df$cond), "Please define protein intensity columns and the conditions associated to each column (see the Group and QC / Select tabs).") %then%
-          need(input$start, "Please click on the Compute Interactome button in General parameters")
+          need(input$start, "Please click on the Compute Interactome button in General parameters") %then%
+          need(!is.null(saved_df$res), "No interactome available")
       )
     }
     
