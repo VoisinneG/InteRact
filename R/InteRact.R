@@ -630,6 +630,7 @@ average_technical_replicates<-function(df, cond, log = TRUE){
 #' @param Column_score The name of df's column containing protein identification score
 #' @param split_param Character used to split gene names into substrings. 
 #' @return A filtered data frame. Contains an extra column with the first substring of the column \code{Column_gene_name}
+#' @export
 filter_Proteins <- function( df, 
                              min_score=0, 
                              filter_gene_name =TRUE, 
@@ -665,13 +666,14 @@ filter_Proteins <- function( df,
       cat("Contaminant proteins discarded\n")
     }
     
-    df$gene_name <- df[[Column_gene_name]]
+    df$gene_name <- as.character(df[[Column_gene_name]])
     
-    length_name <- nchar(as.character(df[[Column_gene_name]]))    
+    length_name <- nchar(df$gene_name)    
     
     idx_no_name <- which( length_name == 0  | is.na(length_name) )
+    
     if(length(idx_no_name) > 0){
-      df$gene_name[idx_no_name] <- df[[Column_ID]][idx_no_name]
+      df$gene_name[idx_no_name] <- as.character(df[[Column_ID]][idx_no_name])
     }
     
     
@@ -682,7 +684,7 @@ filter_Proteins <- function( df,
       }
     }
     
-    df$gene_name <- sapply(df$gene_name, function(x) strsplit(as.character(x),split=split_param)[[1]][1] )
+    df$gene_name <- sapply(df$gene_name, function(x){ strsplit(as.character(x),split=split_param)[[1]][1]} )
     
   }else{
     warning(paste("Column gene_name '", Column_gene_name, "' not available",sep=""))
