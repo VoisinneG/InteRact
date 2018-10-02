@@ -22,7 +22,9 @@ plot_correlation_network(res, idx = NULL, source = "name_1",
 
 \item{df_corr}{a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res}.}
 
-\item{var_p_val}{variable for which the threshold \code{p_val_thresh} will be applied. Set to \code{p_corr} by default}
+\item{var_p_val}{variable for which the threshold \code{p_val_thresh} will be applied. Set to 'p_corr' by default}
+
+\item{var_r_corr}{variable for which the threshold \code{r_corr_thresh} will be applied. Set to 'r_corr' by default}
 
 \item{r_corr_thresh}{threshold for variable 'r_corr' (min)}
 

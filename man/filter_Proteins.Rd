@@ -14,6 +14,10 @@ filter_Proteins(df, min_score = 0, filter_gene_name = TRUE,
 
 \item{min_score}{Threshold for protein identification score}
 
+\item{filter_gene_name}{logical, filter out proteins withy empty gene name}
+
+\item{Column_ID}{Column with protein IDs}
+
 \item{Column_gene_name}{The name of df's column containing gene names}
 
 \item{Column_score}{The name of df's column containing protein identification score}

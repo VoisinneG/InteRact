@@ -13,6 +13,12 @@ plot_indirect_interactions(score, threshold = 1, save_file = NULL,
 \item{threshold}{maximum difference between observed and predicted stoichiometries (in log10)}
 
 \item{save_file}{path were the plot will be saved}
+
+\item{facet}{logical, use faceting for all plots generated}
+
+\item{plot_width}{set plot width}
+
+\item{plot_height}{set plot height}
 }
 \description{
 Plot indirect interactions
