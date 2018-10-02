@@ -172,7 +172,7 @@ InteRact <- function(
 #' @param resB intermediate interactome.
 #' @param conditions set of conditions for which stoichiometries will be compared. If \code{NULL} then all shared conditions will be used.
 #' @export
-#' @import reshape2
+
 identify_indirect_interactions <- function(resA, resB, conditions = NULL){
   
   shared_cond <- intersect(resA$conditions, resB$conditions)
@@ -268,9 +268,17 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
 #' @param score output of the \code{identify_indirect_interactions} function
 #' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
 #' @param save_file path were the plot will be saved
-#' @export
+#' @param facet logical, use faceting for all plots generated
+#' @param plot_width set plot width
+#' @param plot_height set plot height
 #' @import reshape2
-plot_indirect_interactions <- function(score, threshold = 1.0, save_file = NULL, facet = FALSE, plot_width = NULL, plot_height = NULL){
+#' @export
+plot_indirect_interactions <- function(score, 
+                                       threshold = 1.0, 
+                                       save_file = NULL, 
+                                       facet = FALSE, 
+                                       plot_width = NULL, 
+                                       plot_height = NULL){
   
   if(sum(score$max_delta_stoichio_log <= threshold) == 0){
     p <- NULL
@@ -297,7 +305,7 @@ plot_indirect_interactions <- function(score, threshold = 1.0, save_file = NULL,
     
     
     df <- rbind(s_direct, s_indirect)
-    df_melt <- melt(df, id=c("names", "type"))
+    df_melt <- reshape2::melt(df, id=c("names", "type"))
     
     p <- ggplot(df_melt, aes(x=variable, y=log10(value), color = type, group = type)) +
       theme(axis.text.x = element_text(angle=90, hjust = 1)) +
@@ -591,7 +599,7 @@ identify_conditions <- function(df,
 #' @return A list containing :
 #' @return \code{Intensity}, a data frame of protein intensities averaged over technical replicates;
 #' @return \code{conditions}, a data frame containing the description of \code{Intensity}'s columns
-#' @importFrom dplyr group_by summarize
+#' @importFrom dplyr group_by summarise
 #' @export
 #' @examples
 #' #load data :
@@ -605,7 +613,7 @@ average_technical_replicates<-function(df, cond, log = TRUE){
   
   cond$idx_match <- match(cond$column, names(df))
   cond_group <- dplyr::group_by(cond, bckg, time, bio)
-  idx_cond <-  dplyr::summarize(cond_group, idx_tech=list(idx_match))
+  idx_cond <-  dplyr::summarise(cond_group, idx_tech=list(idx_match))
   
   cond_name <- vector("character", dim(idx_cond)[1])
   df_mean = data.frame( matrix( NA, nrow = dim(df)[1], ncol=dim(idx_cond)[1] ) );
@@ -626,7 +634,9 @@ average_technical_replicates<-function(df, cond, log = TRUE){
 #' gene names
 #' @param df A data frame
 #' @param min_score Threshold for protein identification score
+#' @param filter_gene_name logical, filter out proteins withy empty gene name
 #' @param Column_gene_name The name of df's column containing gene names
+#' @param Column_ID Column with protein IDs
 #' @param Column_score The name of df's column containing protein identification score
 #' @param split_param Character used to split gene names into substrings. 
 #' @return A filtered data frame. Contains an extra column with the first substring of the column \code{Column_gene_name}
@@ -3605,7 +3615,8 @@ plot_QC <- function(data){
 #' @param source variable of \code{df_corr} with the names of the source protein
 #' @param target variable of \code{df_corr} with the names of the target protein
 #' @param cluster named vector containing the cluster number for each node
-#' @param var_p_val variable for which the threshold \code{p_val_thresh} will be applied. Set to \code{p_corr} by default
+#' @param var_p_val variable for which the threshold \code{p_val_thresh} will be applied. Set to 'p_corr' by default
+#' @param var_r_corr variable for which the threshold \code{r_corr_thresh} will be applied. Set to 'r_corr' by default
 #' @param r_corr_thresh threshold for variable 'r_corr' (min)
 #' @param p_val_thresh threshold for variable \code{var_p_val} (max)
 #' @param ... other parameters passed to function \code{compute_correlations()}
