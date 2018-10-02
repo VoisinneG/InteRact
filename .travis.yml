@@ -1,13 +1,7 @@
 language: r
-r: bioc-devel
-sudo: true
-warnings_are_errors: false
 r_packages: BiocInstaller 
 bioc_packages: 
   - PSICQUIC
   - S4Vectors
 use_bioc: true
 cache: packages
-
-bioc_required: true
-bioc_use_devel: true
