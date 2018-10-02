@@ -3,7 +3,9 @@ r: bioc-devel
 sudo: true
 warnings_are_errors: false
 r_packages: BiocInstaller 
-bioc_packages: PSICQUIC, S4Vectors
+bioc_packages: 
+  - PSICQUIC
+  - S4Vectors
 use_bioc: true
 cache: packages
 
