@@ -6,9 +6,12 @@
 library(shiny)
 library(shinyBS)
 
-library("InteRact")
+#library("InteRact")
 
-# source("../R/InteRact.R")
+#source("../R/InteRact.R")
+# source("../R/Main_functions.R")
+# source("../R/Annotations.R")
+# source("../R/Plotting_functions.R")
 # library(ggrepel)
 # library(ggsignif)
 # library(grid)
@@ -17,6 +20,7 @@ library("InteRact")
 # library(igraph)
 # library(networkD3)
 # library(dplyr)
+# library(enrichR)
 
 
 
@@ -34,7 +38,7 @@ library(BiocInstaller)
 options(repos = BiocInstaller::biocinstallRepos(), shiny.maxRequestSize = 100*1024^2)
 getOption("repos")
 
-
+dbs <- enrichR::listEnrichrDbs()$libraryName
 method_choices <- c("default",
                     "pmm", 
                     "midastouch",
@@ -456,20 +460,25 @@ ui <- fluidPage(
                                 br(),
                                 column(4,
                                        wellPanel(
-                                         checkboxGroupInput("annotation_selected",
-                                                            "Select annoations",
-                                                            choices = c( 
-                                                                        "Protein.families",
-                                                                        "Keywords",
-                                                                        "GO",
-                                                                        "KEGG",
-                                                                        "Reactome", 
-                                                                        "Pfam",
-                                                                        "Hallmark",
-                                                                        "GO_molecular_function",
-                                                                        "GO_biological_process",
-                                                                        "GO_cellular_component"),
-                                                            selected = c("Keywords", "Protein.families")),
+                                         selectizeInput("annotation_selected", 
+                                                        "Select annotations", 
+                                                        choices = dbs, 
+                                                        selected = "GO_Biological_Process_2018",
+                                                        multiple = TRUE),
+                                         # checkboxGroupInput("annotation_selected",
+                                         #                    "Select annoations",
+                                         #                    choices = c( 
+                                         #                                "Protein.families",
+                                         #                                "Keywords",
+                                         #                                "GO",
+                                         #                                "KEGG",
+                                         #                                "Reactome", 
+                                         #                                "Pfam",
+                                         #                                "Hallmark",
+                                         #                                "GO_molecular_function",
+                                         #                                "GO_biological_process",
+                                         #                                "GO_cellular_component"),
+                                         #                    selected = c("Keywords", "Protein.families")),
                                          actionButton("launch_annot","Launch analysis")
                                        ),
                                        wellPanel(
@@ -521,7 +530,7 @@ ui <- fluidPage(
                                          checkboxGroupInput("saved_items",
                                                             "Items to save",
                                                             choices = c("Interactome", "preprocessed data", "summary table", "correlation network", "volcano plot", "dot plot", "2D stoichio plot", "enrichment plots", "stoichio plots" ),
-                                                            selected = c("Interactome", "preprocessed data", "summary table", "correlation network", "volcano plot", "dot plot", "2D stoichio plot" )
+                                                            selected = c("Interactome", "summary table", "volcano plot", "dot plot", "2D stoichio plot" )
                                          )
                                        ),
                                        wellPanel(
@@ -771,6 +780,10 @@ server <- function(input, output, session) {
       time <- df_cond[[input$manual_time]]
       bio <- df_cond[[input$manual_bio]]
       tech <- df_cond[[input$manual_tech]]
+      
+      validate(
+        need(length(col_I)>0, "No data imported for conditions")
+      )
       
       cond_int <- data.frame(idx=seq_along(col_I), column=col_I, bckg, time = time, bio, tech, stringsAsFactors = FALSE)
       saved_df$cond <- cond_int
@@ -1047,7 +1060,9 @@ server <- function(input, output, session) {
       
       res_int <- merge_proteome(res_int)
       df_merge <- merge_conditions(res_int)
-      df_FDR <- compute_FDR_from_asymmetry(df_merge)
+      FDR_res <- compute_FDR_from_asymmetry(df_merge)
+      df_FDR <- df_merge
+      df_FDR$FDR <- FDR_res$FDR
       res_int <- append_FDR(res_int, df_FDR)
       res_int <- append_PPI(res_int)
       
@@ -1112,7 +1127,8 @@ server <- function(input, output, session) {
   
   annotated_Interactome <- reactive({
       
-      results <- append_annotations(ordered_Interactome(), saved_df$annot )
+      #results <- append_annotations(ordered_Interactome(), saved_df$annot )
+      results <- append_annotations_enrichr(ordered_Interactome(), saved_df$annot )
       results
       
   })
@@ -1132,38 +1148,48 @@ server <- function(input, output, session) {
     
     if(length(annotation$to_load )>0){
       
-      # Create a Progress object
+      #Create a Progress object
       progress <- shiny::Progress$new(min = 0, max = 100)
       on.exit(progress$close())
-      updateProgress <- function(value = NULL, detail = NULL) {
-        progress$set(value = value, detail = detail)
+      # updateProgress <- function(value = NULL, detail = NULL) {
+      #   progress$set(value = value, detail = detail)
+      # }
+      
+      # if( !("Entry" %in% annotation$loaded) ){
+      #   Sys.sleep(1)
+      #   progress$set(message = "Append annotations...", value = 0)
+      #   saved_df$annot <- get_annotations(ordered_Interactome(), updateProgress = updateProgress)
+      # }
+      # if( "KEGG" %in% annotation$to_load ){
+      #   progress$set(message = "Add KEGG annotations...", value = 0)
+      #   saved_df$annot <- add_KEGG_data(saved_df$annot, updateProgress = updateProgress)
+      # }
+      # if( "Hallmark" %in% annotation$to_load ){
+      #   progress$set(message = "Add Hallmark annotations...", value = 0)
+      #   saved_df$annot <- add_Hallmark_data(saved_df$annot, updateProgress = updateProgress)
+      # }
+      # if( "GO_molecular_function" %in% annotation$to_load ){
+      #   progress$set(message = "Add GO molecular function annotations...", value = 0)
+      #   saved_df$annot<- add_GO_data(saved_df$annot, GO_type = "molecular_function", slim = FALSE, updateProgress = updateProgress)
+      # }
+      # if( "GO_biological_process" %in% annotation$to_load ){
+      #   progress$set(message = "Add GO biological_process annotations...", value = 0)
+      #   saved_df$annot <- add_GO_data(saved_df$annot, GO_type = "biological_process", slim = FALSE, updateProgress = updateProgress)
+      # }
+      # if( "GO_cellular_component" %in% annotation$to_load ){
+      #   progress$set(message = "Add GO cellular_component annotations...", value = 0)
+      #   saved_df$annot <- add_GO_data(saved_df$annot, GO_type = "cellular_component", slim = FALSE, updateProgress = updateProgress)
+      # }
+      
+      progress$set(message = "Querying annotations...", value = 0)
+      if( is.null(saved_df$annot) ){
+        saved_df$annot <- get_annotations_enrichr(ordered_Interactome()["names"], dbs = annotation$selected)
+      }else{
+        saved_df$annot <- get_annotations_enrichr(saved_df$annot, dbs = annotation$selected)
       }
       
-      if( !("Entry" %in% annotation$loaded) ){
-        Sys.sleep(1)
-        progress$set(message = "Append annotations...", value = 0)
-        saved_df$annot <- get_annotations(ordered_Interactome(), updateProgress = updateProgress)
-      }
-      if( "KEGG" %in% annotation$to_load ){
-        progress$set(message = "Add KEGG annotations...", value = 0)
-        saved_df$annot <- add_KEGG_data(saved_df$annot, updateProgress = updateProgress)
-      }
-      if( "Hallmark" %in% annotation$to_load ){
-        progress$set(message = "Add Hallmark annotations...", value = 0)
-        saved_df$annot <- add_Hallmark_data(saved_df$annot, updateProgress = updateProgress)
-      }
-      if( "GO_molecular_function" %in% annotation$to_load ){
-        progress$set(message = "Add GO molecular function annotations...", value = 0)
-        saved_df$annot<- add_GO_data(saved_df$annot, GO_type = "molecular_function", slim = FALSE, updateProgress = updateProgress)
-      }
-      if( "GO_biological_process" %in% annotation$to_load ){
-        progress$set(message = "Add GO biological_process annotations...", value = 0)
-        saved_df$annot <- add_GO_data(saved_df$annot, GO_type = "biological_process", slim = FALSE, updateProgress = updateProgress)
-      }
-      if( "GO_cellular_component" %in% annotation$to_load ){
-        progress$set(message = "Add GO cellular_component annotations...", value = 0)
-        saved_df$annot <- add_GO_data(saved_df$annot, GO_type = "cellular_component", slim = FALSE, updateProgress = updateProgress)
-      }
+      
+      
     }
     
     annotation$loaded <- names(saved_df$annot)
@@ -1337,6 +1363,7 @@ server <- function(input, output, session) {
         progress2$set(message = "Perform enrichment analysis...", value = 0)
         
         df_annot <- annotation_enrichment_analysis( annotated_Interactome(), 
+                                                    sep = ";",
                                                     1:Ninteractors$x, 
                                                     annotation_selected = annotation$enrichment_to_perform, 
                                                     names = annotated_Interactome()$names,

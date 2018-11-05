@@ -111,12 +111,6 @@ for ( i in 1:length(Hallmark_split) ){
 
 Hallmark <- data.frame(name = Hallmark_name,  gene = Hallmark_genes)
 
-# import HPRD database
-
-THPRD <- read.table(paste("~/ownCloud/++Work/++Research/Resources-Databases/HPRD/",
-                          "HPRD_Release9_062910/BINARY_PROTEIN_PROTEIN_INTERACTIONS.txt",
-                          sep=""),
-                    sep="\t",header = TRUE,quote="\"")
 
 # import GO data -----------------------------------------------------------------------------------------------
 
@@ -178,6 +172,14 @@ GOA_human_slim$GO_type <- onto$namespace[idx_match]
 GOA_human_slim$GO_name <- onto$name[idx_match]
 
 
+
+# import HPRD database
+
+THPRD <- read.table(paste("~/ownCloud/++Work/++Research/Resources-Databases/HPRD/",
+                          "HPRD_Release9_062910/BINARY_PROTEIN_PROTEIN_INTERACTIONS.txt",
+                          sep=""),
+                    sep="\t",header = TRUE,quote="\"")
+
 # import proteome data ------------------------------------------------------------------------------------------
 
 proteome_data <- read.table(paste("~/ownCloud/++Work/++Research/++Projects/",
@@ -191,24 +193,25 @@ proteome_data <- read.table(paste("~/ownCloud/++Work/++Research/++Projects/",
 
 # save in ./R/sysdata.rda  ---------------------------------------------------------------------------------------
 
-devtools::use_data( uniprot_data_mouse,
-                    uniprot_data_human,
-                    reactome_mouse,
-                    reactome_human,
-                    pfam_mouse,
-                    pfam_human,
-                    KEGG_mouse,
-                    KEGG_human,
-                    Hallmark,
-                    GOA_mouse,
-                    GOA_mouse_slim,
-                    GOA_human,
-                    GOA_human_slim,
-                    proteome_data,
-                    THPRD,
-                    pkg=".",
-                    internal = TRUE,
-                    overwrite = TRUE)
+devtools::use_data(
+  #uniprot_data_mouse,
+  #uniprot_data_human,
+  #reactome_mouse,
+  #reactome_human,
+  #pfam_mouse,
+  #pfam_human,
+  #KEGG_mouse,
+  #KEGG_human,
+  #Hallmark,
+  #GOA_mouse,
+  #GOA_mouse_slim,
+  #GOA_human,
+  #GOA_human_slim,
+  proteome_data,
+  THPRD,
+  pkg=".",
+  internal = TRUE,
+  overwrite = TRUE)
 
 # devtools::use_data( uniprot_data_mouse,
 #                     #uniprot_data_human,
@@ -221,6 +224,7 @@ devtools::use_data( uniprot_data_mouse,
 proteinGroups_Cbl <- read.csv("~/Documents/Data/BMMlab/CBL-CBLB_paper/C-CBL/data/ProteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=",")
 
 devtools::use_data(proteinGroups_Cbl,
+                   proteome_data,
                    pkg=".",
                    internal = FALSE,
                    overwrite = TRUE)

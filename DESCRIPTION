@@ -15,6 +15,7 @@ Imports:
 	networkD3,
 	ggsignif,
 	reshape2,
+	enrichR,
 	BiocInstaller,
 	PSICQUIC
 biocViews:

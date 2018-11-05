@@ -159,9 +159,9 @@ InteRact <- function(
                         res_mean$params)
   
   res_mean$data <- c(res_mean$data, 
-                     list(Intensity_no_filter = avg$Intensity_no_filter, 
-                          conditions_no_filter = avg$conditions_no_filter))
-
+                     list(Intensity_filter = avg$Intensity_filter, 
+                          conditions_filter = avg$conditions_filter))
+  
   return(res_mean)
   
 }
@@ -249,6 +249,7 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
   
   delta_stoichio_log <- log10(stoichio_direct) - log10(stoichio_indirect)
   max_delta_stoichio_log <- apply(abs(delta_stoichio_log), MARGIN = 1, max)
+  sum_delta_stoichio_log <- apply(abs(delta_stoichio_log), MARGIN = 1, sum)
   
   return(list(interactors = common_interactors,
               conditions = shared_cond,
@@ -258,6 +259,7 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
               perc_C_in_B = perc_C_in_B,
               delta_stoichio_log = delta_stoichio_log,
               max_delta_stoichio_log = max_delta_stoichio_log,
+              sum_delta_stoichio_log = sum_delta_stoichio_log,
               bait_A = resA$bait,
               bait_B = resB$bait)
          )
@@ -267,93 +269,136 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
 #' Plot indirect interactions
 #' @param score output of the \code{identify_indirect_interactions} function
 #' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
+#' @param var_threshold Variable of \code{score} on which the threshold will be applied
 #' @param save_file path were the plot will be saved
 #' @param facet logical, use faceting for all plots generated
 #' @param plot_width set plot width
 #' @param plot_height set plot height
 #' @import reshape2
 #' @export
-plot_indirect_interactions <- function(score, 
+plot_indirect_interactions <- function(score,
+                                       var_threshold = "max_delta_stoichio_log",
                                        threshold = 1.0, 
                                        save_file = NULL, 
                                        facet = FALSE, 
                                        plot_width = NULL, 
                                        plot_height = NULL){
-  
-  if(sum(score$max_delta_stoichio_log <= threshold) == 0){
-    p <- NULL
-  }else{
-    if(dim(score$stoichio_direct)[2] > 1){
-      s_direct <- score$stoichio_direct[score$max_delta_stoichio_log <= threshold, ]
-      s_direct$names <- score$interactor[score$max_delta_stoichio_log <= threshold]
-      s_direct$type <- rep("direct", length(s_direct$names))
-      
-      s_indirect <- score$stoichio_indirect[score$max_delta_stoichio_log <= threshold, ]
-      s_indirect$names <- score$interactor[score$max_delta_stoichio_log <= threshold]
-      s_indirect$type <- rep("indirect", length(s_indirect$names))
+  idx_select <- which(!is.na(score[[var_threshold]]))
+  if(length(idx_select) > 0){
+    if(sum(score[[var_threshold]][idx_select] <= threshold, na.rm = TRUE) == 0){
+      #p <- NULL
+      plist <- NULL
     }else{
       
-      s_direct <- data.frame(s = score$stoichio_direct[score$max_delta_stoichio_log <= threshold, ],
-                            names = score$interactor[score$max_delta_stoichio_log <= threshold],
-                            type = rep("direct", sum(score$max_delta_stoichio_log <= threshold)))
-      names(s_direct)[1] <- colnames(score$stoichio_direct)
-      s_indirect <- data.frame(s = score$stoichio_indirect[score$max_delta_stoichio_log <= threshold, ],
-                            names = score$interactor[score$max_delta_stoichio_log <= threshold],
-                            type = rep("indirect", sum(score$max_delta_stoichio_log <= threshold)))
-      names(s_indirect)[1] <- colnames(score$stoichio_indirect)
-    }
-    
-    
-    df <- rbind(s_direct, s_indirect)
-    df_melt <- reshape2::melt(df, id=c("names", "type"))
-    
-    p <- ggplot(df_melt, aes(x=variable, y=log10(value), color = type, group = type)) +
-      theme(axis.text.x = element_text(angle=90, hjust = 1)) +
-      ggtitle(paste(score$bait_A,"<",score$bait_B,"<X", sep="")) +
-      geom_line() +
-      geom_point()
-    
-    plist <- list()
-    unames <- unique(df_melt$names)
-    for(i in 1:length(unames)){
-      plist[[i]] <- ggplot(df_melt[df_melt$names==unames[i], ], aes(x=variable, y=log10(value), color = type, group = type)) +
-        theme(axis.text.x = element_text(angle=90, hjust = 1)) +
-        ggtitle(paste(score$bait_A,"<",score$bait_B,"<", unames[i], sep="")) +
-        geom_line() +
-        geom_point()
-    }
-    
-    
-  
-  }
-  
-  if(!is.null(save_file)){
-    if(facet){
-      pdf(save_file, 
-          width = ifelse(is.null(plot_width), 2 + sum(score$max_delta_stoichio_log <= threshold), plot_width), 
-          height = ifelse(is.null(plot_height), 2, plot_height))
-      print(p+facet_grid( ~ names))
-      dev.off()
-    }else{
-      pdf(save_file, 
-          width = ifelse(is.null(plot_width), 3, plot_width), 
-          height = ifelse(is.null(plot_height), 2, plot_height))
-      print(plist)
-      dev.off()
-    }
+      idx_plot <- idx_select[ score[[var_threshold]][idx_select] <= threshold]
+      plist <- list()
       
-    
+      for(i in 1:length(idx_plot)){
+        name_interactor <- score$interactor[idx_plot[i]]
+        score_display <- score[[var_threshold]][idx_plot[i]]
+        s_direct <- score$stoichio_direct[idx_plot[i], ]
+        s_indirect <- score$stoichio_indirect[idx_plot[i], ]
+        df_stoichio <- data.frame(type = c( rep("direct", length(s_direct)),
+                                            rep("reciprocal", length(s_indirect))),
+                                  stoichio = c(as.numeric(s_direct), as.numeric(s_indirect)),
+                                  conditions = c(names(s_direct), names(s_indirect)))
+        
+        if(min_range)
+        if(range(df_stoichio$stoichio) <= min_range){
+          ymin <- mean(df_stoichio$stoichio) - min_range/2
+          ymax <- mean(df_stoichio$stoichio) + min_range/2
+        }else{
+          ymin <- range(df_stoichio$stoichio)[1]
+          ymax <- range(df_stoichio$stoichio)[2]
+        }
+        
+        
+        plist[[i]] <- ggplot(df_stoichio, aes(x=conditions, y=log10(stoichio), color = type, group = type)) +
+          theme(axis.text.x = element_text(angle=90, hjust = 1)) +
+          ggtitle(paste(score$bait_A,"<",score$bait_B,"<", name_interactor," (", signif(score_display, 3), ")", sep="")) +
+          geom_line() +
+          geom_point()
+        
+      }
+    }
   }
-  
-  if(facet){
-    return(p)
-  }
-  else{
-    return(plist)
-  }
+  return( plist )
       
-  
-}
+}      
+  #     if(dim(score$stoichio_direct)[2] > 1){
+  #       s_direct <- score$stoichio_direct[idx_plot, ]
+  #       s_direct$names <- score$interactor[idx_plot]
+  #       s_direct$type <- rep("direct", length(s_direct$names))
+  #       
+  #       s_indirect <- score$stoichio_indirect[idx_plot, ]
+  #       s_indirect$names <- score$interactor[idx_plot]
+  #       s_indirect$type <- rep("indirect", length(s_indirect$names))
+  #     }else{
+  #       
+  #       s_direct <- data.frame(s = score$stoichio_direct[idx_plot, ],
+  #                              names = score$interactor[idx_plot],
+  #                              type = rep("direct", length(idx_plot)))
+  #       names(s_direct)[1] <- colnames(score$stoichio_direct)
+  #       s_indirect <- data.frame(s = score$stoichio_indirect[idx_plot, ],
+  #                                names = score$interactor[idx_plot],
+  #                                type = rep("indirect", length(idx_plot)))
+  #       names(s_indirect)[1] <- colnames(score$stoichio_indirect)
+  #     }
+  #     
+  #     
+  #     df <- rbind(s_direct, s_indirect)
+  #     df_melt <- reshape2::melt(df, id=c("names", "type"))
+  #     
+  #     p <- ggplot(df_melt, aes(x=variable, y=log10(value), color = type, group = type)) +
+  #       theme(axis.text.x = element_text(angle=90, hjust = 1)) +
+  #       ggtitle(paste(score$bait_A,"<",score$bait_B,"<X", sep="")) +
+  #       geom_line() +
+  #       geom_point()
+  #     
+  #     plist <- list()
+  #     unames <- unique(df_melt$names)
+  #     for(i in 1:length(unames)){
+  #       plist[[i]] <- ggplot(df_melt[df_melt$names==unames[i], ], aes(x=variable, y=log10(value), color = type, group = type)) +
+  #         theme(axis.text.x = element_text(angle=90, hjust = 1)) +
+  #         ggtitle(paste(score$bait_A,"<",score$bait_B,"<", unames[i], sep="")) +
+  #         geom_line() +
+  #         geom_point()
+  #     }
+  #     
+  #   }
+  # }else{
+  #   p <- NULL
+  #   plist <- NULL
+  # }  
+  # 
+  # 
+  # if(!is.null(save_file)){
+  #   if(facet){
+  #     pdf(save_file, 
+  #         width = ifelse(is.null(plot_width), 2 + length(idx_plot), plot_width), 
+  #         height = ifelse(is.null(plot_height), 2, plot_height))
+  #     print(p+facet_grid( ~ names))
+  #     dev.off()
+  #   }else{
+  #     pdf(save_file, 
+  #         width = ifelse(is.null(plot_width), 3, plot_width), 
+  #         height = ifelse(is.null(plot_height), 2, plot_height))
+  #     print(plist)
+  #     dev.off()
+  #   }
+  #     
+  #   
+  # }
+  # 
+  # if(facet){
+  #   return(p)
+  # }
+  # else{
+  #   return(plist)
+  # }
+ #     
+#  
+#}
 
 
 #' Preprocessing of raw data
@@ -507,8 +552,8 @@ preprocess_data <- function(df,
   
   avg <- average_technical_replicates(T_int_norm, cond_filter, log = log)
   
-  avg$Intensity_no_filter <- T_int_norm
-  avg$conditions_no_filter <- cond
+  avg$Intensity_filter <- T_int_norm
+  avg$conditions_filter <- cond
   avg$Npep <- df$Npep
   avg$Protein.IDs <- df[[Column_ID]]
   avg$names <- df$gene_name
@@ -666,9 +711,9 @@ filter_Proteins <- function( df,
   
   if( Column_gene_name %in% colnames(df) & Column_ID %in% colnames(df)){
     
-    idx_cont <- unique( c(grep("KRT",toupper(df[[Column_gene_name]])),
-                          grep("CON_",toupper(df[[Column_ID]])),
-                          grep("REV_",toupper(df[[Column_ID]]))
+    idx_cont <- unique( c(grep("^KRT",toupper(df[[Column_gene_name]])),
+                          grep("^CON_",toupper(df[[Column_ID]])),
+                          grep("^REV_",toupper(df[[Column_ID]]))
                           ))
     
     if (length(idx_cont) > 0){
@@ -697,7 +742,7 @@ filter_Proteins <- function( df,
     df$gene_name <- sapply(df$gene_name, function(x){ strsplit(as.character(x),split=split_param)[[1]][1]} )
     
   }else{
-    warning(paste("Column gene_name '", Column_gene_name, "' not available",sep=""))
+    warning(paste("Column_gene_name '", Column_gene_name, "' or Column_ID '", Column_ID,"' not available",sep=""))
   }
   
   
@@ -709,8 +754,9 @@ filter_Proteins <- function( df,
 #' @param df A data frame
 #' @param idx_col idx of columns for which values will be merged across protein groups
 #' @param merge_column column to identify rows to be be merged
+#' @param sum_intensities Logical. Sum intensities across merged groups.
 #' @return A merged data frame 
-merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name"){
+merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name", sum_intensities = TRUE){
   
     cat("Merge protein groups associated to the same gene name (sum of intensities) \n")
     
@@ -731,14 +777,17 @@ merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name
           max_I[j] = max(df[ idx_u[j], idx_col], na.rm = TRUE)
         }
         jmax = which(max_I == max(max_I) );
-        idx_merge[ idx_u[jmax] ] = 1;
+        idx_merge[ idx_u[jmax[1]] ] = 1;
         
         for (k in idx_col ){
           s=0;
           for(j in idx_u ){
             s= s + df[j, k];
           }
-          df_int[idx_u[jmax], k] = s;
+          if(sum_intensities){
+            df_int[idx_u[jmax[1]], k] = s;
+          }
+          
         }
         
       }
@@ -842,7 +891,7 @@ row_mean <- function(df, na.rm = TRUE, log = FALSE){
 #' @param idx_group_2 column indexes corresponding to the second group
 #' @param log option to perform the t-test on log transformed data
 #' @importFrom stats t.test
-#' @return A data frame with columns 'p_val' and 'fold_change
+#' @return A data frame with columns 'p_val' and 'fold_change' (group_1 vs group_2)
 row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
   
   p_val <- rep(NaN,dim(df)[1]);
@@ -1013,8 +1062,6 @@ analyse_interactome <- function(Intensity,
     p_val[[i]] <- ttest$p_val;
     fold_change[[i]] <- ttest$fold_change;
     
-    
-    
     stoichio[[i]] <- row_stoichio(Intensity_na_replaced, 
                                   idx_group_1 = which( background==bckg_bait & conds==cond[[i]] ), 
                                   idx_group_2 = idx_ctrl, 
@@ -1142,10 +1189,29 @@ smooth_interactome <- function( res,  n = 1, order_conditions = NULL, var_smooth
   return(res_smooth)
 }
 
+
+#' Normalize the log fold change by its standard deviation for each condition
+#' @param res an \code{InteRactome}
+#' @return an \code{InteRactome} with the additional variable \code{norm_log_fold_change}
+#' @export
+normalize_interactome <- function( res ){
+  
+  res_norm <- res
+  res_norm[["norm_log_fold_change"]] <- vector("list", length = length(res$conditions))
+    
+  for (i in 1:length(res$conditions)){
+    sd_norm <- sd(log(res[["fold_change"]][[res$conditions[i]]]))
+    res_norm[["norm_log_fold_change"]][[res$conditions[i]]] <- log(res[["fold_change"]][[res$conditions[i]]])/sd_norm
+  }
+  
+  return(res_norm)
+}
+
 #' Merge different conditions from different interactomes into a single data.frame 
 #' @param res a list of \code{InteRactomes}
 #' @param selected_conditions a character vector containing names of conditions to merge
-#' @return a data.frame with columns bait, names, Protein.IDs, conditions, p_val, fold_change
+#' @return a data.frame with columns bait, names, Protein.IDs, conditions, p_val, 
+#' @return fold_change and norm_log_fold_change
 #' @export
 merge_conditions <- function( res,  selected_conditions = NULL){
 
@@ -1161,15 +1227,20 @@ merge_conditions <- function( res,  selected_conditions = NULL){
         } else {
           conditions <- selected_conditions
         }
+        
+        res_int <- normalize_interactome(res[[i]])
+        
         for (cond in conditions){
-          names <- res[[i]]$names
+          names <- res_int$names
           df <- data.frame(
-            bait = rep(res[[i]]$bait, length(names)),
+            bait = rep(res_int$bait, length(names)),
             names = names,
-            Protein.IDs = res[[i]]$Protein.IDs,
+            Protein.IDs = res_int$Protein.IDs,
             conditions = rep(cond, length(names)), 
-            p_val = res[[i]]$p_val[[cond]],
-            fold_change = res[[i]]$fold_change[[cond]])
+            p_val = res_int$p_val[[cond]],
+            fold_change = res_int$fold_change[[cond]],
+            norm_log_fold_change = res_int$norm_log_fold_change[[cond]]
+            )
           
           df_merge <- rbind(df_merge, df)
         }
@@ -1184,16 +1255,21 @@ merge_conditions <- function( res,  selected_conditions = NULL){
       } else {
         conditions <- selected_conditions
       }
+      
+      res_int <- normalize_interactome(res)
+      
       for (cond in conditions){
-        names <- res$names
+        names <- res_int$names
         df <- data.frame(
-          bait = rep(res$bait, length(names)),
+          bait = rep(res_int$bait, length(names)),
           names = names,
-          Protein.IDs = res$Protein.IDs,
+          Protein.IDs = res_int$Protein.IDs,
           conditions = rep(cond, length(names)), 
-          p_val = res$p_val[[cond]],
-          fold_change = res$fold_change[[cond]])
-                 
+          p_val = res_int$p_val[[cond]],
+          fold_change = res_int$fold_change[[cond]],
+          norm_log_fold_change = res_int$norm_log_fold_change[[cond]]
+        )
+        
         df_merge <- rbind(df_merge, df)
       }
     } else {
@@ -1206,14 +1282,17 @@ merge_conditions <- function( res,  selected_conditions = NULL){
 
 #' Compute the FDR from the asymmetry of the volcano plot
 #' @description Compute the FDR (False Discovery Rate) using the asymmetry of the volcano plot.
-#' It uses the fonction f(x) = c / (x-x0) with x = log10(fold_change), y=-log10(p_value).
+#' It uses the fonction f(x) = c / (|x|-x0) with x = log10(fold_change), y=-log10(p_value) by default.
+#' Otherwise, custom x and y vectors can be provided.
 #' Points with x>x0 and y>f(x) are taken as true positive (TP)
 #' Points with x<x0 and y>f(x) are taken as false positive (FP)
 #' For a given set of parameters (c,x0), the FDR is given by TP/(TP+FP)
 #' @param df : a data.frame containing columns \code{p_val} and \code{fold_change}
+#' @param x : numeric vector of x values. Only used if \code{df} is NULL.
+#' @param y : numeric vector of y values. Only used if \code{df} is NULL.
 #' @param c : numeric vector
 #' @param x0 : numeric vector
-#' @return a data.frame with a extra column \code{FDR}. 
+#' @return  a data.frame with a extra column \code{FDR} if \code{df} is not NULL. A vector of FDR values otherwise.  
 #' @return If parameters \code{c} and \code{x0} are vectors, \code{FDR} is taken as the minimum FDR value across all sets of parameters
 #' @import utils
 #' @export
@@ -1225,19 +1304,48 @@ merge_conditions <- function( res,  selected_conditions = NULL){
 #' df_merge <- merge_conditions(res)
 #' df_FDR <- compute_FDR_from_asymmetry(df_merge)
 #' Interactome <- append_FDR(res, df_FDR)
-compute_FDR_from_asymmetry <- function( df,
-                                        c = seq(from = 0, to =4, by = 0.1),
-                                        x0 = seq(from = 0, to =3, by = 0.1)){
+compute_FDR_from_asymmetry <- function( df = NULL,
+                                        x = NULL,
+                                        y = NULL,
+                                        c = seq(from = 0, to = 10, by = 0.1),
+                                        x0 = seq(from = 0, to =10, by = 0.1)){
+  if(!is.null(df)){
+    df_int<-df
+  }else if(is.null(x) & is.null(y)){
+    stop("No input data provided.")
+  }
   
-  df_int<-df
   
-  x <- log10(df$fold_change)
-  y <- -log10(df$p_val)
+  if(is.null(x)){
+    if("fold_change" %in% names(df)){
+      x <- log10(df$fold_change)
+    }else{
+      stop("Variable 'fold_change' not available")
+    }
+    
+  }
+  if(is.null(y)){
+    if("p_val" %in% names(df)){
+      y <- -log10(df$p_val)
+    }else{
+      stop("Variable 'p_val' not available")
+    }
+  }
   
-  FDR <- rep(1, dim(df)[1])
+  if(length(x) != length(y)){
+    stop("Lengths of x and y differ.")
+  }
+  
+  FDR <- rep(1, length(x))
   cat("Compute FDR...\n")
   pb <- txtProgressBar(min = 0, max = length(c)*length(x0), style = 3)
   count <- 0
+  
+  c_tot <- NULL
+  x0_tot <- NULL
+  TP_tot <- NULL
+  FP_tot <- NULL
+  FDR_tot <- NULL
   
   for (i in 1:length(c)){
     for (j in 1:length(x0)){
@@ -1249,15 +1357,42 @@ compute_FDR_from_asymmetry <- function( df,
       
       FDR[idx_TP[ FDR[idx_TP] >= FDR_int ]] <- FDR_int
       
+      c_tot <- c(c_tot, c[i])
+      x0_tot <- c(x0_tot, x0[j])
+      TP_tot <- c(TP_tot, TP_int)
+      FP_tot <- c(FP_tot, FP_int)
+      FDR_tot <- c(FDR_tot, FDR_int)
+      
       count <- count +1
       setTxtProgressBar(pb, count)
     }
   }
+  
+  df_params = data.frame(c = c_tot, 
+                          x0 = x0_tot, 
+                          TP = TP_tot, 
+                          FP = FP_tot, 
+                          FDR = FDR_tot)
   close(pb)
-  df_int$FDR <- FDR
   
-  return(df_int)
+  uFDR <- unique(df_params$FDR)
+  uFDR <- uFDR[order(uFDR)]
+  idx_max <- rep(NA, length(uFDR))
+  for(i in 1:length(uFDR)){
+    if(!is.na(uFDR[i])){
+      idx_FDR <- which(df_params$FDR <= uFDR[i] & !is.na(df_params$FDR) )
+      idx_max[i] <- idx_FDR[which.max(df_params$TP[idx_FDR])]
+    }
+  }
+  df_max_TP <- data.frame( FDR = uFDR, 
+                           c = df_params$c[idx_max], 
+                           x0 = df_params$x0[idx_max],
+                           TP = df_params$TP[idx_max],
+                           FP = df_params$FP[idx_max]) 
   
+  return(list(FDR = FDR, 
+              parameters = df_params,
+              max_TP_parameters = df_max_TP ))
 }
 
 
@@ -1488,6 +1623,8 @@ identify_interactors <- function(res,
                                  conditions = res$conditions,
                                  n_success_min = 1, 
                                  consecutive_success = FALSE,
+                                 p_val_breaks = c(1, min(1,4*p_val_thresh), min(1, 2*p_val_thresh), min(1, p_val_thresh)),
+                                 var_min_p_val = paste("min_",var_p_val,sep=""),
                                  ...){
   
   res_int <- res
@@ -1520,7 +1657,11 @@ identify_interactors <- function(res,
   res_int$n_success <- n_success
   res_int$interactor <- res$names[is_interactor>0]
   
-  res_int <- order_interactome(res_int, idx = NULL, ...)
+  res_int <- order_interactome(res_int, 
+                               idx = NULL, 
+                               p_val_breaks = p_val_breaks,
+                               var_min_p_val = var_min_p_val,
+                               ...)
   
   res_int$params$var_p_val <- var_p_val
   res_int$params$p_val_thresh <- p_val_thresh
@@ -1630,7 +1771,9 @@ order_interactome <- function(res, idx = NULL,
 
 #' Perform enrichment analysis
 #' @description Perform enrichment analysis for protein annotations stored in a formatted data.frame
-#' @param df a formatted data.frame with annoations corresponding to each row. Types of annotations are organized by columns.
+#' @param df a data.frame with annotations corresponding to each row. Types of annotations are organized by columns. 
+#' For a given type of annotations, annotations are separated by \code{sep}.
+#' @param sep Character string separating different annotations of a given type
 #' @param idx_detect indexes of the foreground set.
 #' @param annotation_selected set of annotations on which to perform the analysis
 #' @param names row names. Used in the output data.frame
@@ -1643,6 +1786,7 @@ order_interactome <- function(res, idx = NULL,
 #' @importFrom stats phyper p.adjust
 #' @export
 annotation_enrichment_analysis <- function( df, 
+                                            sep = ";",
                                             idx_detect, 
                                             annotation_selected = c("Keywords", "Protein.families") , 
                                             names = df$Gene.names...primary.., 
@@ -1657,30 +1801,28 @@ annotation_enrichment_analysis <- function( df,
   # annotation_selected : set of annotation terms to consider. 
   # Annotations supported are stored in varaiable "supported_annotations:
   
-  supported_annotations <- c( 
-                             "Protein.families",  
-                             "Pfam", 
-                             "Keywords", 
-                             "Reactome", 
-                             "GO",
-                             "Hallmark",
-                             "KEGG",
-                             "GO_molecular_function",
-                             "GO_biological_process",
-                             "GO_cellular_component",
-                             "GOslim_molecular_function",
-                             "GOslim_biological_process",
-                             "GOslim_cellular_component",
-                             "Motif",
-                             "Kinase")
-  
+  #supported_annotations <- c( 
+                             # "Protein.families",  
+                             # "Pfam", 
+                             # "Keywords", 
+                             # "Reactome", 
+                             # "GO",
+                             # "Hallmark",
+                             # "KEGG",
+                             # "GO_molecular_function",
+                             # "GO_biological_process",
+                             # "GO_cellular_component",
+                             # "GOslim_molecular_function",
+                             # "GOslim_biological_process",
+                             # "GOslim_cellular_component",
+                             # "Motif",
+                             # "Kinase")
+                             # 
 
-  if(  is.null(df) | (sum(names(df) %in% supported_annotations) == 0) | (sum(annotation_selected %in% names(df)) != length(annotation_selected)) ){
+  if(  is.null(df) |  (sum(annotation_selected %in% names(df)) != length(annotation_selected)) ){
     stop("Annotations not available. Import annotations first.")
   }else if ( length(annotation_selected) == 0) {
     stop("No annotations selected. Change selected annotations")
-  }else if (sum(annotation_selected %in% supported_annotations) != length(annotation_selected)){
-    stop("Annotations not supported. Change selected annotations")
   }
   
   if (showProgress) cat("Perform annotation enrichment analysis...\n")
@@ -1689,19 +1831,19 @@ annotation_enrichment_analysis <- function( df,
   
   df_int <- df
   
-  if("Protein.families" %in% annotation_selected){
-    df_int[["Protein.families"]] <- as.character(df_int[["Protein.families"]])
-    for (i in 1:length(df_int[["Protein.families"]])){
-      s <- strsplit(df_int[["Protein.families"]][i], split=", ")[[1]]
-      s_develop <- s[1]
-      if (length(s) > 1) {
-        for (j in 2:length(s)){
-          s_develop <- c(s_develop, paste(s_develop[length(s_develop)], s[j], sep=", "))
-        }
-      }
-      df_int[["Protein.families"]][i] <- paste(s_develop, collapse="; ")
-    }
-  }
+  # if("Protein.families" %in% annotation_selected){
+  #   df_int[["Protein.families"]] <- as.character(df_int[["Protein.families"]])
+  #   for (i in 1:length(df_int[["Protein.families"]])){
+  #     s <- strsplit(df_int[["Protein.families"]][i], split=", ")[[1]]
+  #     s_develop <- s[1]
+  #     if (length(s) > 1) {
+  #       for (j in 2:length(s)){
+  #         s_develop <- c(s_develop, paste(s_develop[length(s_develop)], s[j], sep=", "))
+  #       }
+  #     }
+  #     df_int[["Protein.families"]][i] <- paste(s_develop, collapse="; ")
+  #   }
+  # }
   
   annot_terms <- NULL
   annot_type <- NULL
@@ -1709,34 +1851,35 @@ annotation_enrichment_analysis <- function( df,
   
   for (annot_type_sel in annotation_selected){
     
-      collapse_sep <- ";"
-      if( annot_type_sel %in% c("Protein.families", "Keywords") ) collapse_sep <- "; "
+      collapse_sep <- sep
+      
+      # if( annot_type_sel %in% c("Protein.families", "Keywords") ) collapse_sep <- "; "
 
       
       u_annot<-paste(unique(df_int[[annot_type_sel]]), collapse = collapse_sep)
       terms <- unique(strsplit(u_annot, split = collapse_sep)[[1]])
       
       annot_names_int <- terms
-      if(annot_type_sel == "Reactome"){
-        reactome <- switch(organism, "mouse" = reactome_mouse, "human" = reactome_human)
-        annot_names_int <- paste(
-                              reactome$Name[match(terms, reactome$ID)],
-                              ", [",
-                              reactome$ID[match(terms, reactome$ID)],
-                              "]",
-                              sep = "")
-      }
-      if(annot_type_sel == "Pfam"){
-        pfam <- switch(organism, "mouse" = pfam_mouse, "human" = pfam_human)
-        annot_names_int <- paste(
-                                pfam$hmm.name[match(terms, pfam$hmm.acc)],
-                                ", ",
-                                pfam$type[match(terms, pfam$hmm.acc)],
-                                ", [",
-                                pfam$hmm.acc[match(terms, pfam$hmm.acc)],
-                                "]",
-                                sep = "")
-      }
+      # if(annot_type_sel == "Reactome"){
+      #   reactome <- switch(organism, "mouse" = reactome_mouse, "human" = reactome_human)
+      #   annot_names_int <- paste(
+      #                         reactome$Name[match(terms, reactome$ID)],
+      #                         ", [",
+      #                         reactome$ID[match(terms, reactome$ID)],
+      #                         "]",
+      #                         sep = "")
+      # }
+      # if(annot_type_sel == "Pfam"){
+      #   pfam <- switch(organism, "mouse" = pfam_mouse, "human" = pfam_human)
+      #   annot_names_int <- paste(
+      #                           pfam$hmm.name[match(terms, pfam$hmm.acc)],
+      #                           ", ",
+      #                           pfam$type[match(terms, pfam$hmm.acc)],
+      #                           ", [",
+      #                           pfam$hmm.acc[match(terms, pfam$hmm.acc)],
+      #                           "]",
+      #                           sep = "")
+      # }
       
       annot_terms <- c(annot_terms,  terms)
       annot_type <- c(annot_type, rep(annot_type_sel, length(terms)))
@@ -1909,6 +2052,7 @@ append_annotations <- function( res, annotations=NULL, name_id = "Protein.IDs", 
     } else{
       
       df_annot <- get_annotations(res, name_id = name_id, organism = organism)
+      
       for (annot in annotations){
         df_annot <- switch(annot,
                            "GO" =  add_GO_data(df_annot, GO_type = "molecular_function")
@@ -1942,6 +2086,97 @@ append_annotations <- function( res, annotations=NULL, name_id = "Protein.IDs", 
     
 }
 
+#' @export
+append_annotations_enrichr <- function(res, annotations, name_id = "names"){
+  
+  res_int<-res
+  if(is.null(annotations)){
+    warning("No annotations to append")
+    return(res_int)
+  }else if(is.data.frame(annotations)){
+    df_annot <- annotations
+  } else{
+    df_annot <- get_annotations_enrichr(res["names"], name_id = name_id, dbs = annotations)
+    
+  }
+  
+  n_annot <- 0
+  for (annot_var in names(df_annot)){
+    n_annot <- n_annot + length(df_annot[[annot_var]])
+  }
+  
+  if( is.null(df_annot) | n_annot == 0){
+    warning("No annotations to append")
+  }
+  else{
+    cat("Append annotation to interactome...\n")
+    idx_match<-rep(NA,length(res$names))
+    for(i in 1:length(res$names) ){
+      idx_match[i] <- which(as.character(df_annot[[name_id]]) == as.character(res[[name_id]][i]) )
+    }
+    
+    for( var_names in setdiff(names(df_annot), name_id) ){
+      res_int[[var_names]] <- as.character(df_annot[[var_names]][idx_match])
+    }
+    cat("Done.\n")
+  }
+  
+  return(res_int)
+}
+
+#' @import enrichR
+#' @export
+get_annotations_enrichr <- function(data, name_id = "names", dbs = "GO_Biological_Process_2018"){
+  #library(enrichR)
+  #enrichR::listEnrichrDbs()
+  #dbs<-"GO_Biological_Process_2017"
+  
+  df <- data
+  
+  if( length(setdiff(dbs, names(data)))==0 ){
+    warning("Annotations already loaded")
+    return(df)
+  }
+  
+  dbs_int <- setdiff(dbs, names(data))
+  enriched <- enrichR::enrichr(as.character(data[[name_id]]), dbs_int)
+  
+  annot <- vector("list", length(dbs_int))
+  names(annot) <- dbs_int
+  
+  
+  
+  for(i in 1:length(dbs_int)){
+    
+    annot[[i]] <- rep("", length(data[[name_id]]) )
+    
+    for(j in 1:length(enriched[[dbs_int[i]]]$Term)){
+      genes <- strsplit(enriched[[dbs_int[i]]]$Genes[j], split = ";")[[1]]
+      idx_match <- match(genes, toupper(data[[name_id]]))
+      if(length(idx_match)>0){
+        for(k in 1:length(idx_match)){
+          if(nchar(annot[[i]][idx_match[k]])>0){
+            annot[[i]][idx_match[k]] <- paste( c(annot[[i]][idx_match[k]], enriched[[dbs_int[i]]]$Term[j]), collapse = ";")
+          }else{
+            annot[[i]][idx_match[k]] <- enriched[[dbs_int[i]]]$Term[j]
+          }
+          
+        }
+      }
+      
+    }
+
+    
+  }
+  
+  annot <- as.data.frame(annot)
+  annot[[name_id]] <- data[[name_id]]
+  
+  df <- merge(df, annot, by = name_id)
+
+  return(df)
+}
+
 #' Get annotations from uniprot for a set of protein identifiers
 #' @description Get annotations from uniprot for a set of protein identifiers.
 #' From a set of IDs, keep the first that correspond to a "reviewed" protein, 
@@ -1953,7 +2188,7 @@ append_annotations <- function( res, annotations=NULL, name_id = "Protein.IDs", 
 #' @param split_param split character used to separate different protein IDs
 #' @param organism organism for which the annotations have to be appended
 #' @param updateProgress logical, function to show progress in shiny app
-#' @return an \code{InteRactome}
+#' @return an annotated data.frame
 #' @import utils
 #' @export
 get_annotations <- function( data, name_id = "Protein.IDs", split_param = ";", organism = "mouse", updateProgress = NULL ){
@@ -2370,7 +2605,7 @@ create_summary_table_PPI <- function(gene_name){
   cat("Fetching PPi from databases...\n")
   pb <- txtProgressBar(min = 0, max = 3, style = 3)
   
-  df_psicquic <- get_PPI_from_psicquic(gene_name = gene_name)
+  df_psicquic <- try(get_PPI_from_psicquic(gene_name = gene_name), silent = FALSE)
   setTxtProgressBar(pb, 1)
   df_biogrid <- get_PPI_from_BioGRID(gene_name = gene_name)
   setTxtProgressBar(pb, 2)
@@ -2499,11 +2734,12 @@ append_PPI <- function( res, mapping = "names", df_summary = NULL){
 #' @param idx indexes of the set of proteins for which correlations will be computed
 #' @param log logical, use log-transformed stoichiometries
 #' @param nmax integer, limits the number of connections per node
+#' @param Rmin minimum absolute value of the Pearson R coefficient 
 #' @return a data.frame with protein correlation information 
 #' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
 #' @importFrom Hmisc rcorr
 #' @export
-compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL){
+compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin = 0){
   
   # build matrix on which correlations will be computed
   idx_selected <- 1:length(res$names)
@@ -2568,7 +2804,11 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL){
                          p_corr = p_corr)
   
   
-  df_corr <- df_corr[!is.na(df_corr$r_corr) & !is.na(df_corr$p_corr) & df_corr$p_corr>0, ]
+  df_corr <- df_corr[!is.na(df_corr$r_corr) & 
+                       !is.na(df_corr$p_corr) & 
+                       df_corr$p_corr>0 & 
+                       abs(df_corr$r_corr) >= Rmin, ]
+  
   df_corr$p_corr_bonferroni <- p.adjust(df_corr$p_corr, method="bonferroni")
   df_corr$p_corr_fdr <- p.adjust(df_corr$p_corr, method="fdr")
   
@@ -2611,7 +2851,7 @@ summary_table <- function(res, add_columns = names(res) ){
     }
     else{
       names_var <- names(res[[var]])
-      if( setequal(names_var, res$conditions) ){
+      if( length(setdiff(names_var, res$conditions))==0 ){
         for(i in 1:length(names_var) ){
           idx<-c(idx,NaN)
           names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
@@ -2621,7 +2861,7 @@ summary_table <- function(res, add_columns = names(res) ){
       else{
         for(i in 1:length(names_var) ){
           names_var_2 <- names(res[[var]][[i]]) 
-          if( setequal(names_var_2, res$conditions) ){
+          if( length(setdiff(names_var_2, res$conditions)) == 0 ){
             for(j in 1:length(names_var_2) ){
               idx<-c(idx,NaN)
               names_df<-c(names_df, paste(var,"_",names(res[[var]])[i],"_",names_var_2[j],sep=""))
@@ -2641,6 +2881,92 @@ summary_table <- function(res, add_columns = names(res) ){
   
 }
 
+#' Create a summary for selected proteins in an \code{InteRactome}
+#' @param res an \code{InteRactome}
+#' @param name protein name
+#' @param idx indexes of the proteins to display. Overrides \code{name}
+#' @return a data.frame 
+#' @export
+summary_protein <- function(res, name, idx = NULL){
+  sum_table <- summary_table(res)
+  idx <- which(res$names == name)
+  if(length(idx)>0){
+    return( t(sum_table[idx, ]) )
+  }else{
+    warning("Could not find name in InteRactome")
+    return(NULL)
+  }
+}
+
+
+
+
+#' Compare stoichiometries between two conditions using a ttest
+#' @param res
+#' @param names
+#' @export
+compare_stoichio <- function(res, 
+                             names = res$names, 
+                             ref_condition = res$conditions[1], 
+                             test_conditions = setdiff(res$conditions, ref_condition),
+                             p_val_thresh = 0.05,
+                             fold_change_thresh = 3,
+                             ...){
+  if(!is.null(names)){
+    idx_match <- match(names, res$names)
+  }
+  
+  p_val <- vector("list", length(test_conditions))
+  fold_change <- vector("list", length(test_conditions))
+  names(p_val) <- test_conditions
+  names(fold_change) <- test_conditions
+  
+  for(i in 1:length(test_conditions)){
+    conditions <- c(test_conditions[i], ref_condition)
+    cond_tot <- NULL
+    df_tot <- NULL
+    for ( bio in res$replicates){
+      stoichio <- do.call(cbind, res$stoichio_bio[[bio]])[idx_match , conditions]
+      df <- data.frame(stoichio = stoichio)
+      if(!is.null(df_tot)){
+        df_tot <- cbind(df_tot, df)
+        cond_tot <- c(cond_tot, conditions)
+      }else{
+        df_tot <- df
+        cond_tot <- conditions
+      }
+      
+    }
+    
+    test_res <- row_ttest(df_tot,
+                          idx_group_1 = which(cond_tot == conditions[1]), 
+                          idx_group_2 = which(cond_tot == conditions[2]),
+                          ...)
+    p_val[[i]] <- test_res$p_val
+    fold_change[[i]] <- test_res$fold_change
+    
+  }
+  
+  
+  M_p_val <- do.call(cbind, p_val)
+  M_fold_change <- do.call(cbind, fold_change)
+  
+  regulation <- rep("not_regulated", length(names) )
+  for(i in 1:length(names)){
+    idx_pval <- which( M_p_val[i, ] <= p_val_thresh )
+    if(length(idx_pval)>0){
+      idx_max <- idx_pval[ which.max( abs(log10(M_fold_change[i, idx_pval]))) ]
+      if(M_fold_change[i, idx_max] > fold_change_thresh){
+        regulation[i] <- "induced"
+      }
+      if(M_fold_change[i, idx_max] <= 1/fold_change_thresh){
+        regulation[i] <- "repressed"
+      }
+    }
+  }
+  
+  return(list(p_val = p_val, fold_change = fold_change, regulation = regulation))
+}
 
 #' Plot the result of the annotation enrichment analysis
 #' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
@@ -2697,13 +3023,28 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "f
 #' @param xlim range of x values
 #' @param ylim range of y values
 #' @param N_display maximum number of protein to display
+#' @param color_values color vector passed to \code{scale_color_manual()}
 #' @return a plot
 #' @import ggplot2
 #' @import ggrepel
 #' @export
-plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_display=30){
-  
-  
+plot_2D_stoichio <- function( res, condition = "max", xlim = NULL, ylim = NULL,
+                              N_display=30,
+                              only_interactors = FALSE,
+                              fill_values = c("not_regulated" = "black",
+                                              "induced" = "red",
+                                              "repressed" = "blue",
+                                              "bait" = "yellow"),
+                              color_values = c("not_regulated" = "black",
+                                               "induced" = "red",
+                                               "repressed" = "blue",
+                                               "bait" = "black"),
+                              shape = 21,
+                              stroke = 1,
+                              p_val_thresh = 0.05,
+                              fold_change_thresh = 3,
+                              ref_condition = res$conditions[1]
+                              ){
   
   plist <- list()
   
@@ -2712,7 +3053,7 @@ plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_di
     cond <- condition[icond]
     
     df<- data.frame( Y=log10(res$stoch_abundance), 
-                     label_tot=res$names)
+                     names=res$names)
       
     if(cond=="max"){
       df$X <- log10(res$max_stoichio)
@@ -2724,6 +3065,9 @@ plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_di
       stop("Condition is not defined")
     }
     
+    if(only_interactors){
+      df <- df[!is.na(match(df$names, res$interactor)), ]
+    }
     
     df<-df[1:min(N_display, dim(df)[1]), ]
     
@@ -2731,51 +3075,120 @@ plot_2D_stoichio <- function( res, condition = "max", xlim=NULL, ylim=NULL, N_di
     yc <- 0
     rc<-1
     
-    ylow <- -3
+    ylow <- min(df$Y, na.rm = TRUE) - 0.5
+    df$Y[is.na(df$Y)] <- ylow - 0.25
     
     if(is.null(xlim) & is.null(ylim)){
-      max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-ylow )
+      max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-min(df$Y,na.rm=TRUE))
       center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
-      center_y <- (max(df$Y,na.rm=TRUE)+ylow)/2
+      center_y <- (max(df$Y,na.rm=TRUE) + min(df$Y,na.rm=TRUE))/2
     }else{
       max_range <- max( xlim[2] - xlim[1],  ylim[2] - ylim[1] )
       center_x <- ( xlim[2] + xlim[1] )/2
       center_y <- ( ylim[2] + ylim[1] )/2
     }
-    xmin<-center_x - max_range/1.9
-    xmax<-center_x + max_range/1.9
-    ymin<-center_y - max_range/1.9
-    ymax<-center_y + max_range/1.9
+    xmin<-center_x - max_range/1.85
+    xmax<-center_x + max_range/1.85
+    ymin<-center_y - max_range/1.85
+    ymax<-center_y + max_range/1.85
     
-    ylow_plot <- max(ylow,ymin)
+    #ylow_plot <- max(ylow,ymin)
     
     df$size_prey <- log10(df$size)/max_range*20
     df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
     df$sat_max_fold_t0 <- rep(1,dim(df)[1])
     
     idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
-    df <- df[idx_plot, ]
     
-    p<-ggplot(df,aes(x=X, y=Y,label=label_tot)) +
+    
+    if(cond=="max"){
+      test <- compare_stoichio(res, 
+                               names = df$names, 
+                               ref_condition = ref_condition, 
+                               test_condition = setdiff(res$conditions, ref_condition))
+      
+      M_p_val <- do.call(cbind, test$p_val)
+      M_fold_change <- do.call(cbind, test$fold_change)
+      
+      df$color <- rep("not_regulated", dim(df)[1])
+      for(i in 1:length(df$names)){
+        idx_pval <- which( M_p_val[i, ] <= p_val_thresh )
+        if(length(idx_pval)>0){
+          idx_max <- idx_pval[ which.max( abs(log10(M_fold_change[i, idx_pval]))) ]
+          if(M_fold_change[i, idx_max] > fold_change_thresh){
+            df$color[i] <- "induced"
+          }
+          if(M_fold_change[i, idx_max] <= 1/fold_change_thresh){
+            df$color[i] <- "repressed"
+          }
+        }
+      }
+      df$color[df$names == res$bait] <- "bait"
+
+    }else if(cond %in% res$conditions){
+      test <- compare_stoichio(res, names = df$names, ref_condition = ref_condition, test_condition = cond)
+      df$p_val <- test$p_val[[cond]]
+      df$fold_change <- test$fold_change[[cond]]
+      
+      df$color <- rep("not_regulated", dim(df)[1])
+      df$color[df$p_val <= p_val_thresh & df$fold_change >= fold_change_thresh] <- "induced"
+      df$color[df$p_val <= p_val_thresh & df$fold_change <= 1/fold_change_thresh] <- "repressed"
+      df$color[df$names == res$bait] <- "bait"
+    }
+    
+    df <- df[idx_plot, ]
+      
+    p<-ggplot(df,aes(x=X, y=Y,label=names)) +
       theme(aspect.ratio=1) +
       ggtitle(cond) + 
-      scale_color_gradient2(midpoint=0,  low="blue", mid=rgb(0,0,0), high="red",  space = "Lab" )+
-      geom_polygon(data=data.frame(x=c(ylow_plot,xmax,xmax),y=c(ylow_plot,ylow_plot,xmax)), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
-      annotate("path",
-               x=xc+rc*cos(seq(0,2*pi,length.out=100)),
-               y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
-      annotate("segment", x = ylow_plot, xend = xmax, y = ylow_plot, yend = xmax, colour = rgb(0,0,0,0.5) ) +
-      annotate("segment", x = xmin, xend = xmax, y = ylow_plot, yend = ylow_plot, colour = rgb(0,0,0,0.5) , linetype = "dashed") +
+      geom_polygon(data=data.frame(x=c(ylow, xmax, xmax), 
+                                   y=c(ylow, ylow, xmax)), 
+                   mapping=aes(x=x, y=y),
+                   alpha=0.1,
+                   inherit.aes=FALSE)
+    
+    p <- p + geom_polygon(data=data.frame(y=c(ylow, 0, ymax, ymax, ylow),
+                                              x=c(ylow-1, -1, -1, xmax, xmax)), 
+                          mapping=aes(x=x, y=y),
+                          alpha=0.1,
+                          inherit.aes=FALSE)
+      # geom_path(data=data.frame(y=c(ylow, 0, ymax),
+      #                           x=c(ylow-1, -1, -1)), 
+      #           mapping=aes(x=x, y=y),
+      #           colour = rgb(0,0,0,0.5), linetype = "dashed",
+      #           inherit.aes=FALSE)
+    
+      
+    p <- p + annotate("path",
+                      x=xc+rc*cos(seq(0,2*pi,length.out=100)),
+                      y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
+      annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5), linetype = "dashed" ) +
+      annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
       xlab("log10(Interaction Stoichiometry)") +
       ylab("log10(Abundance Stoichiometry)") +
-      geom_point(mapping=aes(x=df$X,y=df$Y,color=df$sat_max_fold_t0), size=df$size_prey, alpha=0.2, stroke=0, inherit.aes = FALSE, show.legend = FALSE)+
+      geom_point(data = df,
+                 mapping=aes(x=X, y=Y, color=color, fill = color), 
+                 size=df$size_prey, 
+                 alpha=0.2,
+                 shape = shape,
+                 stroke = stroke, 
+                 inherit.aes = FALSE, 
+                 show.legend = FALSE) +
       coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
       #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
-      geom_text_repel(mapping=aes(x=df$X,y=df$Y,label=label_tot,color=df$sat_max_fold_t0), size=df$size_label,force=0.002, 
+      geom_text_repel(data = df,
+                      mapping=aes(x=X, y=Y, label=names),
+                      size=df$size_label,
+                      force=0.002, 
                       segment.size = 0.1,
                       min.segment.length = unit(0.15, "lines"), 
                       point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
     
+      if(!is.null(color_values)) {
+        p <- p + scale_color_manual( values = color_values) +
+          scale_fill_manual( values = fill_values)
+      }
+        
     plist[[icond]] <- p
   }
 
@@ -2826,6 +3239,7 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param xlim range of x values
 #' @param ylim range of y values
 #' @param asinh_transform logical, display asinh(log10(p-value)) on the y-axis
+#' @param norm Use normalized fold-changes
 #' @return a plot
 #' @importFrom grDevices dev.off pdf rgb
 #' @import ggplot2
@@ -2834,30 +3248,56 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 plot_volcanos <- function( res,
                            labels=NULL, 
                            N_print=15, 
-                           conditions=NULL, 
+                           conditions=NULL,
                            p_val_thresh=0.05, 
-                           fold_change_thresh=2, 
+                           fold_change_thresh=2,
+                           x0 = NULL,
+                           c = NULL,
                            save_file=NULL,
                            xlim=NULL,
                            ylim=NULL,
-                           asinh_transform = TRUE){
-  if (is.null(labels)) labels=res$names
-  if (is.null(conditions)) conditions=res$conditions
+                           asinh_transform = TRUE,
+                           norm = FALSE){
+  
+  res_int <- res
+  
+  if (is.null(labels)) labels=res_int$names
+  if (is.null(conditions)) conditions=res_int$conditions
     
   plist <- vector("list",length(conditions));
   
-  xval <- log10(do.call(cbind,res$fold_change))
-  yval <- -log10(do.call(cbind,res$p_val))
+  if(norm){
+    if("norm_log_fold_change" %in% names(res_int)){
+      xval <- do.call(cbind, res_int$norm_log_fold_change)
+    }else{
+      res_int <- normalize_interactome(res_int)
+      xval <- do.call(cbind, res_int$norm_log_fold_change)
+    }
+  }else{
+    xval <- log10(do.call(cbind, res_int$fold_change))
+  }
+  
+  yval <- -log10(do.call(cbind,res_int$p_val))
                  
   ymax <- max(yval[is.finite(yval)])
   if (asinh_transform) ymax <- asinh(ymax)
   xmax <- max(abs(xval[is.finite(xval)]))
   
-  x1 <- log10(fold_change_thresh)
-  x2 <- xmax
-  y1 <- -log10(p_val_thresh)
-  if (asinh_transform) y1 <- asinh(y1)
-  y2 <- ymax
+  if(!is.null(fold_change_thresh) & !is.null(p_val_thresh)){
+    if(norm){
+      x1 <- fold_change_thresh
+    }else{
+      x1 <- log10(fold_change_thresh)
+    }
+    
+    y1 <- -log10(p_val_thresh)
+    x2 <- xmax
+    
+    if (asinh_transform) y1 <- asinh(y1)
+    y2 <- ymax
+  }
+  
+  
   
   
   if(!is.null(xlim) ){
@@ -2874,11 +3314,21 @@ plot_volcanos <- function( res,
   
   for( i in seq_along(conditions) ){
     
-    df <- data.frame(p_val=res$p_val[[conditions[i]]], 
-                     fold_change= res$fold_change[[conditions[i]]], 
-                     names=labels)
-    df$X <- log10(df$fold_change)
-    df$Y <- -log10(df$p_val)
+    if(norm){
+      df <- data.frame(p_val=res_int$p_val[[conditions[i]]], 
+                       fold_change= res_int$norm_log_fold_change[[conditions[i]]], 
+                       names=labels)
+      df$X <- df$fold_change
+      df$Y <- -log10(df$p_val)
+      
+    }else{
+      df <- data.frame(p_val=res_int$p_val[[conditions[i]]], 
+                       fold_change= res_int$fold_change[[conditions[i]]], 
+                       names=labels)
+      df$X <- log10(df$fold_change)
+      df$Y <- -log10(df$p_val)
+    }
+    
     if (asinh_transform) df$Y <- asinh(df$Y)
     score_print <- rep(0, dim(df)[1])
     
@@ -2886,6 +3336,20 @@ plot_volcanos <- function( res,
       is_above_thresh <- rep(0, dim(df)[1])
       is_in_frame <- rep(0, dim(df)[1])
       is_above_thresh[ which(df$p_val <= p_val_thresh & df$fold_change >= fold_change_thresh ) ] <- 1
+      is_in_frame[ which(df$X >= xrange[1] & df$X <= xrange[2] & df$Y >= yrange[1] & df$Y <= yrange[2]) ] <- 1
+      score_print<- is_above_thresh + is_in_frame
+      score_print[is_in_frame==0]<-0
+      N_show <- min(N_print, sum(score_print>0))
+      if( N_show>0 ){
+        idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
+      }else{
+        idx_print <- NULL
+      }
+    } else if(!is.null(x0) & !is.null(c)){
+      is_above_thresh <- rep(0, dim(df)[1])
+      is_in_frame <- rep(0, dim(df)[1])
+      is_above_thresh[ which(-log10(df$p_val) >= c/(log10(df$fold_change) - x0) & 
+                               log10(df$fold_change) >= x0 ) ] <- 1
       is_in_frame[ which(df$X >= xrange[1] & df$X <= xrange[2] & df$Y >= yrange[1] & df$Y <= yrange[2]) ] <- 1
       score_print<- is_above_thresh + is_in_frame
       score_print[is_in_frame==0]<-0
@@ -2904,8 +3368,12 @@ plot_volcanos <- function( res,
     }
     
     df$label_color <- as.factor(score_print)
+    if(norm){
+      label_x <- "norm. log(fold_change) [sd units]"
+    }else{
+      label_x <- "log10(fold_change)"
+    }
     
-    label_x <- "log10(fold_change)"
     label_y <- "-log10(p_value)"
     if (asinh_transform) label_y <- "asinh(-log10(p_value))"
       
@@ -2920,10 +3388,40 @@ plot_volcanos <- function( res,
     
     if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
       plist[[i]] <- plist[[i]] +
-        geom_polygon(data=data.frame(x=c(x1,xrange[2],xrange[2],x1),y=c(y1,y1,yrange[2],yrange[2])), mapping=aes(x=x, y=y),alpha=0.1,inherit.aes=FALSE) +
+        geom_polygon(data=data.frame(x=c(x1,xrange[2],xrange[2],x1),
+                                     y=c(y1,y1,yrange[2],yrange[2])), 
+                     mapping=aes(x=x, y=y),
+                     alpha=0.1,
+                     inherit.aes=FALSE) +
         annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
         annotate("segment", x = -x1, xend = -x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) ) +
         annotate("segment", x = x1, xend = x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) )
+    }
+    
+    if(!is.null(x0) & !is.null(c)){
+      xpath_right = seq(x0 + 0.01, xrange[2], by = 0.1)
+      ypath_right = c/( xpath_right - x0)
+      
+      xpath_left = seq(xrange[1], -x0 - 0.01, by = 0.1)
+      ypath_left = -c/( xpath_left + x0)
+      
+      if(asinh_transform){
+        ypath_right <- asinh(ypath_right)
+        ypath_left <- asinh(ypath_left)
+      }
+      
+      plist[[i]] <- plist[[i]] +
+        geom_polygon(data=data.frame(x=c(xpath_right, 
+                                         xpath_right[length(xpath_right)] ),
+                                     y=c(ypath_right,
+                                         ypath_right[1])),
+                     mapping=aes(x=x, y=y),
+                     alpha=0.1,
+                     inherit.aes=FALSE) +
+        geom_path(data=data.frame(x=xpath_right, y=ypath_right), mapping=aes(x=xpath_right, y=ypath_right), 
+                  colour = rgb(1,0,0,0.5), inherit.aes=FALSE)+
+        geom_path(data=data.frame(x=xpath_left, y=ypath_left), mapping=aes(x=xpath_left, y=ypath_left), 
+                  colour = rgb(1,0,0,0.5), inherit.aes=FALSE)
     }
     
     plist[[i]] <- plist[[i]] + 
@@ -2957,11 +3455,13 @@ plot_volcanos <- function( res,
 #' @param size_range range of dot sizes to display
 #' @param color_var name of the variable corresponding to dot color
 #' @param color_breaks vector used to discretize colors
+#' @param color_values values parameter passed to \code{scale_color_manual()}
 #' @param color_default value corresponding to the default color
 #' @param save_file path of output file (.pdf)
 #' @param plot_width width of the output .pdf file
 #' @param plot_height height of the output .pdf file
 #' @param clustering logical or numeric vector. If logical, use hierarchical 
+#' @param ... additionnal arguments passed to \code{dot_ploy()}
 #' clustering to order proteins. If numeric, ordering indexes for displayed proteins 
 #' (must be the same length as \code{idx_rows})
 #' @return a list conataining :
@@ -2976,15 +3476,17 @@ plot_per_condition <- function( res,
                                 idx_cols = 1:length(res$conditions),
                                 idx_rows=1:20,
                                 size_var="norm_stoichio",
-                                size_range=c(0,1),
+                                size_range=c(0, 5.5),
+                                size_limits=c(0, 1),
                                 color_var="p_val", 
-                                color_breaks=c(1,0.1,0.05,0.01), 
-                                #color_values=rgb(t(col2rgb(c("black", "blue","purple","red")))/255),
+                                color_breaks=c(1,0.1,0.05,0.01),
+                                color_values = c( "black", "blue", "purple", "red"),
                                 color_default = 1,
                                 save_file=NULL,
                                 plot_width=2.5 + length(res$conditions)/5,
                                 plot_height=2 + length(idx_rows)/5,
-                                clustering = FALSE){
+                                clustering = FALSE,
+                                ...){
                                  
   
   if(length(idx_rows)==1){
@@ -3003,6 +3505,7 @@ plot_per_condition <- function( res,
   Mcol[!is.null(M)]<-color_default
   
    if(!is.null(color_var)){
+     names(color_values) <- as.character(color_breaks)
      idx_order_col <- order(color_breaks, decreasing = TRUE);
      for(i in seq_along(color_breaks)){
        Mcol[M1<color_breaks[idx_order_col[i]]]<-color_breaks[idx_order_col[i]]
@@ -3040,7 +3543,9 @@ plot_per_condition <- function( res,
                title = title_text,
                size_var = size_var, 
                size_range=size_range,
-               color_var=color_var)
+               color_var=color_var,
+               color_values = color_values, 
+               ...)
   
   if(!is.null(save_file)){
     pdf(save_file, plot_width, plot_height)
@@ -3068,7 +3573,9 @@ plot_per_condition <- function( res,
 dot_plot <- function(Dot_Size, 
                      Dot_Color=NULL, 
                      title="Dot Plot", 
-                     size_range=range(Dot_Size) , 
+                     size_range = c(0, 5.5) ,
+                     size_limits = range(Dot_Size),
+                     size_breaks = NULL,
                      size_var ="size", 
                      color_var="color",
                      color_values = c( "red", "purple",  "blue", "black" ),
@@ -3136,9 +3643,7 @@ dot_plot <- function(Dot_Size,
       axis.text.y= element_text(size=size_label_y), 
       axis.text.x = element_text(size=size_label_x, angle = 90, hjust = 1,vjust=0.5) ) +
     ggtitle(title)+
-    scale_color_manual( values=color_values , name=color_var) +
-    scale_radius(limits=size_range, name=size_var) +
-    #scale_colour_manual(values=setNames(unique_col, c( "red", "purple",  "blue", "black" ) )) +
+    scale_color_manual( values=color_values , name = color_var) +
     xlab("") +
     ylab("") +
     scale_x_continuous(breaks=1:dim(M)[2],
@@ -3149,6 +3654,15 @@ dot_plot <- function(Dot_Size,
                        limits= -c(dim(M)[1]+0.75, 0.25 ),
                        labels=ylabels) +
     geom_point(alpha=0.5, show.legend = TRUE)
+   
+  if(!is.null(size_breaks)){
+    p <- p + scale_radius(limits = size_limits, range = size_range, name=size_var, breaks = size_breaks)
+  }else{
+    p <- p + scale_radius(limits = size_limits, range = size_range, name=size_var)
+  }
+  
+    #scale_colour_manual(values=setNames(unique_col, c( "red", "purple",  "blue", "black" ) )) +
+    
   
   return(p)
   
@@ -3521,18 +4035,24 @@ plot_QC <- function(data){
     df$conditions <- df$data$conditions
   }
   
-  ibait <- which(df$names == df$bait)
+  ibait <- which(rownames(df$Intensity) == df$bait)
   
   M <- as.matrix(df$Intensity)
   R <- rcorr(M)
   
+  
   idx_bait <- df$conditions$bckg == df$bckg_bait
   idx_ctrl <- df$conditions$bckg == df$bckg_ctrl
   
-  Ravg_bait <- cbind(df$conditions[idx_bait, ], Ravg = row_mean(R$r[idx_bait, idx_bait]))
-  Ravg_ctrl <- cbind(df$conditions[idx_ctrl, ], Ravg = row_mean(R$r[idx_ctrl, idx_ctrl]))
-  Ravg <- rbind(Ravg_bait, Ravg_ctrl)
+  df$conditions$bait <- rep("", dim(df$conditions)[1])
+  df$conditions$bait[idx_bait] <- "Bait"
+  df$conditions$bait[idx_ctrl] <- "Ctrl"
   
+  Ravg_bait <- cbind(df$conditions[idx_bait, ], 
+                     Ravg = row_mean(R$r[idx_bait, idx_bait]))
+  Ravg_ctrl <- cbind(df$conditions[idx_ctrl, ], 
+                     Ravg = row_mean(R$r[idx_ctrl, idx_ctrl]))
+  Ravg <- rbind(Ravg_bait, Ravg_ctrl)
   
   
   x <- Ravg_bait$Ravg[Ravg_bait$bckg==df$bckg_bait]
@@ -3603,8 +4123,9 @@ plot_QC <- function(data){
     geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
   
   p_list[[3]] <- p3
+  names(p_list) <- c("Intensity_Correlation", "Bait_Purification", "Missing_values")
   
-  return(p_list)
+  return(list(plot = p_list, Ravg = Ravg, Ibait = Ibait, nNA = nNA))
   
 }
 
@@ -3726,3 +4247,47 @@ plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2]){
   return(p)
   
 }
+
+#' @export
+plot_FDR_map <- function(FDR_res, 
+                         FDR_bins = c(0,0.01,0.02, 0.03, 0.04, 0.05, 0.1, 0.15,0.2),
+                         xlim=c(0,3), 
+                         ylim=c(0,3),
+                         colors = terrain.colors(length(FDR_bins)-1)
+                         ){
+  
+  T1 <- FDR_res$parameters
+  T2 <- FDR_res$max_TP_parameters
+  
+  T3 <- T1[ , c("x0", "c", "FDR")]
+  T4 <- reshape(T3, idvar = "x0", timevar = "c", direction = "wide")
+  T5<-as.matrix(T4[,2:dim(T4)[2]]);
+  
+  
+  filled.contour(x = unique(T3$x0),
+                 y = unique(T3$c),
+                 z = T5,
+                 levels = FDR_bins,
+                 xlim = xlim, 
+                 ylim = ylim, 
+                 col = colors ,
+                 plot.title = title(xlab = "x0", 
+                                    ylab = "c")
+                 # ,
+                 # plot.axes={
+                 #   axis(1);
+                 #   axis(2);
+                 #   points(x=T2$x0[idx_bin],
+                 #          y=T2$c[idx_bin], pch=16,col="black")
+                 # }
+                 )
+}
+
+
+# p <- ggplot(T1, aes(x0,p0,fill=FDR,z=FDR) ) + geom_tile() + 
+#   geom_contour(colour = "white", binwidth=0.05, show.legend = TRUE ) +
+#   #geom_contour(mapping=aes(x0,p0,z=TP), colour = "red") +
+#   scale_x_continuous(limits = c(0, 1.5)) +
+#   scale_y_continuous(limits = c(0, 3)) +
+#   annotate("point",x=T2$x0[idx_bin], y=T2$p0[idx_bin],color="red" );
+
