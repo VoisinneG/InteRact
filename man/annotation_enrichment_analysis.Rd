@@ -4,13 +4,16 @@
 \alias{annotation_enrichment_analysis}
 \title{Perform enrichment analysis}
 \usage{
-annotation_enrichment_analysis(df, idx_detect,
+annotation_enrichment_analysis(df, sep = ";", idx_detect,
   annotation_selected = c("Keywords", "Protein.families"),
   names = df$Gene.names...primary.., organism = "mouse",
   updateProgress = NULL, showProgress = TRUE, orderOutput = TRUE)
 }
 \arguments{
-\item{df}{a formatted data.frame with annoations corresponding to each row. Types of annotations are organized by columns.}
+\item{df}{a data.frame with annotations corresponding to each row. Types of annotations are organized by columns. 
+For a given type of annotations, annotations are separated by \code{sep}.}
+
+\item{sep}{Character string separating different annotations of a given type}
 
 \item{idx_detect}{indexes of the foreground set.}
 

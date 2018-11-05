@@ -5,8 +5,9 @@
 \title{Plot protein enrichement fold-change versus p-value}
 \usage{
 plot_volcanos(res, labels = NULL, N_print = 15, conditions = NULL,
-  p_val_thresh = 0.05, fold_change_thresh = 2, save_file = NULL,
-  xlim = NULL, ylim = NULL, asinh_transform = TRUE)
+  p_val_thresh = 0.05, fold_change_thresh = 2, x0 = NULL, c = NULL,
+  save_file = NULL, xlim = NULL, ylim = NULL,
+  asinh_transform = TRUE, norm = FALSE)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -28,6 +29,8 @@ plot_volcanos(res, labels = NULL, N_print = 15, conditions = NULL,
 \item{ylim}{range of y values}
 
 \item{asinh_transform}{logical, display asinh(log10(p-value)) on the y-axis}
+
+\item{norm}{Use normalized fold-changes}
 }
 \value{
 a plot

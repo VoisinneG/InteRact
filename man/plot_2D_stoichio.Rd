@@ -5,7 +5,12 @@
 \title{Plot abundance versus interaction stoichiometries}
 \usage{
 plot_2D_stoichio(res, condition = "max", xlim = NULL, ylim = NULL,
-  N_display = 30)
+  N_display = 30, only_interactors = FALSE,
+  fill_values = c(not_regulated = "black", induced = "red", repressed =
+  "blue", bait = "yellow"), color_values = c(not_regulated = "black",
+  induced = "red", repressed = "blue", bait = "black"), shape = 21,
+  stroke = 1, p_val_thresh = 0.05, fold_change_thresh = 3,
+  ref_condition = res$conditions[1])
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -17,6 +22,8 @@ plot_2D_stoichio(res, condition = "max", xlim = NULL, ylim = NULL,
 \item{ylim}{range of y values}
 
 \item{N_display}{maximum number of protein to display}
+
+\item{color_values}{color vector passed to \code{scale_color_manual()}}
 }
 \value{
 a plot

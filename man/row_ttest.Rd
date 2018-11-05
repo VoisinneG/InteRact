@@ -16,7 +16,7 @@ row_ttest(df, idx_group_1, idx_group_2, log = TRUE)
 \item{log}{option to perform the t-test on log transformed data}
 }
 \value{
-A data frame with columns 'p_val' and 'fold_change
+A data frame with columns 'p_val' and 'fold_change' (group_1 vs group_2)
 }
 \description{
 Perform a t-test comparison between two groups by row

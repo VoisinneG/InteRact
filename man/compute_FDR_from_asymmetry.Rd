@@ -4,24 +4,30 @@
 \alias{compute_FDR_from_asymmetry}
 \title{Compute the FDR from the asymmetry of the volcano plot}
 \usage{
-compute_FDR_from_asymmetry(df, c = seq(from = 0, to = 4, by = 0.1),
-  x0 = seq(from = 0, to = 3, by = 0.1))
+compute_FDR_from_asymmetry(df = NULL, x = NULL, y = NULL,
+  c = seq(from = 0, to = 10, by = 0.1), x0 = seq(from = 0, to = 10, by
+  = 0.1))
 }
 \arguments{
 \item{df}{: a data.frame containing columns \code{p_val} and \code{fold_change}}
+
+\item{x}{: numeric vector of x values. Only used if \code{df} is NULL.}
+
+\item{y}{: numeric vector of y values. Only used if \code{df} is NULL.}
 
 \item{c}{: numeric vector}
 
 \item{x0}{: numeric vector}
 }
 \value{
-a data.frame with a extra column \code{FDR}.
+a data.frame with a extra column \code{FDR} if \code{df} is not NULL. A vector of FDR values otherwise.
 
 If parameters \code{c} and \code{x0} are vectors, \code{FDR} is taken as the minimum FDR value across all sets of parameters
 }
 \description{
 Compute the FDR (False Discovery Rate) using the asymmetry of the volcano plot.
-It uses the fonction f(x) = c / (x-x0) with x = log10(fold_change), y=-log10(p_value).
+It uses the fonction f(x) = c / (|x|-x0) with x = log10(fold_change), y=-log10(p_value) by default.
+Otherwise, custom x and y vectors can be provided.
 Points with x>x0 and y>f(x) are taken as true positive (TP)
 Points with x<x0 and y>f(x) are taken as false positive (FP)
 For a given set of parameters (c,x0), the FDR is given by TP/(TP+FP)

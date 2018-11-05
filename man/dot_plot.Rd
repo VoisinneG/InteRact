@@ -5,9 +5,10 @@
 \title{Dot plot representation of matrices}
 \usage{
 dot_plot(Dot_Size, Dot_Color = NULL, title = "Dot Plot",
-  size_range = range(Dot_Size), size_var = "size",
-  color_var = "color", color_values = c("red", "purple", "blue",
-  "black"), size_label_y = NULL, size_label_x = NULL)
+  size_range = c(0, 5.5), size_limits = range(Dot_Size),
+  size_breaks = NULL, size_var = "size", color_var = "color",
+  color_values = c("red", "purple", "blue", "black"),
+  size_label_y = NULL, size_label_x = NULL)
 }
 \arguments{
 \item{Dot_Size}{a matrix of dot sizes}

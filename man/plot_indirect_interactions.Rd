@@ -4,11 +4,15 @@
 \alias{plot_indirect_interactions}
 \title{Plot indirect interactions}
 \usage{
-plot_indirect_interactions(score, threshold = 1, save_file = NULL,
-  facet = FALSE, plot_width = NULL, plot_height = NULL)
+plot_indirect_interactions(score,
+  var_threshold = "max_delta_stoichio_log", threshold = 1,
+  save_file = NULL, facet = FALSE, plot_width = NULL,
+  plot_height = NULL)
 }
 \arguments{
 \item{score}{output of the \code{identify_indirect_interactions} function}
+
+\item{var_threshold}{Variable of \code{score} on which the threshold will be applied}
 
 \item{threshold}{maximum difference between observed and predicted stoichiometries (in log10)}
 

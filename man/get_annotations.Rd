@@ -19,7 +19,7 @@ get_annotations(data, name_id = "Protein.IDs", split_param = ";",
 \item{updateProgress}{logical, function to show progress in shiny app}
 }
 \value{
-an \code{InteRactome}
+an annotated data.frame
 }
 \description{
 Get annotations from uniprot for a set of protein identifiers.

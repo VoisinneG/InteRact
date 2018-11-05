@@ -6,11 +6,12 @@
 \usage{
 plot_per_condition(res, names = NULL,
   idx_cols = 1:length(res$conditions), idx_rows = 1:20,
-  size_var = "norm_stoichio", size_range = c(0, 1),
-  color_var = "p_val", color_breaks = c(1, 0.1, 0.05, 0.01),
+  size_var = "norm_stoichio", size_range = c(0, 5.5),
+  size_limits = c(0, 1), color_var = "p_val", color_breaks = c(1,
+  0.1, 0.05, 0.01), color_values = c("black", "blue", "purple", "red"),
   color_default = 1, save_file = NULL, plot_width = 2.5 +
   length(res$conditions)/5, plot_height = 2 + length(idx_rows)/5,
-  clustering = FALSE)
+  clustering = FALSE, ...)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -29,6 +30,8 @@ plot_per_condition(res, names = NULL,
 
 \item{color_breaks}{vector used to discretize colors}
 
+\item{color_values}{values parameter passed to \code{scale_color_manual()}}
+
 \item{color_default}{value corresponding to the default color}
 
 \item{save_file}{path of output file (.pdf)}
@@ -37,7 +40,9 @@ plot_per_condition(res, names = NULL,
 
 \item{plot_height}{height of the output .pdf file}
 
-\item{clustering}{logical or numeric vector. If logical, use hierarchical 
+\item{clustering}{logical or numeric vector. If logical, use hierarchical}
+
+\item{...}{additionnal arguments passed to \code{dot_ploy()}
 clustering to order proteins. If numeric, ordering indexes for displayed proteins 
 (must be the same length as \code{idx_rows})}
 }

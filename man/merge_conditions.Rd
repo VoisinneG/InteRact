@@ -12,7 +12,9 @@ merge_conditions(res, selected_conditions = NULL)
 \item{selected_conditions}{a character vector containing names of conditions to merge}
 }
 \value{
-a data.frame with columns bait, names, Protein.IDs, conditions, p_val, fold_change
+a data.frame with columns bait, names, Protein.IDs, conditions, p_val,
+
+fold_change and norm_log_fold_change
 }
 \description{
 Merge different conditions from different interactomes into a single data.frame
