@@ -1412,57 +1412,39 @@ global_analysis <- function( res ){
 #' Protein abundance are obtained from CD4+ effector T cells.
 #' @param res an \code{InteRactome}
 #' @export
-merge_proteome <- function( res ){
+merge_proteome <- function( res, col_ID = "Protein.IDs", sep = c(";", "|", "-") ){
   
   res_int <- res
-  
-  gene_name_prot <- proteome_data$Gene.names;
-  
   ibait <- match(res$bait, res$names)
   
   ######### Retrieve protein abundance and compute related quantities
   
-  Copy_Number <- rep(0, length(res$names));
+  Copy_Number <- rep(NA, length(res$names));
   
   for( i in 1:length(res$names) ){
-    idx_prot <- which(gene_name_prot==as.character(res$names[i]));
-    idx_ID_x <-  which(proteome_data$Protein.IDs.x==as.character(res$Protein.IDs[i]));
-    idx_ID_y <-  which(proteome_data$Protein.IDs.y==as.character(res$Protein.IDs[i]));
     
-    #idx_ID_x <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.x), fixed=TRUE);
-    #idx_ID_y <-  grep(as.character(res[[Interactome_ID_name]][i]),  as.character(proteome_data$Protein.IDs.y), fixed=TRUE);
-    # 
-    abund_x <- NA;
-    abund_y <- NA;
-    if( length(idx_ID_x)>0 ){ 
-      abund_x <- proteome_data$mean.x[idx_ID_x] 
-    }
-    if( length(idx_ID_y)>0 ){ 
-      abund_y <- proteome_data$mean.y[idx_ID_y] 
-    }
+    prot_ids <- strsplit(as.character(res[[col_ID]][i]), split = sep[1], fixed = TRUE)[[1]]
     
-    #Copy_Number[i] <- mean(c(abund_x, abund_y), na.rm = TRUE)
-    
-    if(length(idx_prot)>0){
-      Copy_Number[i] = proteome_data$mean[ idx_prot[1] ];
-    }else if( length(idx_ID_x)>0 || length(idx_ID_y)>0 ){
-      Copy_Number[i] = mean( c(abund_x, abund_y), na.rm=TRUE);
-    }else{
-      Copy_Number[i] = NA;
+    for(j in 1:length(prot_ids)){
+      
+      prot_id_int <- prot_ids[j]
+      if(length(sep)>1){
+        for(k in 2:length(sep)){
+          prot_id_int <- strsplit(prot_id_int, split = sep[k], fixed = TRUE)[[1]][1]
+        }
+      }
+      
+      idx_match <- which( as.character(proteome_data$Protein.ID) == prot_id_int)
+      if(length(idx_match)>0){
+        Copy_Number[i] = 10^(proteome_data[["mean_log10_Copy.Number"]][idx_match])
+        break
+      }
     }
     
   }
+
   res_int$Copy_Number = Copy_Number
   res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
-  
-  #res_int$N_complex= Tsum$max_stoch*Copy_Number[ibait]
-  #res_int$percentage_prey_in_complex = Tsum$max_stoch*Copy_Number[ibait]/Copy_Number;
-  
-  # Tsum$Perc_t_0 = Tsum$Stoch_t_0*Copy_Number[ibait]/Copy_Number;
-  # Tsum$Perc_t_30 = Tsum$Stoch_t_30*Copy_Number[ibait]/Copy_Number;
-  # Tsum$Perc_t_120 = Tsum$Stoch_t_120*Copy_Number[ibait]/Copy_Number;
-  # Tsum$Perc_t_300 = Tsum$Stoch_t_300*Copy_Number[ibait]/Copy_Number;
-  # Tsum$Perc_t_600 = Tsum$Stoch_t_600*Copy_Number[ibait]/Copy_Number;
   
   output=res_int
 }
@@ -1632,4 +1614,246 @@ order_interactome <- function(res, idx = NULL,
   output = res_order
   
   
+}
+
+
+#' Compute correlation in protein recruitment
+#' @description Compute correlation in protein recruitment from interaction stoichiometries 
+#' computed across all conditions for each biological replicate. Pearson correlations are used.
+#' @param res an \code{InteRactome}
+#' @param idx indexes of the set of proteins for which correlations will be computed
+#' @param log logical, use log-transformed stoichiometries
+#' @param nmax integer, limits the number of connections per node
+#' @param Rmin minimum absolute value of the Pearson R coefficient 
+#' @return a data.frame with protein correlation information 
+#' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
+#' @importFrom Hmisc rcorr
+#' @export
+compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin = 0){
+  
+  # build matrix on which correlations will be computed
+  idx_selected <- 1:length(res$names)
+  if (!is.null(idx)) {
+    idx_selected <- idx
+  }
+  idx_bait <- which(res$names == res$bait)
+  idx_selected <- setdiff(idx_selected, idx_bait)
+  
+  names <- res$names[idx_selected]
+  
+  df<-NULL
+  names_df <- NULL
+  for (bio in res$replicates){
+    for (cond in res$conditions){
+      if(log){
+        df <- cbind(df, log10(res$stoichio_bio[[bio]][[cond]][idx_selected]))
+      }else{
+        df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
+      }
+      
+      
+    }
+  }
+  
+  M <- as.matrix(df)
+  row.names(M) <- names
+  
+  
+  R <- Hmisc::rcorr(t(M))
+  n <- dim(R$r)[1]
+  M_transpose <- matrix(0, n, n)
+  
+  r_corr <- rep(NA, n*(n-1)/2)
+  p_corr <- rep(NA, n*(n-1)/2)
+  name_1 <- rep("", n*(n-1)/2)
+  name_2 <- rep("", n*(n-1)/2)
+  
+  count<-0
+  for (i in 1:(n-1)){
+    
+    idx <- order(R$r[i, ], decreasing = TRUE)
+    
+    for (j in idx[ 2 : ( min(1 + nmax, n) - 1 )]){
+      if(M_transpose[j, i] == 0){
+        count<-count+1
+        r_corr[count] <- R$r[i, j]
+        p_corr[count] <- R$P[i, j]
+        name_1[count] <- names[i]
+        name_2[count] <- names[j]
+        M_transpose[i, j] <- 1
+      }
+      
+    }
+    
+  }
+  
+  df_corr <- data.frame( bait = rep(res$bait, length(name_1)),
+                         name_1 = name_1, 
+                         name_2 = name_2, 
+                         r_corr = r_corr, 
+                         p_corr = p_corr)
+  
+  
+  df_corr <- df_corr[!is.na(df_corr$r_corr) & 
+                       !is.na(df_corr$p_corr) & 
+                       df_corr$p_corr>0 & 
+                       abs(df_corr$r_corr) >= Rmin, ]
+  
+  df_corr$p_corr_bonferroni <- p.adjust(df_corr$p_corr, method="bonferroni")
+  df_corr$p_corr_fdr <- p.adjust(df_corr$p_corr, method="fdr")
+  
+  return(df_corr)
+}
+
+#' Create a summary table for an \code{InteRactome}
+#' @param res an \code{InteRactome}
+#' @param add_columns names of the variables to display in the summary table 
+#' @return a data.frame 
+#' @export
+summary_table <- function(res, add_columns = names(res) ){
+  
+  columns <- unique( c("names", add_columns) )
+  #columns <- add_columns
+  columns <- setdiff(columns, c("bait", 
+                                "bckg_bait", 
+                                "bckg_ctrl",
+                                "conditions", 
+                                "interactor", 
+                                "replicates", 
+                                "intensity_bait", 
+                                "intensity_ctrl", 
+                                "intensity_na_bait", 
+                                "intensity_na_ctrl", 
+                                "data", 
+                                "params"
+  ))
+  
+  df<-data.frame( bait=rep(res$bait, length(res$names)) )
+  names_df<-"bait"
+  idx<-1
+  
+  for( var in columns ){
+    
+    if(length(res[[var]]) == length(res$names)){
+      idx<-c(idx,1)
+      names_df<-c(names_df, var)
+      df<-cbind(df,res[[var]])
+    }
+    else{
+      names_var <- names(res[[var]])
+      if( length(setdiff(names_var, res$conditions))==0 ){
+        for(i in 1:length(names_var) ){
+          idx<-c(idx,NaN)
+          names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
+          df<-cbind(df,res[[var]][[i]])
+        }
+      }
+      else{
+        for(i in 1:length(names_var) ){
+          names_var_2 <- names(res[[var]][[i]]) 
+          if( length(setdiff(names_var_2, res$conditions)) == 0 ){
+            for(j in 1:length(names_var_2) ){
+              idx<-c(idx,NaN)
+              names_df<-c(names_df, paste(var,"_",names(res[[var]])[i],"_",names_var_2[j],sep=""))
+              df<-cbind(df,res[[var]][[i]][[j]])
+            }
+          }
+        }
+      }
+    }
+    
+  }
+  
+  names(df)<-names_df
+  df<-df[,order(idx)]
+  
+  return(df)
+  
+}
+
+#' Create a summary for selected proteins in an \code{InteRactome}
+#' @param res an \code{InteRactome}
+#' @param name protein name
+#' @param idx indexes of the proteins to display. Overrides \code{name}
+#' @return a data.frame 
+#' @export
+summary_protein <- function(res, name, idx = NULL){
+  sum_table <- summary_table(res)
+  idx <- which(res$names == name)
+  if(length(idx)>0){
+    return( t(sum_table[idx, ]) )
+  }else{
+    warning("Could not find name in InteRactome")
+    return(NULL)
+  }
+}
+
+
+
+
+#' Compare stoichiometries between two conditions using a ttest
+#' @param res
+#' @param names
+#' @export
+compare_stoichio <- function(res, 
+                             names = res$names, 
+                             ref_condition = res$conditions[1], 
+                             test_conditions = setdiff(res$conditions, ref_condition),
+                             p_val_thresh = 0.05,
+                             fold_change_thresh = 3,
+                             ...){
+  if(!is.null(names)){
+    idx_match <- match(names, res$names)
+  }
+  
+  p_val <- vector("list", length(test_conditions))
+  fold_change <- vector("list", length(test_conditions))
+  names(p_val) <- test_conditions
+  names(fold_change) <- test_conditions
+  
+  for(i in 1:length(test_conditions)){
+    conditions <- c(test_conditions[i], ref_condition)
+    cond_tot <- NULL
+    df_tot <- NULL
+    for ( bio in res$replicates){
+      stoichio <- do.call(cbind, res$stoichio_bio[[bio]])[idx_match , conditions]
+      df <- data.frame(stoichio = stoichio)
+      if(!is.null(df_tot)){
+        df_tot <- cbind(df_tot, df)
+        cond_tot <- c(cond_tot, conditions)
+      }else{
+        df_tot <- df
+        cond_tot <- conditions
+      }
+      
+    }
+    
+    test_res <- row_ttest(df_tot,
+                          idx_group_1 = which(cond_tot == conditions[1]), 
+                          idx_group_2 = which(cond_tot == conditions[2]),
+                          ...)
+    p_val[[i]] <- test_res$p_val
+    fold_change[[i]] <- test_res$fold_change
+    
+  }
+  
+  
+  M_p_val <- do.call(cbind, p_val)
+  M_fold_change <- do.call(cbind, fold_change)
+  
+  regulation <- rep("not_regulated", length(names) )
+  for(i in 1:length(names)){
+    idx_pval <- which( M_p_val[i, ] <= p_val_thresh )
+    if(length(idx_pval)>0){
+      idx_max <- idx_pval[ which.max( abs(log10(M_fold_change[i, idx_pval]))) ]
+      if(M_fold_change[i, idx_max] > fold_change_thresh){
+        regulation[i] <- "induced"
+      }
+      if(M_fold_change[i, idx_max] <= 1/fold_change_thresh){
+        regulation[i] <- "repressed"
+      }
+    }
+  }
+  
+  return(list(p_val = p_val, fold_change = fold_change, regulation = regulation))
 }

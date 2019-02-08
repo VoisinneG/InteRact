@@ -6,7 +6,7 @@
 library(shiny)
 library(shinyBS)
 
-#library("InteRact")
+library("InteRact")
 
 #source("../R/InteRact.R")
 # source("../R/Main_functions.R")
@@ -719,7 +719,7 @@ server <- function(input, output, session) {
       )
       
       df_cond <- read.table(input$file_cond$datapath, 
-                 sep=ifelse(input$sep_cond, ",", "\t"), 
+                 sep=ifelse(input$sep_cond, ",", "\t"),
                  fill=TRUE, 
                  colClasses = "character",
                  na.strings="",
@@ -1541,7 +1541,7 @@ server <- function(input, output, session) {
   })
   
   QCPlot <- reactive({
-      plot_QC(prep_data()) 
+      plot_QC(prep_data())$plot
   })
     
   #Output Table functions -------------------------------------------------------------------------

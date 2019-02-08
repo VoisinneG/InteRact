@@ -1,20 +1,21 @@
 #' Plot indirect interactions
 #' @param score output of the \code{identify_indirect_interactions} function
-#' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
 #' @param var_threshold Variable of \code{score} on which the threshold will be applied
-#' @param save_file path were the plot will be saved
-#' @param facet logical, use faceting for all plots generated
+#' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
+#' @param save_dir path to the directory where the plot will be saved
 #' @param plot_width set plot width
 #' @param plot_height set plot height
-#' @import reshape2
+#' @param show_legend logical, shows plot legend
 #' @export
 plot_indirect_interactions <- function(score,
                                        var_threshold = "max_delta_stoichio_log",
                                        threshold = 1.0, 
-                                       save_file = NULL, 
-                                       facet = FALSE, 
-                                       plot_width = NULL, 
-                                       plot_height = NULL){
+                                       min_range = NULL,
+                                       save_dir = NULL,
+                                       plot_width = 2, 
+                                       plot_height = 2,
+                                       show_legend = FALSE
+                                       ){
   idx_select <- which(!is.na(score[[var_threshold]]))
   if(length(idx_select) > 0){
     if(sum(score[[var_threshold]][idx_select] <= threshold, na.rm = TRUE) == 0){
@@ -35,21 +36,43 @@ plot_indirect_interactions <- function(score,
                                   stoichio = c(as.numeric(s_direct), as.numeric(s_indirect)),
                                   conditions = c(names(s_direct), names(s_indirect)))
         
-        if(min_range)
-          if(range(df_stoichio$stoichio) <= min_range){
-            ymin <- mean(df_stoichio$stoichio) - min_range/2
-            ymax <- mean(df_stoichio$stoichio) + min_range/2
-          }else{
-            ymin <- range(df_stoichio$stoichio)[1]
-            ymax <- range(df_stoichio$stoichio)[2]
-          }
         
+          log10_stoichio <- log10(df_stoichio$stoichio[df_stoichio$stoichio>0 & !is.na(df_stoichio$stoichio)])
+          datarange <- range( log10_stoichio )
+          
+          if(!is.null(min_range)){
+            if(abs(datarange[2]-datarange[1]) <= min_range){
+              ymin <- mean(log10_stoichio) - min_range/2
+              ymax <- mean(log10_stoichio) + min_range/2
+            }else{
+              ymin <- datarange[1]
+              ymax <- datarange[2]
+            }
+          }else{
+            ymin <- datarange[1]
+            ymax <- datarange[2]
+          }
+          
         
         plist[[i]] <- ggplot(df_stoichio, aes(x=conditions, y=log10(stoichio), color = type, group = type)) +
-          theme(axis.text.x = element_text(angle=90, hjust = 1)) +
+          theme(axis.text.x = element_text(angle=90, hjust = 1),
+                title = element_text(size = 6) ) +
           ggtitle(paste(score$bait_A,"<",score$bait_B,"<", name_interactor," (", signif(score_display, 3), ")", sep="")) +
-          geom_line() +
-          geom_point()
+          geom_point(show.legend = FALSE) +
+          geom_line(show.legend = show_legend) +
+          coord_cartesian(ylim = c(ymin, ymax))
+          
+        if(!is.null(save_dir)){
+          pdf(paste(save_dir,"A_",
+                    score$bait_A,"_B_",
+                    score$bait_B,"_C_",
+                    name_interactor,
+                    ".pdf",sep=""), 
+              width = plot_width, 
+              height = plot_height)
+          print(plist[[i]])
+          dev.off()
+        }
         
       }
     }
@@ -132,16 +155,21 @@ plot_indirect_interactions <- function(score,
 #  
 #}
 
-
 #' Plot the result of the annotation enrichment analysis
 #' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
 #' @param p_val_max threshold for the enrichment p-value
 #' @param method_adjust_p_val method to adjust p-value for multiple comparisons
 #' @param fold_change_min threshold for the enrichment fold-change
 #' @param N_annot_min minimum number of elements that are annotated in the foreground set
-#' @return a plot
+#' @return a data.frame
 #' @export
-plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "fdr", fold_change_min =2, N_annot_min=2){
+filter_annotation_results <- function(df, 
+                                    p_val_max=0.05, 
+                                    method_adjust_p_val = "fdr", 
+                                    fold_change_min =2,
+                                    N_annot_min=2, 
+                                    test_depletion = FALSE,
+                                    ...){
   
   if(length(df) == 0 ){
     warning("Empty input...")
@@ -156,27 +184,87 @@ plot_annotation_results <- function(df, p_val_max=0.05, method_adjust_p_val = "f
   
   df$p_value_adjusted <- df[[name_p_val]]
   
-  idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
-                         df$fold_change >= fold_change_min & 
-                         df$N_annot >= N_annot_min)
+  
+  if(test_depletion){
+    idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
+                           (df$fold_change >= fold_change_min | df$fold_change <= 1/fold_change_min) & 
+                           df$N_annot >= N_annot_min)
+  } else {
+    idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
+                           df$fold_change >= fold_change_min & 
+                           df$N_annot >= N_annot_min)
+  }
+  
+  
+  
   if(length(idx_filter) == 0){
     warning("No annotation left after filtering. You might want to change input parameters")
     return(NULL)
   }
   df_filter <- df[ idx_filter, ]
-  df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
-  df_filter$order <- 1:dim(df_filter)[1]
   
-  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjusted) )) + 
+  return(df_filter)
+}
+
+
+#' Plot the result of the annotation enrichment analysis
+#' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
+#' @param p_val_max threshold for the enrichment p-value
+#' @param method_adjust_p_val method to adjust p-value for multiple comparisons
+#' @param fold_change_min threshold for the enrichment fold-change
+#' @param N_annot_min minimum number of elements that are annotated in the foreground set
+#' @return a plot
+#' @import RColorBrewer
+#' @export
+plot_annotation_results <- function(df,
+                                    var_p_val = "fdr",
+                                    fold_change_max_plot = 4,
+                                    save_file = NULL,
+                                    ...){
+  
+  if(length(df) == 0 ){
+    warning("Empty input...")
+  }else if( dim(df)[1] == 0){
+    warning("Empty input...")
+  }
+  
+  name_p_val <- switch(var_p_val,
+                       "none" = "p_value",
+                       "fdr" = "p_value_adjust_fdr",
+                       "bonferroni" = "p_value_adjust_bonferroni")
+  
+  df$p_value_adjusted <- df[[name_p_val]]
+  
+  df_filter <- df
+  df_filter$fold_change_sign <- df_filter$fold_change
+  df_filter$fold_change_sign[df_filter$fold_change>=1] <- 1
+  df_filter$fold_change_sign[df_filter$fold_change<1] <- -1
+  
+  df_filter <- df_filter[ order(df_filter$fold_change_sign * (-log10(df_filter$p_value)), decreasing = FALSE), ]
+  #df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
+  df_filter$order <- 1:dim(df_filter)[1]
+  df_filter$fold_change[df_filter$fold_change >= fold_change_max_plot] <- fold_change_max_plot
+  df_filter$fold_change[df_filter$fold_change <= 1/fold_change_max_plot] <- 1/fold_change_max_plot
+  
+  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjusted) , fill = log2(fold_change))) + 
     theme(
-      axis.text.y = element_text(size=14),
-      axis.text.x = element_text(size=14, angle = 90, hjust = 1,vjust=0.5),
-      axis.title.x = element_text(size=14)
+      axis.text.y = element_text(size=12),
+      axis.text.x = element_text(size=12, angle = 90, hjust = 1,vjust=0.5),
+      axis.title.x = element_text(size=10)
     ) +
     scale_x_continuous(name = NULL, breaks=df_filter$order, labels=df_filter$annot_names) +
     scale_y_continuous(name = paste("-log10(",name_p_val,")",sep="")) +
-    geom_col()+
+    scale_fill_distiller(palette = "RdBu", limits = c(-log2(fold_change_max_plot), log2(fold_change_max_plot))) + 
+    geom_col(...)+
     coord_flip()
+  
+  if(!is.null(save_file)){
+    plot_width <- 0.1*( 0.5*max( sapply(as.character(df_filter$annot_terms), nchar) ) + 35 )
+    plot_height <- 0.1*(1.5*length(unique(df_filter$annot_terms)) + 20)
+    pdf(save_file, plot_width, plot_height)
+    print(p)
+    dev.off()
+  }
   
   return(p)
   
@@ -207,7 +295,7 @@ plot_2D_stoichio <- function( res, condition = "max", xlim = NULL, ylim = NULL,
                               shape = 21,
                               stroke = 1,
                               p_val_thresh = 0.05,
-                              fold_change_thresh = 3,
+                              fold_change_thresh = 1,
                               ref_condition = res$conditions[1]
 ){
   
@@ -678,7 +766,10 @@ plot_per_condition <- function( res,
   }
   
   if("interactor" %in% names(res)){
-    title_text <- paste(res$bckg_bait," vs ", res$bckg_ctrl," (n=",length(res$interactor),")",sep="")
+    title_text <- paste(res$bckg_bait," vs ", 
+                        res$bckg_ctrl,
+                        " (n=",length(res$interactor[res$interactor != res$bait]),")",
+                        sep="")
   } else {
     title_text <- paste(res$bckg_bait," vs ", res$bckg_ctrl, sep="")
   }
@@ -1288,6 +1379,7 @@ plot_QC <- function(data){
     geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
   
   p_list[[3]] <- p3
+  
   names(p_list) <- c("Intensity_Correlation", "Bait_Purification", "Missing_values")
   
   return(list(plot = p_list, Ravg = Ravg, Ibait = Ibait, nNA = nNA))
@@ -1336,29 +1428,29 @@ plot_correlation_network <- function(res,
     
     if(var_r_corr %in% names(df_corr) & var_p_val %in% names(df_corr)){
       idx_filter_corr <- which(df_corr[[var_r_corr]]>=r_corr_thresh & df_corr[[var_p_val]]<=p_val_thresh)
-      df_corr_filtered <- df_corr[idx_filter_corr, c(source, target)]
+      df_corr_filtered <- df_corr[idx_filter_corr, ]
     }else{
-      df_corr_filtered <- df_corr[ , c(source, target)]
+      df_corr_filtered <- df_corr[ , ]
     }
     
   }else{
     if(is.null(idx)){
       if(var_r_corr %in% names(df_corr) & var_p_val %in% names(df_corr)){
         idx_filter_corr <- which(df_corr[[var_r_corr]]>=r_corr_thresh & df_corr[[var_p_val]]<=p_val_thresh)
-        df_corr_filtered <- df_corr[idx_filter_corr, c(source, target)]
+        df_corr_filtered <- df_corr[idx_filter_corr, ]
       }else{
-        df_corr_filtered <- df_corr[ , c(source, target)]
+        df_corr_filtered <- df_corr
       }
       
     }else{
       idx_filter_corr <- idx
-      df_corr_filtered <- df_corr[idx_filter_corr, c(source, target)]
+      df_corr_filtered <- df_corr[idx_filter_corr, ]
     }
   }
   
   
   
-  net <- igraph::graph.data.frame(df_corr_filtered, directed=FALSE)
+  net <- igraph::graph.data.frame(df_corr_filtered[ , c(source, target)], directed=FALSE)
   net <- igraph::simplify(net)
   
   #plot(cfg, as.undirected(net.s))
@@ -1370,10 +1462,11 @@ plot_correlation_network <- function(res,
   }else{
     cfg <- igraph::cluster_fast_greedy(as.undirected(net))
     group = cfg$membership
+    names(group) <- cfg$names
   }
   net_d3 <- networkD3::igraph_to_networkD3(net, group = group)
   
-  forceNetwork(Links = net_d3$links, Nodes = net_d3$nodes,
+  p <- forceNetwork(Links = net_d3$links, Nodes = net_d3$nodes,
                Source = 'source', Target = 'target',
                fontFamily = "arial",
                NodeID = 'name', Group = 'group',
@@ -1382,6 +1475,11 @@ plot_correlation_network <- function(res,
                linkColour = rgb(0.75, 0.75, 0.75),
                fontSize = 12, bounded = TRUE, zoom=TRUE, opacityNoHover = 1
   )
+  
+  return( list(plot = p, 
+               net_d3 = net_d3, 
+               df_corr_filtered = df_corr_filtered, 
+               cluster = group))
   
 }
 

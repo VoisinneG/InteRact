@@ -182,11 +182,14 @@ THPRD <- read.table(paste("~/ownCloud/++Work/++Research/Resources-Databases/HPRD
 
 # import proteome data ------------------------------------------------------------------------------------------
 
-proteome_data <- read.table(paste("~/ownCloud/++Work/++Research/++Projects/",
-                                  "Proteomes/Proteome_Comparison_OST_vs_kinetics/",
-                                  "Copy_number_hist_all_aligned_short.txt",
-                                  sep="" ),
-                            sep="\t",header=TRUE)
+load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Merge_Proteome_OST_and_CD4_kinetics/proteome_CD4.rda")
+proteome_data <- proteome_CD4
+
+# proteome_data <- read.table(paste("~/ownCloud/++Work/++Research/++Projects/",
+#                                   "Proteomes/Proteome_Comparison_OST_vs_kinetics/",
+#                                   "Copy_number_hist_all_aligned_short.txt",
+#                                   sep="" ),
+#                             sep="\t",header=TRUE)
 
 
 
