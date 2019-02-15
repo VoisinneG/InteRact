@@ -23,7 +23,22 @@ plot_2D_stoichio(res, condition = "max", xlim = NULL, ylim = NULL,
 
 \item{N_display}{maximum number of protein to display}
 
+\item{only_interactors}{display only interactors 
+(identified using the function \code{identify_interactors()})}
+
+\item{fill_values}{color vector passed to \code{scale_fill_manual()}}
+
 \item{color_values}{color vector passed to \code{scale_color_manual()}}
+
+\item{shape}{Point shape aesthetics passed to \code{geom_point()}}
+
+\item{stroke}{Point stroke aesthetics passed to \code{geom_point()}}
+
+\item{p_val_thresh}{Threshold on p-value used to identify regulated interactions}
+
+\item{fold_change_thresh}{Threshold on fold-change used to identify regulated interactions}
+
+\item{ref_condition}{Reference condition used to identify regulated interactions}
 }
 \value{
 a plot

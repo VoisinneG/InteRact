@@ -39,5 +39,5 @@ data("proteinGroups_Cbl")
 res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 df_merge <- merge_conditions(res)
 df_FDR <- compute_FDR_from_asymmetry(df_merge)
-Interactome <- append_FDR(res, df_FDR)
+Interactome <- append_FDR(res, cbind(df_merge, FDR = df_FDR$FDR) )
 }

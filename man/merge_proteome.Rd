@@ -8,6 +8,11 @@ merge_proteome(res, col_ID = "Protein.IDs", sep = c(";", "|", "-"))
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
+
+\item{col_ID}{name of \code{res} containing protein IDs}
+
+\item{sep}{Set of separators used sequentially (from right to left) to 
+identify distinct protein IDs}
 }
 \description{
 Add protein abundance to an \code{InteRactome}. 

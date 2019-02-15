@@ -2,13 +2,28 @@
 % Please edit documentation in R/Main_functions.R
 \name{compare_stoichio}
 \alias{compare_stoichio}
-\title{Compare stoichiometries between two conditions using a ttest}
+\title{Compare stoichiometries between two conditions using a t-test}
 \usage{
 compare_stoichio(res, names = res$names,
   ref_condition = res$conditions[1],
   test_conditions = setdiff(res$conditions, ref_condition),
   p_val_thresh = 0.05, fold_change_thresh = 3, ...)
 }
+\arguments{
+\item{res}{an \code{Interactome}}
+
+\item{names}{names selected}
+
+\item{ref_condition}{reference condition}
+
+\item{test_conditions}{set of conditions to be compared to \code{ref_condition}}
+
+\item{p_val_thresh}{Threshold for the t-test p-value}
+
+\item{fold_change_thresh}{Threshold for the t-test fold-change}
+
+\item{...}{Additionnal parameters passed to \code{row_ttest()}}
+}
 \description{
-Compare stoichiometries between two conditions using a ttest
+Compare stoichiometries between two conditions using a t-test
 }

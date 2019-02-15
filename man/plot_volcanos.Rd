@@ -22,6 +22,12 @@ plot_volcanos(res, labels = NULL, N_print = 15, conditions = NULL,
 
 \item{fold_change_thresh}{threshold on fold-change to display}
 
+\item{x0}{parameters x0 of the line dividing the volcano plot according to \code{f(x) = c / (|x|-x0)}.
+Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are set to \code{NULL}}
+
+\item{c}{parameters c of the line dividing the volcano plot according to \code{f(x) = c / (|x|-x0)}.
+Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are set to \code{NULL}}
+
 \item{save_file}{path of output file (.pdf)}
 
 \item{xlim}{range of x values}

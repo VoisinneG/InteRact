@@ -80,8 +80,7 @@ plot_per_condition(res)
 # Append protein abundance information
 res <- merge_proteome(res)
 # Append annotations
-annot <- get_annotations(res)
-res <- append_annotations(res,  annot)
+res <- append_annotations(res,  annotations = "")
 #Create a summary data frame
 sum_tbl <- summary_table(res)
 }

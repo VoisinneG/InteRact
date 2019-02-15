@@ -28,6 +28,12 @@ must pass the the p-value and the fold-change thresholds}
 \item{consecutive_success}{logical, impose that the interactor must pass selection thresholds 
 in \code{n_success_min} consecutive conditions.}
 
+\item{p_val_breaks}{numeric vector to discretize p-values. 
+Passed to function \code{order_interactome()}}
+
+\item{var_min_p_val}{name of the p-value variable used to order the interactome. 
+Passed to function \code{order_interactome()}}
+
 \item{...}{additionnal paramters passed to function \code{order_interactome()}}
 }
 \value{

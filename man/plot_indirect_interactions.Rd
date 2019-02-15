@@ -6,7 +6,8 @@
 \usage{
 plot_indirect_interactions(score,
   var_threshold = "max_delta_stoichio_log", threshold = 1,
-  save_file = NULL, facet = FALSE, min_range = NULL)
+  min_range = NULL, save_dir = NULL, plot_width = 2,
+  plot_height = 2, show_legend = FALSE)
 }
 \arguments{
 \item{score}{output of the \code{identify_indirect_interactions} function}
@@ -15,13 +16,15 @@ plot_indirect_interactions(score,
 
 \item{threshold}{maximum difference between observed and predicted stoichiometries (in log10)}
 
-\item{save_file}{path were the plot will be saved}
+\item{min_range}{Minimum range (in log10 scale) displayed on the y-axis (centered on the mean)}
 
-\item{facet}{logical, use faceting for all plots generated}
+\item{save_dir}{path to the directory where the plot will be saved}
 
 \item{plot_width}{set plot width}
 
 \item{plot_height}{set plot height}
+
+\item{show_legend}{logical, shows plot legend}
 }
 \description{
 Plot indirect interactions

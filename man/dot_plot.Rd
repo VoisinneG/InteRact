@@ -19,6 +19,10 @@ dot_plot(Dot_Size, Dot_Color = NULL, title = "Dot Plot",
 
 \item{size_range}{range of dot sizes to display}
 
+\item{size_limits}{limits for dot size (as used in \code{ggplot2::scale_radius()})}
+
+\item{size_breaks}{breaks used for dot size scale}
+
 \item{size_var}{name of the variable corresponding to dot size}
 
 \item{color_var}{name of the variable corresponding to dot color}

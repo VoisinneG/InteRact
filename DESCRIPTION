@@ -4,7 +4,7 @@ Version: 0.1.0
 Date: 2018-02-21
 Author: Guillaume Voisinne
 Maintainer: Guillaume Voisinne <voisinne@ciml.univ-mrs.fr>
-Description: The InteRact package provides tools to analyse affinity purification data
+Description: The InteRact package provides tools to analyze affinity purification data
 Imports:
 	dplyr, 
 	ggplot2, 
@@ -15,9 +15,10 @@ Imports:
 	networkD3,
 	ggsignif,
 	reshape2,
-	enrichR,
+	pannot,
 	BiocInstaller,
 	PSICQUIC
+Remotes: VoisinneG/pannot
 biocViews:
 LazyData: TRUE
 License: file LICENSE

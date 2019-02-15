@@ -2,6 +2,7 @@
 #' @param score output of the \code{identify_indirect_interactions} function
 #' @param var_threshold Variable of \code{score} on which the threshold will be applied
 #' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
+#' @param min_range Minimum range (in log10 scale) displayed on the y-axis (centered on the mean)
 #' @param save_dir path to the directory where the plot will be saved
 #' @param plot_width set plot width
 #' @param plot_height set plot height
@@ -155,120 +156,7 @@ plot_indirect_interactions <- function(score,
 #  
 #}
 
-#' Plot the result of the annotation enrichment analysis
-#' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
-#' @param p_val_max threshold for the enrichment p-value
-#' @param method_adjust_p_val method to adjust p-value for multiple comparisons
-#' @param fold_change_min threshold for the enrichment fold-change
-#' @param N_annot_min minimum number of elements that are annotated in the foreground set
-#' @return a data.frame
-#' @export
-filter_annotation_results <- function(df, 
-                                    p_val_max=0.05, 
-                                    method_adjust_p_val = "fdr", 
-                                    fold_change_min =2,
-                                    N_annot_min=2, 
-                                    test_depletion = FALSE,
-                                    ...){
-  
-  if(length(df) == 0 ){
-    warning("Empty input...")
-  }else if( dim(df)[1] == 0){
-    warning("Empty input...")
-  }
-  
-  name_p_val <- switch(method_adjust_p_val,
-                       "none" = "p_value",
-                       "fdr" = "p_value_adjust_fdr",
-                       "bonferroni" = "p_value_adjust_bonferroni")
-  
-  df$p_value_adjusted <- df[[name_p_val]]
-  
-  
-  if(test_depletion){
-    idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
-                           (df$fold_change >= fold_change_min | df$fold_change <= 1/fold_change_min) & 
-                           df$N_annot >= N_annot_min)
-  } else {
-    idx_filter <-  which(df$p_value_adjusted <= p_val_max & 
-                           df$fold_change >= fold_change_min & 
-                           df$N_annot >= N_annot_min)
-  }
-  
-  
-  
-  if(length(idx_filter) == 0){
-    warning("No annotation left after filtering. You might want to change input parameters")
-    return(NULL)
-  }
-  df_filter <- df[ idx_filter, ]
-  
-  return(df_filter)
-}
 
-
-#' Plot the result of the annotation enrichment analysis
-#' @param df a formatted data.frame obtained by the function \code{annotation_enrichment_analysis()}
-#' @param p_val_max threshold for the enrichment p-value
-#' @param method_adjust_p_val method to adjust p-value for multiple comparisons
-#' @param fold_change_min threshold for the enrichment fold-change
-#' @param N_annot_min minimum number of elements that are annotated in the foreground set
-#' @return a plot
-#' @import RColorBrewer
-#' @export
-plot_annotation_results <- function(df,
-                                    var_p_val = "fdr",
-                                    fold_change_max_plot = 4,
-                                    save_file = NULL,
-                                    ...){
-  
-  if(length(df) == 0 ){
-    warning("Empty input...")
-  }else if( dim(df)[1] == 0){
-    warning("Empty input...")
-  }
-  
-  name_p_val <- switch(var_p_val,
-                       "none" = "p_value",
-                       "fdr" = "p_value_adjust_fdr",
-                       "bonferroni" = "p_value_adjust_bonferroni")
-  
-  df$p_value_adjusted <- df[[name_p_val]]
-  
-  df_filter <- df
-  df_filter$fold_change_sign <- df_filter$fold_change
-  df_filter$fold_change_sign[df_filter$fold_change>=1] <- 1
-  df_filter$fold_change_sign[df_filter$fold_change<1] <- -1
-  
-  df_filter <- df_filter[ order(df_filter$fold_change_sign * (-log10(df_filter$p_value)), decreasing = FALSE), ]
-  #df_filter <- df_filter[ order(df_filter$p_value, decreasing = TRUE), ]
-  df_filter$order <- 1:dim(df_filter)[1]
-  df_filter$fold_change[df_filter$fold_change >= fold_change_max_plot] <- fold_change_max_plot
-  df_filter$fold_change[df_filter$fold_change <= 1/fold_change_max_plot] <- 1/fold_change_max_plot
-  
-  p <- ggplot( df_filter, aes(x=order, y=-log10(p_value_adjusted) , fill = log2(fold_change))) + 
-    theme(
-      axis.text.y = element_text(size=12),
-      axis.text.x = element_text(size=12, angle = 90, hjust = 1,vjust=0.5),
-      axis.title.x = element_text(size=10)
-    ) +
-    scale_x_continuous(name = NULL, breaks=df_filter$order, labels=df_filter$annot_names) +
-    scale_y_continuous(name = paste("-log10(",name_p_val,")",sep="")) +
-    scale_fill_distiller(palette = "RdBu", limits = c(-log2(fold_change_max_plot), log2(fold_change_max_plot))) + 
-    geom_col(...)+
-    coord_flip()
-  
-  if(!is.null(save_file)){
-    plot_width <- 0.1*( 0.5*max( sapply(as.character(df_filter$annot_terms), nchar) ) + 35 )
-    plot_height <- 0.1*(1.5*length(unique(df_filter$annot_terms)) + 20)
-    pdf(save_file, plot_width, plot_height)
-    print(p)
-    dev.off()
-  }
-  
-  return(p)
-  
-}
 
 #' Plot abundance versus interaction stoichiometries
 #' @param res an \code{InteRactome}
@@ -276,12 +164,23 @@ plot_annotation_results <- function(df,
 #' @param xlim range of x values
 #' @param ylim range of y values
 #' @param N_display maximum number of protein to display
+#' @param only_interactors display only interactors 
+#' (identified using the function \code{identify_interactors()})
 #' @param color_values color vector passed to \code{scale_color_manual()}
+#' @param fill_values color vector passed to \code{scale_fill_manual()}
+#' @param shape Point shape aesthetics passed to \code{geom_point()}
+#' @param stroke Point stroke aesthetics passed to \code{geom_point()}
+#' @param p_val_thresh Threshold on p-value used to identify regulated interactions
+#' @param fold_change_thresh Threshold on fold-change used to identify regulated interactions
+#' @param ref_condition Reference condition used to identify regulated interactions
 #' @return a plot
 #' @import ggplot2
 #' @import ggrepel
 #' @export
-plot_2D_stoichio <- function( res, condition = "max", xlim = NULL, ylim = NULL,
+plot_2D_stoichio <- function( res, 
+                              condition = "max", 
+                              xlim = NULL, 
+                              ylim = NULL,
                               N_display=30,
                               only_interactors = FALSE,
                               fill_values = c("not_regulated" = "black",
@@ -488,6 +387,10 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param conditions conditions to plot
 #' @param p_val_thresh threshold on p-value to display
 #' @param fold_change_thresh threshold on fold-change to display
+#' @param x0 parameters x0 of the line dividing the volcano plot according to \code{f(x) = c / (|x|-x0)}.
+#' Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are set to \code{NULL}
+#' @param c parameters c of the line dividing the volcano plot according to \code{f(x) = c / (|x|-x0)}.
+#' Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are set to \code{NULL}
 #' @param save_file path of output file (.pdf)
 #' @param xlim range of x values
 #' @param ylim range of y values
@@ -706,6 +609,7 @@ plot_volcanos <- function( res,
 #' @param idx_rows numeric vector to select proteins to display
 #' @param size_var name of the variable corresponding to dot size
 #' @param size_range range of dot sizes to display
+#' @param size_limits limits used for the dot size scale
 #' @param color_var name of the variable corresponding to dot color
 #' @param color_breaks vector used to discretize colors
 #' @param color_values values parameter passed to \code{scale_color_manual()}
@@ -799,6 +703,7 @@ plot_per_condition <- function( res,
                title = title_text,
                size_var = size_var, 
                size_range=size_range,
+               size_limits=size_limits,
                color_var=color_var,
                color_values = color_values, 
                ...)
@@ -818,6 +723,8 @@ plot_per_condition <- function( res,
 #' @param Dot_Color a matrix of dot colors (optionnal)
 #' @param title plot title
 #' @param size_range range of dot sizes to display
+#' @param size_limits limits for dot size (as used in \code{ggplot2::scale_radius()})
+#' @param size_breaks breaks used for dot size scale
 #' @param size_var name of the variable corresponding to dot size
 #' @param color_var name of the variable corresponding to dot color
 #' @param color_values values parameter passed to \code{scale_color_manual()}
@@ -1511,9 +1418,17 @@ plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2]){
   
 }
 
+
+
+#' Plot FDR as a function of parameters used to divide the volcano plot
+#' @param FDR_res output from the function \code{compute_FDR_from_asymmetry()}
+#' @param FDR_bins FDR levels
+#' @param xlim x-axis plot limits
+#' @param ylim y-axis plot limits
+#' @param colors color palette. Should have \code{length(FDR_bins)-1} colors.
 #' @export
 plot_FDR_map <- function(FDR_res, 
-                         FDR_bins = c(0,0.01,0.02, 0.03, 0.04, 0.05, 0.1, 0.15,0.2),
+                         FDR_bins = c(0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.2),
                          xlim=c(0,3), 
                          ylim=c(0,3),
                          colors = terrain.colors(length(FDR_bins)-1)

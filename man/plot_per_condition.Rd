@@ -26,6 +26,8 @@ plot_per_condition(res, names = NULL,
 
 \item{size_range}{range of dot sizes to display}
 
+\item{size_limits}{limits used for the dot size scale}
+
 \item{color_var}{name of the variable corresponding to dot color}
 
 \item{color_breaks}{vector used to discretize colors}

@@ -48,8 +48,7 @@
 #' # Append protein abundance information
 #' res <- merge_proteome(res)
 #' # Append annotations
-#' annot <- get_annotations(res)
-#' res <- append_annotations(res,  annot)
+#' res <- append_annotations(res,  annotations = "")
 #' #Create a summary data frame
 #' sum_tbl <- summary_table(res)
 InteRact <- function(
@@ -1168,7 +1167,7 @@ merge_conditions <- function( res,  selected_conditions = NULL){
 #' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 #' df_merge <- merge_conditions(res)
 #' df_FDR <- compute_FDR_from_asymmetry(df_merge)
-#' Interactome <- append_FDR(res, df_FDR)
+#' Interactome <- append_FDR(res, cbind(df_merge, FDR = df_FDR$FDR) )
 compute_FDR_from_asymmetry <- function( df = NULL,
                                         x = NULL,
                                         y = NULL,
@@ -1273,7 +1272,7 @@ compute_FDR_from_asymmetry <- function( df = NULL,
 #' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 #' df_merge <- merge_conditions(res)
 #' df_FDR <- compute_FDR_from_asymmetry(df_merge)
-#' Interactome <- append_FDR(res, df_FDR)
+#' Interactome <- append_FDR(res, cbind(df_merge, FDR = df_FDR$FDR) )
 append_FDR <- function(res, df){
   
   
@@ -1411,6 +1410,9 @@ global_analysis <- function( res ){
 #' @description Add protein abundance to an \code{InteRactome}. 
 #' Protein abundance are obtained from CD4+ effector T cells.
 #' @param res an \code{InteRactome}
+#' @param col_ID name of \code{res} containing protein IDs
+#' @param sep Set of separators used sequentially (from right to left) to 
+#' identify distinct protein IDs
 #' @export
 merge_proteome <- function( res, col_ID = "Protein.IDs", sep = c(";", "|", "-") ){
   
@@ -1459,6 +1461,10 @@ merge_proteome <- function( res, col_ID = "Protein.IDs", sep = c(";", "|", "-") 
 #' must pass the the p-value and the fold-change thresholds
 #' @param consecutive_success logical, impose that the interactor must pass selection thresholds 
 #' in \code{n_success_min} consecutive conditions.
+#' @param p_val_breaks numeric vector to discretize p-values. 
+#' Passed to function \code{order_interactome()}
+#' @param var_min_p_val name of the p-value variable used to order the interactome. 
+#' Passed to function \code{order_interactome()}
 #' @param ... additionnal paramters passed to function \code{order_interactome()}
 #' @return an \code{InteRactome} with extra variables \code{is_interactor}, 
 #' \code{n_success} and \code{interactor}
@@ -1791,9 +1797,14 @@ summary_protein <- function(res, name, idx = NULL){
 
 
 
-#' Compare stoichiometries between two conditions using a ttest
-#' @param res
-#' @param names
+#' Compare stoichiometries between two conditions using a t-test
+#' @param res an \code{Interactome}
+#' @param names names selected
+#' @param ref_condition reference condition
+#' @param test_conditions set of conditions to be compared to \code{ref_condition}
+#' @param p_val_thresh Threshold for the t-test p-value
+#' @param fold_change_thresh Threshold for the t-test fold-change
+#' @param ... Additionnal parameters passed to \code{row_ttest()}
 #' @export
 compare_stoichio <- function(res, 
                              names = res$names, 

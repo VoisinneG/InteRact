@@ -7,7 +7,7 @@ library(shiny)
 library(shinyBS)
 
 library("InteRact")
-
+library("pannot")
 #source("../R/InteRact.R")
 # source("../R/Main_functions.R")
 # source("../R/Annotations.R")
@@ -1183,9 +1183,9 @@ server <- function(input, output, session) {
       
       progress$set(message = "Querying annotations...", value = 0)
       if( is.null(saved_df$annot) ){
-        saved_df$annot <- get_annotations_enrichr(ordered_Interactome()["names"], dbs = annotation$selected)
+        saved_df$annot <- pannot::get_annotations_enrichr(ordered_Interactome()["names"], dbs = annotation$selected)
       }else{
-        saved_df$annot <- get_annotations_enrichr(saved_df$annot, dbs = annotation$selected)
+        saved_df$annot <- pannot::get_annotations_enrichr(saved_df$annot, dbs = annotation$selected)
       }
       
       
@@ -1362,11 +1362,11 @@ server <- function(input, output, session) {
         }
         progress2$set(message = "Perform enrichment analysis...", value = 0)
         
-        df_annot <- annotation_enrichment_analysis( annotated_Interactome(), 
+        df_annot <- pannot::annotation_enrichment_analysis( annotated_Interactome(), 
                                                     sep = ";",
-                                                    1:Ninteractors$x, 
+                                                    idx_subset = 1:Ninteractors$x, 
                                                     annotation_selected = annotation$enrichment_to_perform, 
-                                                    names = annotated_Interactome()$names,
+                                                    col_names = "names",
                                                     updateProgress = updateProgress2)
         saved_df$enrichment <- rbind(saved_df$enrichment, df_annot)
         annotation$enrichment_performed <- unique(saved_df$enrichment$annot_type)

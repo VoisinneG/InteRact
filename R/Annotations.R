@@ -3,6 +3,7 @@
 #' @param annotations type of annotations to append
 #' @param name_id column name used to map protein identifiers
 #' @param organism organism for which the annotations have to be appended
+#' @import pannot
 #' @return an \code{InteRactome}
 #' @export
 append_annotations <- function( res, annotations=NULL, name_id = "Protein.IDs", organism = "mouse"){
@@ -15,11 +16,12 @@ append_annotations <- function( res, annotations=NULL, name_id = "Protein.IDs", 
     df_annot <- annotations
   } else{
     
-    df_annot <- get_annotations(res, name_id = name_id, organism = organism)
+    df_annot <- pannot::get_annotations(res, name_id = name_id, organism = organism)
     
     for (annot in annotations){
       df_annot <- switch(annot,
-                         "GO" =  add_GO_data(df_annot, GO_type = "molecular_function")
+                         "GO" =  add_GO_data(df_annot, GO_type = "molecular_function"),
+                          df_annot
       )
     }
     

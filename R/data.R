@@ -14,3 +14,12 @@
 #' for the description of the different variables
 #' 
 "proteinGroups_Cbl"
+
+#' Proteome of antigen-experienced conventional CD4+ T cells.
+#'
+#' The cellular abundance of proteins extracted from lysates 
+#' of CD4+ T cells lysates are shown as numbers of copies per cell
+#' 
+#' @format A data frame with 6355 rows (protein IDs) and 23 variables.
+#' 
+"proteome_data"
