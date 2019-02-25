@@ -1417,7 +1417,6 @@ global_analysis <- function( res ){
 #' @param pdata_col_ID column of \code{proteome_dataset} containing protein IDs
 #' @param pdata_col_log10_copy_number column of \code{proteome_dataset} containing
 #' protein abundances (in log10)
-#' @import proteinRuler
 #' @export
 merge_proteome <- function( res, 
                             col_ID = "Protein.IDs", 
