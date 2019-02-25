@@ -1413,11 +1413,31 @@ global_analysis <- function( res ){
 #' @param col_ID name of \code{res} containing protein IDs
 #' @param sep Set of separators used sequentially (from right to left) to 
 #' identify distinct protein IDs
+#' @param proteome_dataset Dataset containing protein abundances
+#' @param pdata_col_ID column of \code{proteome_dataset} containing protein IDs
+#' @param pdata_col_log10_copy_number column of \code{proteome_dataset} containing
+#' protein abundances (in log10)
+#' @import proteinRuler
 #' @export
-merge_proteome <- function( res, col_ID = "Protein.IDs", sep = c(";", "|", "-") ){
+merge_proteome <- function( res, 
+                            col_ID = "Protein.IDs", 
+                            sep = c(";", "|", "-"), 
+                            proteome_dataset = NULL, 
+                            pdata_col_ID = "Protein.ID",
+                            pdata_col_log10_copy_number = "mean_log10_Copy.Number"){
   
   res_int <- res
-  ibait <- match(res$bait, res$names)
+  if(class(res) == "InteRactome"){
+    ibait <- match(res$bait, res$names)
+  }
+  
+  if(is.null(proteome_dataset)){
+    pdata <- proteome_data
+    pdata_col_ID <- "Protein.ID"
+    pdata_col_log10_copy_number <- "mean_log10_Copy.Number"
+  }else{
+    pdata <- proteome_dataset
+  }
   
   ######### Retrieve protein abundance and compute related quantities
   
@@ -1436,9 +1456,9 @@ merge_proteome <- function( res, col_ID = "Protein.IDs", sep = c(";", "|", "-") 
         }
       }
       
-      idx_match <- which( as.character(proteome_data$Protein.ID) == prot_id_int)
+      idx_match <- which( as.character(pdata[[pdata_col_ID]]) == prot_id_int)
       if(length(idx_match)>0){
-        Copy_Number[i] = 10^(proteome_data[["mean_log10_Copy.Number"]][idx_match])
+        Copy_Number[i] = 10^(pdata[[pdata_col_log10_copy_number]][idx_match])
         break
       }
     }
@@ -1446,7 +1466,10 @@ merge_proteome <- function( res, col_ID = "Protein.IDs", sep = c(";", "|", "-") 
   }
 
   res_int$Copy_Number = Copy_Number
-  res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
+  
+  if(class(res) == "InteRactome"){
+    res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
+  }
   
   output=res_int
 }

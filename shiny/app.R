@@ -1127,8 +1127,7 @@ server <- function(input, output, session) {
   
   annotated_Interactome <- reactive({
       
-      #results <- append_annotations(ordered_Interactome(), saved_df$annot )
-      results <- append_annotations_enrichr(ordered_Interactome(), saved_df$annot )
+      results <- append_annotations(ordered_Interactome(), saved_df$annot, name_id = "Protein.IDs")
       results
       
   })
@@ -1183,9 +1182,15 @@ server <- function(input, output, session) {
       
       progress$set(message = "Querying annotations...", value = 0)
       if( is.null(saved_df$annot) ){
-        saved_df$annot <- pannot::get_annotations_enrichr(ordered_Interactome()["names"], dbs = annotation$selected)
+        saved_df$annot <- pannot::get_annotations_enrichr(ordered_Interactome()[c("names", "Protein.IDs")],
+                                                          name_id = "names",
+                                                          dbs = annotation$selected,
+                                                          append_to_data = TRUE)
       }else{
-        saved_df$annot <- pannot::get_annotations_enrichr(saved_df$annot, dbs = annotation$selected)
+        saved_df$annot <- pannot::get_annotations_enrichr(saved_df$annot,
+                                                          name_id = "names",
+                                                          dbs = annotation$selected,
+                                                          append_to_data = TRUE)
       }
       
       
@@ -1297,7 +1302,7 @@ server <- function(input, output, session) {
     
     plot_correlation_network(df_corr = df_corr(), 
                              r_corr_thresh = input$r_corr_thresh,
-                             p_val_thresh =  input$p_val_corr_thresh)
+                             p_val_thresh =  input$p_val_corr_thresh)$plot
 
   })
   

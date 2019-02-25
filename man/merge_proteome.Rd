@@ -4,7 +4,9 @@
 \alias{merge_proteome}
 \title{Add protein abundance to an \code{InteRactome}}
 \usage{
-merge_proteome(res, col_ID = "Protein.IDs", sep = c(";", "|", "-"))
+merge_proteome(res, col_ID = "Protein.IDs", sep = c(";", "|", "-"),
+  proteome_dataset = NULL, pdata_col_ID = "Protein.ID",
+  pdata_col_log10_copy_number = "mean_log10_Copy.Number")
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -13,6 +15,13 @@ merge_proteome(res, col_ID = "Protein.IDs", sep = c(";", "|", "-"))
 
 \item{sep}{Set of separators used sequentially (from right to left) to 
 identify distinct protein IDs}
+
+\item{proteome_dataset}{Dataset containing protein abundances}
+
+\item{pdata_col_ID}{column of \code{proteome_dataset} containing protein IDs}
+
+\item{pdata_col_log10_copy_number}{column of \code{proteome_dataset} containing
+protein abundances (in log10)}
 }
 \description{
 Add protein abundance to an \code{InteRactome}. 
