@@ -410,6 +410,13 @@ ui <- fluidPage(
                                     wellPanel(
                                       numericInput("Nmax2D", "# displayed (max) ", value = 30)
                                     )
+                                  ),
+                                  column(width=4,
+                                         wellPanel(
+                                           selectInput("proteome", "Select proteome",
+                                                       choices = c("CD4+ T cells", "transfected CD4+ T cells", "Jurkat cells"), 
+                                                       selected = "effector CD4+ T cells")
+                                         )
                                   )
                                 ),
                                 fluidRow(
@@ -1058,7 +1065,7 @@ server <- function(input, output, session) {
                           substract_ctrl = input$substract_ctrl,
                           use_mean_for_bait = input$use_mean_for_bait)
       
-      res_int <- merge_proteome(res_int)
+      
       df_merge <- merge_conditions(res_int)
       FDR_res <- compute_FDR_from_asymmetry(df_merge)
       df_FDR <- df_merge
@@ -1068,6 +1075,18 @@ server <- function(input, output, session) {
       
       saved_df$res <- res_int
       
+  })
+  
+  observe({
+    res_int <- saved_df$res
+    proteome_dataset <- switch(input$proteome,
+                               "CD4+ T cells" = NULL,
+                               "transfected CD4+ T cells" = proteome_CD4_expanded,
+                               "Jurkat cells" = proteome_Jurkat)
+    if(!is.null(res_int)){
+      saved_df$res <- merge_proteome(res_int, proteome_dataset = proteome_dataset)
+    }
+   
   })
   
   observe({

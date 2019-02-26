@@ -4,7 +4,7 @@
 \name{proteome_data}
 \alias{proteome_data}
 \title{Proteome of antigen-experienced conventional CD4+ T cells.}
-\format{A data frame with 6355 rows (protein IDs) and 23 variables.}
+\format{A data frame with 6355 rows (one per protein ID) and 23 variables.}
 \usage{
 proteome_data
 }
