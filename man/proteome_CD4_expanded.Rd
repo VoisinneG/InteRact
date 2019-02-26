@@ -4,7 +4,7 @@
 \name{proteome_CD4_expanded}
 \alias{proteome_CD4_expanded}
 \title{Proteome of CD4+ T cells from Cas9-GFP mice after expansion and transfection with a CRISPR gRNA.}
-\format{A data frame with 19973 rows (one per protein ID) and 3 variables.}
+\format{A data frame with 19690 rows (one per protein ID) and 20 variables.}
 \usage{
 proteome_CD4_expanded
 }

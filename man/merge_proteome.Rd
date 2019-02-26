@@ -4,23 +4,35 @@
 \alias{merge_proteome}
 \title{Add protein abundance to an \code{InteRactome}}
 \usage{
-merge_proteome(res, col_ID = "Protein.IDs", sep = c(";", "|", "-"),
+merge_proteome(res, col_ID = "Protein.IDs", col_names = "names",
+  sep_primary = ";", sep_secondary = c("|", "-"),
   proteome_dataset = NULL, pdata_col_ID = "Protein.ID",
-  pdata_col_log10_copy_number = "mean_log10_Copy.Number")
+  pdata_col_gene_name = "Gene.names",
+  pdata_col_log10_copy_number = "mean_log10_Copy.Number",
+  map_gene_name = FALSE)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
 \item{col_ID}{name of \code{res} containing protein IDs}
 
-\item{sep}{Set of separators used sequentially (from right to left) to 
-identify distinct protein IDs}
+\item{col_names}{name of \code{res} containing gene names}
 
-\item{proteome_dataset}{Dataset containing protein abundances}
+\item{sep_primary}{Separator between different proteins}
+
+\item{sep_secondary}{Set of separators used sequentially (from right to left) to 
+identify protein IDs for each protein}
+
+\item{proteome_dataset}{Dataset containing protein abundances.
+If \code{NULL}, the proteome of effector CD4+ T cells (\code{proteome_CD4})is used.}
 
 \item{pdata_col_ID}{column of \code{proteome_dataset} containing protein IDs}
 
-\item{pdata_col_log10_copy_number}{column of \code{proteome_dataset} containing
+\item{pdata_col_gene_name}{column of \code{proteome_dataset} containing gene names}
+
+\item{pdata_col_log10_copy_number}{column of \code{proteome_dataset} containing}
+
+\item{map_gene_name}{logical, map protein using gene names rather than protein IDs
 protein abundances (in log10)}
 }
 \description{

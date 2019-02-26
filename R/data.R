@@ -22,14 +22,14 @@
 #' 
 #' @format A data frame with 6355 rows (one per protein ID) and 23 variables.
 #' 
-"proteome_data"
+"proteome_CD4"
 
 #' Proteome of CD4+ T cells from Cas9-GFP mice after expansion and transfection with a CRISPR gRNA.
 #'
 #' The cellular abundance of proteins extracted from lysates 
 #' of CD4+ T cells lysates are shown as numbers of copies per cell
 #' 
-#' @format A data frame with 19973 rows (one per protein ID) and 3 variables.
+#' @format A data frame with 19690 rows (one per protein ID) and 20 variables.
 #' 
 "proteome_CD4_expanded"
 
@@ -38,6 +38,6 @@
 #' The cellular abundance of proteins extracted from lysates 
 #' of Jurkat T cells lysates are shown as numbers of copies per cell
 #' 
-#' @format A data frame with 4399 rows (one per protein ID) and 4 variables.
+#' @format A data frame with 4399 rows (one per protein ID) and 20 variables.
 #' 
 "proteome_Jurkat"

@@ -183,8 +183,6 @@ THPRD <- read.table(paste("~/ownCloud/++Work/++Research/Resources-Databases/HPRD
 # import proteome data ------------------------------------------------------------------------------------------
 
 load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Merge_Proteome_OST_and_CD4_kinetics/proteome_CD4.rda")
-proteome_data <- proteome_CD4
-
 load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Proteome_CD4+_transfected_expanded/proteome_CD4_expanded.rda")
 load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Proteome_Jurkat_Itsn2_KO/proteome_Jurkat.rda")
 
@@ -214,7 +212,7 @@ devtools::use_data(
   #GOA_mouse_slim,
   #GOA_human,
   #GOA_human_slim,
-  proteome_data,
+  proteome_CD4,
   proteome_CD4_expanded,
   proteome_Jurkat,
   THPRD,
@@ -233,7 +231,7 @@ devtools::use_data(
 proteinGroups_Cbl <- read.csv("~/Documents/Data/BMMlab/CBL-CBLB_paper/C-CBL/data/ProteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=",")
 
 devtools::use_data(proteinGroups_Cbl,
-                   proteome_data,
+                   proteome_CD4,
                    proteome_CD4_expanded,
                    proteome_Jurkat,
                    pkg=".",

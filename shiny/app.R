@@ -415,7 +415,8 @@ ui <- fluidPage(
                                          wellPanel(
                                            selectInput("proteome", "Select proteome",
                                                        choices = c("CD4+ T cells", "transfected CD4+ T cells", "Jurkat cells"), 
-                                                       selected = "effector CD4+ T cells")
+                                                       selected = "effector CD4+ T cells"),
+                                           checkboxInput("map_gene_name", "Map using gene names", value = FALSE)
                                          )
                                   )
                                 ),
@@ -1084,7 +1085,7 @@ server <- function(input, output, session) {
                                "transfected CD4+ T cells" = proteome_CD4_expanded,
                                "Jurkat cells" = proteome_Jurkat)
     if(!is.null(res_int)){
-      saved_df$res <- merge_proteome(res_int, proteome_dataset = proteome_dataset)
+      saved_df$res <- merge_proteome(res_int, proteome_dataset = proteome_dataset, map_gene_name = input$map_gene_name)
     }
    
   })

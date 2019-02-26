@@ -4,7 +4,7 @@
 \name{proteome_Jurkat}
 \alias{proteome_Jurkat}
 \title{Proteome of Jurkat T cells}
-\format{A data frame with 4399 rows (one per protein ID) and 4 variables.}
+\format{A data frame with 4399 rows (one per protein ID) and 20 variables.}
 \usage{
 proteome_Jurkat
 }

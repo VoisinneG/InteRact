@@ -1411,19 +1411,28 @@ global_analysis <- function( res ){
 #' Protein abundance are obtained from CD4+ effector T cells.
 #' @param res an \code{InteRactome}
 #' @param col_ID name of \code{res} containing protein IDs
-#' @param sep Set of separators used sequentially (from right to left) to 
-#' identify distinct protein IDs
-#' @param proteome_dataset Dataset containing protein abundances
+#' @param col_names name of \code{res} containing gene names
+#' @param sep_primary Separator between different proteins
+#' @param sep_secondary Set of separators used sequentially (from right to left) to 
+#' identify protein IDs for each protein
+#' @param proteome_dataset Dataset containing protein abundances.
+#' If \code{NULL}, the proteome of effector CD4+ T cells (\code{proteome_CD4})is used.
 #' @param pdata_col_ID column of \code{proteome_dataset} containing protein IDs
+#' @param pdata_col_gene_name column of \code{proteome_dataset} containing gene names
 #' @param pdata_col_log10_copy_number column of \code{proteome_dataset} containing
+#' @param map_gene_name logical, map protein using gene names rather than protein IDs
 #' protein abundances (in log10)
 #' @export
 merge_proteome <- function( res, 
-                            col_ID = "Protein.IDs", 
-                            sep = c(";", "|", "-"), 
+                            col_ID = "Protein.IDs",
+                            col_names = "names",
+                            sep_primary = ";",
+                            sep_secondary = c("|", "-"), 
                             proteome_dataset = NULL, 
                             pdata_col_ID = "Protein.ID",
-                            pdata_col_log10_copy_number = "mean_log10_Copy.Number"){
+                            pdata_col_gene_name = "Gene.names",
+                            pdata_col_log10_copy_number = "mean_log10_Copy.Number",
+                            map_gene_name = FALSE){
   
   res_int <- res
   if(class(res) == "InteRactome"){
@@ -1431,11 +1440,24 @@ merge_proteome <- function( res,
   }
   
   if(is.null(proteome_dataset)){
-    pdata <- proteome_data
+    pdata <- proteome_CD4
     pdata_col_ID <- "Protein.ID"
     pdata_col_log10_copy_number <- "mean_log10_Copy.Number"
+    pdata_col_gene_name <- "Gene.Names"
   }else{
     pdata <- proteome_dataset
+  }
+  
+  col_map <- col_ID
+  pdata_col_map <- pdata_col_ID
+  sep_secondary_int <- sep_secondary
+  sep_primary_int <- sep_primary
+  
+  if(map_gene_name){
+    col_map <- col_names
+    pdata_col_map <- pdata_col_gene_name
+    sep_secondary_int <- NULL
+    sep_primary_int <- " "
   }
   
   ######### Retrieve protein abundance and compute related quantities
@@ -1444,20 +1466,26 @@ merge_proteome <- function( res,
   
   for( i in 1:length(res$names) ){
     
-    prot_ids <- strsplit(as.character(res[[col_ID]][i]), split = sep[1], fixed = TRUE)[[1]]
+    prot_ids <- strsplit(as.character(res[[col_map]][i]), split = sep_primary_int, fixed = TRUE)[[1]]
     
     for(j in 1:length(prot_ids)){
       
       prot_id_int <- prot_ids[j]
-      if(length(sep)>1){
-        for(k in 2:length(sep)){
-          prot_id_int <- strsplit(prot_id_int, split = sep[k], fixed = TRUE)[[1]][1]
+      if(length(sep_secondary_int)>0){
+        for(k in 1:length(sep_secondary_int)){
+          prot_id_int <- strsplit(prot_id_int, split = sep_secondary_int[k], fixed = TRUE)[[1]][1]
         }
       }
       
-      idx_match <- which( as.character(pdata[[pdata_col_ID]]) == prot_id_int)
+      #idx_match <- which( as.character(pdata[[pdata_col_map]]) == prot_id_int)
+      
+      idx_match <-grep( paste("(^|", sep_primary_int, ")", toupper(prot_id_int), "($|", sep_primary_int, ")", sep =""),
+                        toupper(as.character(pdata[[pdata_col_map]])),
+                        fixed = FALSE)
+            
+      
       if(length(idx_match)>0){
-        Copy_Number[i] = 10^(pdata[[pdata_col_log10_copy_number]][idx_match])
+        Copy_Number[i] = 10^(pdata[[pdata_col_log10_copy_number]][idx_match[1]])
         break
       }
     }
