@@ -1443,7 +1443,7 @@ merge_proteome <- function( res,
     pdata <- proteome_CD4
     pdata_col_ID <- "Protein.ID"
     pdata_col_log10_copy_number <- "mean_log10_Copy.Number"
-    pdata_col_gene_name <- "Gene.Names"
+    pdata_col_gene_name <- "Gene.names"
   }else{
     pdata <- proteome_dataset
   }
