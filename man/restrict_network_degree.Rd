@@ -5,7 +5,7 @@
 \title{Limit the number of edges per node within a network}
 \usage{
 restrict_network_degree(df_corr, source = "name_1", target = "name_2",
-  nmax = NULL)
+  nmax = NULL, strict = TRUE)
 }
 \arguments{
 \item{df_corr}{a data.frame}
@@ -15,6 +15,8 @@ restrict_network_degree(df_corr, source = "name_1", target = "name_2",
 \item{target}{column with target nodes}
 
 \item{nmax}{integer, limits the number of edges per node}
+
+\item{strict}{logical, if TRUE, ensures a strict upper bound on the maximal degree}
 }
 \value{
 a network with a maximum degree lower than \code{nmax}

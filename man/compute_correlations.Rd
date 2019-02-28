@@ -5,7 +5,7 @@
 \title{Compute correlation in protein recruitment}
 \usage{
 compute_correlations(res, idx = NULL, log = FALSE, nmax = NULL,
-  Rmin = 0)
+  strict = TRUE, Rmin = 0)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -15,6 +15,8 @@ compute_correlations(res, idx = NULL, log = FALSE, nmax = NULL,
 \item{log}{logical, use log-transformed stoichiometries}
 
 \item{nmax}{integer, limits the number of edges per node}
+
+\item{strict}{logical, if TRUE, ensures a strict upper bound on the maximal degree}
 
 \item{Rmin}{minimum absolute value of the Pearson R coefficient}
 }

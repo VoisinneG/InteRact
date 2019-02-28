@@ -1680,12 +1680,13 @@ order_interactome <- function(res, idx = NULL,
 #' @param idx indexes of the set of proteins for which correlations will be computed
 #' @param log logical, use log-transformed stoichiometries
 #' @param nmax integer, limits the number of edges per node
+#' @param strict logical, if TRUE, ensures a strict upper bound on the maximal degree
 #' @param Rmin minimum absolute value of the Pearson R coefficient 
 #' @return a data.frame with protein correlation information 
 #' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
 #' @importFrom Hmisc rcorr
 #' @export
-compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin = 0){
+compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, strict = TRUE, Rmin = 0){
 
   
   # build matrix on which correlations will be computed
@@ -1768,7 +1769,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin
   
   #limit the number of edges per node
   
-  df_corr <- restrict_network_degree(df_corr = df_corr, source = "name_1", target = "name_2", nmax = nmax)
+  df_corr <- restrict_network_degree(df_corr = df_corr, source = "name_1", target = "name_2", nmax = nmax, strict = strict)
   
   return(df_corr)
 }
@@ -1779,9 +1780,10 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin
 #' @param source column with source nodes
 #' @param target column with target nodes
 #' @param nmax integer, limits the number of edges per node
+#' @param strict logical, if TRUE, ensures a strict upper bound on the maximal degree
 #' @return a network with a maximum degree lower than \code{nmax}
 #' @export
-restrict_network_degree <- function(df_corr, source = "name_1", target = "name_2", nmax = NULL){
+restrict_network_degree <- function(df_corr, source = "name_1", target = "name_2", nmax = NULL, strict = TRUE){
   
   nmax_int <- nmax
   if(!is.null(nmax)){
@@ -1804,9 +1806,16 @@ restrict_network_degree <- function(df_corr, source = "name_1", target = "name_2
     for(i in 1:dim(df_corr)[1]){
       n_edges[[df_corr$source[i]]] <- n_edges[[df_corr$source[i]]] + 1 
       n_edges[[df_corr$target[i]]] <- n_edges[[df_corr$target[i]]] + 1 
-      if(n_edges[[df_corr$source[i]]] > nmax_int | n_edges[[df_corr$target[i]]] > nmax_int){
-        delete_edge[i] <- TRUE
+      if(strict){
+        if(n_edges[[df_corr$source[i]]] > nmax_int | n_edges[[df_corr$target[i]]] > nmax_int){
+          delete_edge[i] <- TRUE
+        }
+      }else{
+        if(n_edges[[df_corr$source[i]]] > nmax_int & n_edges[[df_corr$target[i]]] > nmax_int){
+          delete_edge[i] <- TRUE
+        }
       }
+      
     }
     
   }
