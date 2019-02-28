@@ -449,7 +449,8 @@ ui <- fluidPage(
                                        br(),
                                        wellPanel(
                                          numericInput("r_corr_thresh", "Correlation Pearson R (min) ", value = 0.8),
-                                         numericInput("p_val_corr_thresh", "Associated p-value (max)", value = 0.05)
+                                         numericInput("p_val_corr_thresh", "Associated p-value (max)", value = 0.05),
+                                         numericInput("n_edge_max", "Maximum number of edge per node", value = 0)
                                        ),
                                        wellPanel(
                                          helpText("zoom in : dbl click"),
@@ -1287,6 +1288,7 @@ server <- function(input, output, session) {
   
   df_corr <- reactive({
     compute_correlations(ordered_Interactome(), 
+                         nmax = input$n_edge_max,
                          idx=which(ordered_Interactome()$is_interactor > 0))
     
   })

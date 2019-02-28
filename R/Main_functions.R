@@ -1679,13 +1679,14 @@ order_interactome <- function(res, idx = NULL,
 #' @param res an \code{InteRactome}
 #' @param idx indexes of the set of proteins for which correlations will be computed
 #' @param log logical, use log-transformed stoichiometries
-#' @param nmax integer, limits the number of connections per node
+#' @param nmax integer, limits the number of edges per node
 #' @param Rmin minimum absolute value of the Pearson R coefficient 
 #' @return a data.frame with protein correlation information 
 #' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
 #' @importFrom Hmisc rcorr
 #' @export
 compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin = 0){
+
   
   # build matrix on which correlations will be computed
   idx_selected <- 1:length(res$names)
@@ -1717,7 +1718,8 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin
   
   R <- Hmisc::rcorr(t(M))
   n <- dim(R$r)[1]
-  M_transpose <- matrix(0, n, n)
+
+  M_transpose <- matrix(0, n, n) # used to avoid duplicated edges
   
   r_corr <- rep(NA, n*(n-1)/2)
   p_corr <- rep(NA, n*(n-1)/2)
@@ -1729,7 +1731,9 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin
     
     idx <- order(R$r[i, ], decreasing = TRUE)
     
-    for (j in idx[ 2 : ( min(1 + nmax, n) - 1 )]){
+    #for (j in idx[ 2 : ( min(1 + nmax_int, 1 + n) - 1 )]){
+    for (j in setdiff(1:n, i) ){  
+      
       if(M_transpose[j, i] == 0){
         count<-count+1
         r_corr[count] <- R$r[i, j]
@@ -1738,6 +1742,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin
         name_2[count] <- names[j]
         M_transpose[i, j] <- 1
       }
+        
       
     }
     
@@ -1749,6 +1754,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin
                          r_corr = r_corr, 
                          p_corr = p_corr)
   
+  #Filter edges based on correlation coefficient
   
   df_corr <- df_corr[!is.na(df_corr$r_corr) & 
                        !is.na(df_corr$p_corr) & 
@@ -1758,7 +1764,54 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, Rmin
   df_corr$p_corr_bonferroni <- p.adjust(df_corr$p_corr, method="bonferroni")
   df_corr$p_corr_fdr <- p.adjust(df_corr$p_corr, method="fdr")
   
+  df_corr <- df_corr[order(df_corr$r_corr, decreasing = TRUE), ]
+  
+  #limit the number of edges per node
+  
+  df_corr <- restrict_network_degree(df_corr = df_corr, source = "name_1", target = "name_2", nmax = nmax)
+  
   return(df_corr)
+}
+
+#' Limit the number of edges per node within a network
+#' @description Limit the number of edges per node within a network
+#' @param df_corr a data.frame
+#' @param source column with source nodes
+#' @param target column with target nodes
+#' @param nmax integer, limits the number of edges per node
+#' @return a network with a maximum degree lower than \code{nmax}
+#' @export
+restrict_network_degree <- function(df_corr, source = "name_1", target = "name_2", nmax = NULL){
+  
+  nmax_int <- nmax
+  if(!is.null(nmax)){
+    if(nmax <= 0){
+      nmax_int <- NULL
+    }
+  }
+  
+  delete_edge <- rep(FALSE, dim(df_corr)[1])
+  
+  df_corr$source <- as.character(df_corr[[source]])
+  df_corr$target <- as.character(df_corr[[target]])
+  u_nodes <- unique(c(df_corr$source, df_corr$target))
+  
+  if(!is.null(nmax_int)){
+    
+    n_edges <- rep(0, length(u_nodes))
+    names(n_edges) <- u_nodes
+    
+    for(i in 1:dim(df_corr)[1]){
+      n_edges[[df_corr$source[i]]] <- n_edges[[df_corr$source[i]]] + 1 
+      n_edges[[df_corr$target[i]]] <- n_edges[[df_corr$target[i]]] + 1 
+      if(n_edges[[df_corr$source[i]]] > nmax_int | n_edges[[df_corr$target[i]]] > nmax_int){
+        delete_edge[i] <- TRUE
+      }
+    }
+    
+  }
+  
+  return( df_corr[!delete_edge, ] )
 }
 
 #' Create a summary table for an \code{InteRactome}

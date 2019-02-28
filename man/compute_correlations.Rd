@@ -14,7 +14,7 @@ compute_correlations(res, idx = NULL, log = FALSE, nmax = NULL,
 
 \item{log}{logical, use log-transformed stoichiometries}
 
-\item{nmax}{integer, limits the number of connections per node}
+\item{nmax}{integer, limits the number of edges per node}
 
 \item{Rmin}{minimum absolute value of the Pearson R coefficient}
 }
