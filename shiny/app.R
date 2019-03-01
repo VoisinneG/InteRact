@@ -38,6 +38,9 @@ library(BiocInstaller)
 options(repos = BiocInstaller::biocinstallRepos(), shiny.maxRequestSize = 100*1024^2)
 getOption("repos")
 
+bait_list <- c("Grb2", "Cbl", "Cblb", "Fyb", "Inpp5d", "Itk", "Lck", "Lcp2", "Nfatc2",
+               "Ptpn22", "Vav1", "Plcg1", "Themis", "Ptpn6", "Nck1")
+
 dbs <- enrichR::listEnrichrDbs()$libraryName
 method_choices <- c("default",
                     "pmm", 
@@ -129,8 +132,9 @@ ui <- fluidPage(
                                 column(4,
                                        br(),
                                        wellPanel(
-                                         selectInput("mode", "Select data type", choices=c("Raw data","Interactome"), selected = "raw data"),
+                                         selectInput("mode", "Select data type", choices=c("Raw data","Interactome", "Example interactome"), selected = "raw data"),
                                          bsTooltip("mode", "Raw data : file with protein intensity values (.txt or .csv), Interactome : a pre-computed interactome", placement = "top")
+                                         
                                        ),
                                        conditionalPanel(
                                          condition = "input.mode == 'Raw data'",
@@ -141,7 +145,9 @@ ui <- fluidPage(
                                            selectInput("excel_sheet",
                                                        "Select sheet",
                                                        choices = list(),
-                                                       selected = NULL)
+                                                       selected = NULL),
+                                           actionButton("load_raw_example", label = "Load example file")
+                                           
                                          ),
                                          wellPanel(
                                            h4("Select columns"),
@@ -180,6 +186,13 @@ ui <- fluidPage(
                                         condition = "input.mode == 'Interactome'",
                                         wellPanel(
                                           fileInput("load", h4("Load interactome :"), placeholder = "Enter file here")
+                                        )  
+                                      ),
+                                      conditionalPanel(
+                                        condition = "input.mode == 'Example interactome'",
+                                        wellPanel(
+                                          selectInput("bait_selected", h4("Select bait :"), choices = bait_list, selected = "Cbl"),
+                                          actionButton("load_example", label = "Load")
                                         )  
                                       )   
                                   ),
@@ -645,6 +658,32 @@ server <- function(input, output, session) {
     updateTextInput(session, "bait_gene_name", value = saved_df$res$bait)
   })
   
+  # load example Interactome
+  observeEvent(input$load_example, {
+    
+      Interactome_name <- paste("Interactome_", input$bait_selected, sep="")
+      #cat(data())
+      #data(list=Interactome_name)
+      saved_df$res <- get(Interactome_name)
+      saved_df$params <- saved_df$res$params
+      saved_df$cond <- saved_df$res$data$conditions
+      saved_df$cond_select <- saved_df$cond
+      saved_df$cond_data <- saved_df$cond
+      
+      idx_match <- match(rownames(saved_df$res$data$Intensity), saved_df$res$names)
+      
+      saved_df$data <- cbind(data.frame(Protein.IDs = saved_df$res$Protein.IDs[idx_match],
+                                        names = saved_df$res$names[idx_match],
+                                        Npep = saved_df$res$Npep[idx_match]
+                                        ),
+                              saved_df$res$data$Intensity
+                              )
+      
+      
+      updateTextInput(session, "bait_gene_name", value = saved_df$res$bait)
+
+   
+  })
   
   observe({
     
@@ -666,7 +705,6 @@ server <- function(input, output, session) {
   
   # load raw data
   observe({
-    
     validate(
       need(input$file$datapath, "Please select a file to import")
     )
@@ -693,6 +731,17 @@ server <- function(input, output, session) {
     saved_df$cond <- NULL
     saved_df$data <- df
     
+  })
+  
+  # load raw data
+  observeEvent(input$load_raw_example, {
+    saved_df$cond <- NULL
+    saved_df$data <- get("proteinGroups_Cbl")
+    updateTextInput(session, "bait_gene_name", value = "Cbl")
+    updateNumericInput(session, "bckg_pos", value = 1)
+    updateNumericInput(session, "bio_pos", value = 3)
+    updateNumericInput(session, "time_pos", value = 2)
+    updateNumericInput(session, "tech_pos", value = 4)
   })
   
   observe({
@@ -882,7 +931,7 @@ server <- function(input, output, session) {
         updateTextInput(session, "bait_gene_name", value = bait_guess)
       }
       
-    }else if(input$mode == "Interactome"){
+    }else if(input$mode == "Interactome" | input$mode == "Example interactome"){
       updateSelectInput(session, "bckg_bait",
                         choices = as.list(unique(saved_df$cond$bckg)),
                         selected = saved_df$res$bckg_bait)
@@ -937,7 +986,7 @@ server <- function(input, output, session) {
     cond_int <- cond_int[idx_cond_selected, ]
     saved_df$cond_select <- cond_int
 
-    if(input$mode == "Interactome"){
+    if(input$mode == "Interactome" | input$mode == "Example interactome"){
       saved_df$cond_data <- saved_df$cond_select
     }
     
@@ -1013,7 +1062,7 @@ server <- function(input, output, session) {
                         
       )
       
-    } else if( input$mode == "Interactome"){
+    } else if( input$mode == "Interactome" | input$mode == "Example interactome"){
       
       validate(
         need(!is.null(saved_df$data), "Please load an Interactome")
@@ -1119,7 +1168,7 @@ server <- function(input, output, session) {
 
   ordered_Interactome <- reactive({
     
-    if(input$mode == "Interactome"){
+    if(input$mode == "Interactome" | input$mode == "Example interactome"){
       validate(
         need(!is.null(saved_df$res), "No interactome loaded. Please import an interactome (see Import tab)")
       )
@@ -1332,7 +1381,7 @@ server <- function(input, output, session) {
   data_summary <- reactive({
     
     validate(
-      need(length(input$file)>0 |length(input$load)>0, "Please select a file to import") %then%
+      need(length(input$file)>0 | length(input$load)>0 |  input$load_example | input$load_raw_example, "Please select a file to import") %then%
       need(dim(saved_df$data)[2]>0, "Empty data set")
     )
     
