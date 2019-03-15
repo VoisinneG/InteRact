@@ -1,3 +1,6 @@
+
+utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
+
 #' Analysis of AP-MS data
 #' @param df A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
 #' (use parameter \code{Column_intensity_pattern} to change)
@@ -33,7 +36,7 @@
 #' #Run InteRact with default parameters
 #' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 #' 
-#' #You now have an \code{InteRactome}. See its elements.
+#' #You now have an `InteRactome`. See its elements.
 #' class(res)
 #' names(res)
 #' #Generate volcano plots
@@ -45,8 +48,6 @@
 #' #Visualize interaction kinetics
 #' plot_per_condition(res)
 #' 
-#' # Append protein abundance information
-#' res <- merge_proteome(res)
 #' # Append annotations
 #' res <- append_annotations(res,  annotations = "")
 #' #Create a summary data frame
@@ -205,9 +206,6 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
     }
   }
   
-  #cat(common_interactors)
-  #cat(cond)
-  
   idxA <- match(common_interactors, resA$names)
   idxB <- match(common_interactors, resB$names)
   idxB_in_A <- match(resB$bait, resA$names)
@@ -305,9 +303,9 @@ preprocess_data <- function(df,
                             ...            
 ){
   
-  #if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
-  #  stop("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
-  #}
+  if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
+    warning("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
+  }
   
   if(! Column_ID %in% names(df)){
     warning(paste("Column ", Column_ID, " could not be found", sep=""))
@@ -357,7 +355,6 @@ preprocess_data <- function(df,
   }
   cond_filter <- cond_filter[!is.na(idx_match), ]
   
-  #print(cond_filter$column[is.na(idx_match)])
   
   #discard columns that are factors
   is_factor <- sapply(match(cond_filter$column, names(df)), function(x){is.factor(df[[x]])})
@@ -369,9 +366,6 @@ preprocess_data <- function(df,
     df <- df[ , -match(cond_filter$column, names(df))[is_factor] ]
     cond_filter <- cond_filter[!is_factor, ]
   }
-  
-  #format gene name
-  #df$gene_name <- sapply(df[[Column_gene_name]], function(x) strsplit(as.character(x),split=";")[[1]][1] )
   
   # Filter protein with no gene name and a low score
   df <- filter_Proteins(df, 
@@ -388,8 +382,6 @@ preprocess_data <- function(df,
   idx_col = match(cond_filter$column, names(df))
   idx_col <- idx_col[!is.na(idx_col)]
   df <- merge_duplicate_groups(df, idx_col = idx_col, merge_column = "gene_name")
-  
-  
   
   #identify bait
   ibait <- which(df$gene_name == bait_gene_name);
@@ -447,7 +439,7 @@ preprocess_data <- function(df,
 #' @examples
 #' #load data :
 #' data("proteinGroups_Cbl")
-#' # You can identify columns and their description separately using \code{identify_conditions()}
+#' # You can identify columns and their description separately using `identify_conditions()`
 #' cond <- identify_conditions(proteinGroups_Cbl)
 #' print.data.frame(cond)
 #' # and use it as parameters for function InteRact()
@@ -477,7 +469,6 @@ identify_conditions <- function(df,
   bio <- rep("", length(col_I))
   tech <- rep("", length(col_I))
   time <- rep("", length(col_I))
-  #s <- strsplit(col_I, split=split, fixed=TRUE)
   
   for (i in 1:length(col_I)){
     n <- length(s[[i]])
@@ -517,7 +508,8 @@ identify_conditions <- function(df,
 #' cond <- identify_conditions(df)
 #' Column_intensity_pattern <- "^Intensity."
 #' df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
-#  avg <- average_technical_replicates(df_int, cond)
+#' avg <- average_technical_replicates(df_int, cond)
+
 average_technical_replicates<-function(df, cond, log = TRUE){
   
   cond$idx_match <- match(cond$column, names(df))
@@ -808,11 +800,6 @@ row_stoichio <- function(df,
                          use_mean_for_bait = TRUE,
                          idx_group_1_mean,
                          idx_group_2_mean){
-  # compute stoichiometry of interaction for each row (protein).
-  # idx_group_1 : indexes of columns for group #1 (OST bait)
-  # idx_group_2 : indexes of columns for group #2 (WT)
-  # idx_bait : row index for the bait
-  # N_pep : vector with the number of theoretical observable peptides for each row (protein).
   
   stoichio <- rep(NaN,dim(df)[1]);
   
@@ -956,10 +943,6 @@ analyse_interactome <- function(Intensity,
                                                  idx_group_1_mean = which( background == bckg_bait ),
                                                  idx_group_2_mean = which( background == bckg_ctrl )
       )
-      # intensity_bait[[i]][[i_bio]] <- as.numeric(df[ , idx_bait_bio])
-      # intensity_ctrl[[i]][[i_bio]]<- as.numeric(df[ , idx_ctrl_bio])
-      # intensity_na_bait[[i]][[i_bio]] <- as.numeric(Intensity[ , idx_bait_bio])
-      # intensity_na_ctrl[[i]][[i_bio]]<- as.numeric(Intensity[ , idx_ctrl_bio])
     }
   }
   
@@ -975,10 +958,6 @@ analyse_interactome <- function(Intensity,
              fold_change=fold_change,
              stoichio=stoichio,
              stoichio_bio = stoichio_bio,
-             # intensity_bait = intensity_bait,
-             # intensity_ctrl = intensity_ctrl,
-             # intensity_na_bait = intensity_na_bait,
-             # intensity_na_ctrl = intensity_na_ctrl,
              data = list(Intensity_na_replaced = Intensity_na_replaced,
                          Intensity = Intensity,
                          conditions = conditions
@@ -1273,6 +1252,7 @@ compute_FDR_from_asymmetry <- function( df = NULL,
 #' df_merge <- merge_conditions(res)
 #' df_FDR <- compute_FDR_from_asymmetry(df_merge)
 #' Interactome <- append_FDR(res, cbind(df_merge, FDR = df_FDR$FDR) )
+
 append_FDR <- function(res, df){
   
   
@@ -1411,16 +1391,16 @@ global_analysis <- function( res ){
 #' Protein abundance are obtained from CD4+ effector T cells.
 #' @param res an \code{InteRactome}
 #' @param col_ID name of \code{res} containing protein IDs
-#' @param col_names name of \code{res} containing gene names
+#' @param col_names name of \code{res} containing gene names. Only used if \code{map_gene_name = TRUE}.
 #' @param sep_primary Separator between different proteins
 #' @param sep_secondary Set of separators used sequentially (from right to left) to 
 #' identify protein IDs for each protein
 #' @param proteome_dataset Dataset containing protein abundances.
-#' If \code{NULL}, the proteome of effector CD4+ T cells (\code{proteome_CD4})is used.
 #' @param pdata_col_ID column of \code{proteome_dataset} containing protein IDs
 #' @param pdata_col_gene_name column of \code{proteome_dataset} containing gene names
-#' @param pdata_col_log10_copy_number column of \code{proteome_dataset} containing
+#' @param pdata_col_copy_number column of \code{proteome_dataset} containing
 #' @param map_gene_name logical, map protein using gene names rather than protein IDs
+#' @param updateProgress used to display progress in shiny apps
 #' protein abundances (in log10)
 #' @export
 merge_proteome <- function( res, 
@@ -1428,26 +1408,20 @@ merge_proteome <- function( res,
                             col_names = "names",
                             sep_primary = ";",
                             sep_secondary = c("|", "-"), 
-                            proteome_dataset = NULL, 
+                            proteome_dataset, 
                             pdata_col_ID = "Protein.ID",
                             pdata_col_gene_name = "Gene.names",
-                            pdata_col_log10_copy_number = "mean_log10_Copy.Number",
-                            map_gene_name = FALSE){
+                            pdata_col_copy_number = "Copy.Number",
+                            map_gene_name = FALSE,
+                            updateProgress = NULL){
+  
   
   res_int <- res
   if(class(res) == "InteRactome"){
     ibait <- match(res$bait, res$names)
   }
   
-  if(is.null(proteome_dataset)){
-    pdata <- proteome_CD4
-    pdata_col_ID <- "Protein.ID"
-    pdata_col_log10_copy_number <- "mean_log10_Copy.Number"
-    pdata_col_gene_name <- "Gene.names"
-  }else{
-    pdata <- proteome_dataset
-  }
-  
+  pdata <- proteome_dataset
   col_map <- col_ID
   pdata_col_map <- pdata_col_ID
   sep_secondary_int <- sep_secondary
@@ -1462,9 +1436,19 @@ merge_proteome <- function( res,
   
   ######### Retrieve protein abundance and compute related quantities
   
+  idx_match_all <- rep(NA, length(res$names));
   Copy_Number <- rep(NA, length(res$names));
   
+  cat("Get protein abundances...\n")
+  pb <- txtProgressBar(min = 0, max = 100, style = 3)
+  
   for( i in 1:length(res$names) ){
+    
+    if (is.function(updateProgress)) {
+      text <- paste0( i/length(res$names)*100)
+      updateProgress(value = format(i/length(res$names)*100, digits = 0), detail = text)
+    }
+    setTxtProgressBar(pb, i/length(res$names)*100)
     
     prot_ids <- strsplit(as.character(res[[col_map]][i]), split = sep_primary_int, fixed = TRUE)[[1]]
     
@@ -1477,28 +1461,30 @@ merge_proteome <- function( res,
         }
       }
       
-      #idx_match <- which( as.character(pdata[[pdata_col_map]]) == prot_id_int)
-      
       idx_match <-grep( paste("(^|", sep_primary_int, ")", toupper(prot_id_int), "($|", sep_primary_int, ")", sep =""),
                         toupper(as.character(pdata[[pdata_col_map]])),
                         fixed = FALSE)
             
       
       if(length(idx_match)>0){
-        Copy_Number[i] = 10^(pdata[[pdata_col_log10_copy_number]][idx_match[1]])
+        idx_match_all[i] <- idx_match[1]
+        
         break
       }
     }
     
   }
-
-  res_int$Copy_Number = Copy_Number
+  close(pb)
+  
+  Copy_Number <- pdata[[pdata_col_copy_number]][idx_match_all]
+  res_int$Copy_Number <- Copy_Number
   
   if(class(res) == "InteRactome"){
     res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
   }
   
   output=res_int
+  
 }
 
 #' Identify specific interactors in an \code{InteRactome}
@@ -1649,7 +1635,6 @@ order_interactome <- function(res, idx = NULL,
       else{
         for(i in 1:length(names_var) ){
           names_var_2 <- names(res[[var]][[i]]) 
-          #if( setequal(names_var_2, res$conditions) ){
           for(j in 1:length(names_var_2) ){
             if(length(res[[var]][[i]][[j]]) == length(res$names)){
               res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
@@ -1659,7 +1644,6 @@ order_interactome <- function(res, idx = NULL,
               warning(paste("Couldn't order ",var, sep=""))
             }
           }
-          #}
         }
       }
     }
@@ -1685,6 +1669,7 @@ order_interactome <- function(res, idx = NULL,
 #' @return a data.frame with protein correlation information 
 #' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
 #' @importFrom Hmisc rcorr
+#' @importFrom stats p.adjust
 #' @export
 compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, strict = TRUE, Rmin = 0){
 
@@ -1732,7 +1717,6 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, stri
     
     idx <- order(R$r[i, ], decreasing = TRUE)
     
-    #for (j in idx[ 2 : ( min(1 + nmax_int, 1 + n) - 1 )]){
     for (j in setdiff(1:n, i) ){  
       
       if(M_transpose[j, i] == 0){
@@ -1762,8 +1746,8 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, stri
                        df_corr$p_corr>0 & 
                        abs(df_corr$r_corr) >= Rmin, ]
   
-  df_corr$p_corr_bonferroni <- p.adjust(df_corr$p_corr, method="bonferroni")
-  df_corr$p_corr_fdr <- p.adjust(df_corr$p_corr, method="fdr")
+  df_corr$p_corr_bonferroni <- stats::p.adjust(df_corr$p_corr, method="bonferroni")
+  df_corr$p_corr_fdr <- stats::p.adjust(df_corr$p_corr, method="fdr")
   
   df_corr <- df_corr[order(df_corr$r_corr, decreasing = TRUE), ]
   
@@ -1831,7 +1815,6 @@ restrict_network_degree <- function(df_corr, source = "name_1", target = "name_2
 summary_table <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
-  #columns <- add_columns
   columns <- setdiff(columns, c("bait", 
                                 "bckg_bait", 
                                 "bckg_ctrl",

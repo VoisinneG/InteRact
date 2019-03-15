@@ -36,7 +36,7 @@ from column names
 \examples{
 #load data :
 data("proteinGroups_Cbl")
-# You can identify columns and their description separately using \\code{identify_conditions()}
+# You can identify columns and their description separately using `identify_conditions()`
 cond <- identify_conditions(proteinGroups_Cbl)
 print.data.frame(cond)
 # and use it as parameters for function InteRact()

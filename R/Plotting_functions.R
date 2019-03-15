@@ -54,8 +54,9 @@ plot_indirect_interactions <- function(score,
             ymax <- datarange[2]
           }
           
+        df_stoichio$log10_stoichio <- log10(df_stoichio$stoichio)
         
-        plist[[i]] <- ggplot(df_stoichio, aes(x=conditions, y=log10(stoichio), color = type, group = type)) +
+        plist[[i]] <- ggplot(df_stoichio, aes_string(x='conditions', y='log10_stoichio', color='type', group='type')) +
           theme(axis.text.x = element_text(angle=90, hjust = 1),
                 title = element_text(size = 6) ) +
           ggtitle(paste(score$bait_A,"<",score$bait_B,"<", name_interactor," (", signif(score_display, 3), ")", sep="")) +
@@ -81,82 +82,6 @@ plot_indirect_interactions <- function(score,
   return( plist )
   
 }      
-#     if(dim(score$stoichio_direct)[2] > 1){
-#       s_direct <- score$stoichio_direct[idx_plot, ]
-#       s_direct$names <- score$interactor[idx_plot]
-#       s_direct$type <- rep("direct", length(s_direct$names))
-#       
-#       s_indirect <- score$stoichio_indirect[idx_plot, ]
-#       s_indirect$names <- score$interactor[idx_plot]
-#       s_indirect$type <- rep("indirect", length(s_indirect$names))
-#     }else{
-#       
-#       s_direct <- data.frame(s = score$stoichio_direct[idx_plot, ],
-#                              names = score$interactor[idx_plot],
-#                              type = rep("direct", length(idx_plot)))
-#       names(s_direct)[1] <- colnames(score$stoichio_direct)
-#       s_indirect <- data.frame(s = score$stoichio_indirect[idx_plot, ],
-#                                names = score$interactor[idx_plot],
-#                                type = rep("indirect", length(idx_plot)))
-#       names(s_indirect)[1] <- colnames(score$stoichio_indirect)
-#     }
-#     
-#     
-#     df <- rbind(s_direct, s_indirect)
-#     df_melt <- reshape2::melt(df, id=c("names", "type"))
-#     
-#     p <- ggplot(df_melt, aes(x=variable, y=log10(value), color = type, group = type)) +
-#       theme(axis.text.x = element_text(angle=90, hjust = 1)) +
-#       ggtitle(paste(score$bait_A,"<",score$bait_B,"<X", sep="")) +
-#       geom_line() +
-#       geom_point()
-#     
-#     plist <- list()
-#     unames <- unique(df_melt$names)
-#     for(i in 1:length(unames)){
-#       plist[[i]] <- ggplot(df_melt[df_melt$names==unames[i], ], aes(x=variable, y=log10(value), color = type, group = type)) +
-#         theme(axis.text.x = element_text(angle=90, hjust = 1)) +
-#         ggtitle(paste(score$bait_A,"<",score$bait_B,"<", unames[i], sep="")) +
-#         geom_line() +
-#         geom_point()
-#     }
-#     
-#   }
-# }else{
-#   p <- NULL
-#   plist <- NULL
-# }  
-# 
-# 
-# if(!is.null(save_file)){
-#   if(facet){
-#     pdf(save_file, 
-#         width = ifelse(is.null(plot_width), 2 + length(idx_plot), plot_width), 
-#         height = ifelse(is.null(plot_height), 2, plot_height))
-#     print(p+facet_grid( ~ names))
-#     dev.off()
-#   }else{
-#     pdf(save_file, 
-#         width = ifelse(is.null(plot_width), 3, plot_width), 
-#         height = ifelse(is.null(plot_height), 2, plot_height))
-#     print(plist)
-#     dev.off()
-#   }
-#     
-#   
-# }
-# 
-# if(facet){
-#   return(p)
-# }
-# else{
-#   return(plist)
-# }
-#     
-#  
-#}
-
-
 
 #' Plot abundance versus interaction stoichiometries
 #' @param res an \code{InteRactome}
@@ -197,6 +122,11 @@ plot_2D_stoichio <- function( res,
                               fold_change_thresh = 1,
                               ref_condition = res$conditions[1]
 ){
+  
+  if(!"Copy_Number" %in% names(res)){
+    warning("Protein abundances not available. Please import and merge a proteome first.")
+    return(NULL)
+  }
   
   plist <- list()
   
@@ -244,7 +174,6 @@ plot_2D_stoichio <- function( res,
     ymin<-center_y - max_range/1.85
     ymax<-center_y + max_range/1.85
     
-    #ylow_plot <- max(ylow,ymin)
     
     df$size_prey <- log10(df$size)/max_range*20
     df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
@@ -257,7 +186,7 @@ plot_2D_stoichio <- function( res,
       test <- compare_stoichio(res, 
                                names = df$names, 
                                ref_condition = ref_condition, 
-                               test_condition = setdiff(res$conditions, ref_condition))
+                               test_conditions = setdiff(res$conditions, ref_condition))
       
       M_p_val <- do.call(cbind, test$p_val)
       M_fold_change <- do.call(cbind, test$fold_change)
@@ -278,7 +207,7 @@ plot_2D_stoichio <- function( res,
       df$color[df$names == res$bait] <- "bait"
       
     }else if(cond %in% res$conditions){
-      test <- compare_stoichio(res, names = df$names, ref_condition = ref_condition, test_condition = cond)
+      test <- compare_stoichio(res, names = df$names, ref_condition = ref_condition, test_conditions = cond)
       df$p_val <- test$p_val[[cond]]
       df$fold_change <- test$fold_change[[cond]]
       
@@ -290,25 +219,20 @@ plot_2D_stoichio <- function( res,
     
     df <- df[idx_plot, ]
     
-    p<-ggplot(df,aes(x=X, y=Y,label=names)) +
+    p<-ggplot(df,aes_string(x='X', y='Y', label='names')) +
       theme(aspect.ratio=1) +
       ggtitle(cond) + 
       geom_polygon(data=data.frame(x=c(ylow, xmax, xmax), 
                                    y=c(ylow, ylow, xmax)), 
-                   mapping=aes(x=x, y=y),
+                   mapping=aes_string(x='x', y='y'),
                    alpha=0.1,
                    inherit.aes=FALSE)
     
     p <- p + geom_polygon(data=data.frame(y=c(ylow, 0, ymax, ymax, ylow),
                                           x=c(ylow-1, -1, -1, xmax, xmax)), 
-                          mapping=aes(x=x, y=y),
+                          mapping=aes_string(x='x', y='y'),
                           alpha=0.1,
                           inherit.aes=FALSE)
-    # geom_path(data=data.frame(y=c(ylow, 0, ymax),
-    #                           x=c(ylow-1, -1, -1)), 
-    #           mapping=aes(x=x, y=y),
-    #           colour = rgb(0,0,0,0.5), linetype = "dashed",
-    #           inherit.aes=FALSE)
     
     
     p <- p + annotate("path",
@@ -319,7 +243,7 @@ plot_2D_stoichio <- function( res,
       xlab("log10(Interaction Stoichiometry)") +
       ylab("log10(Abundance Stoichiometry)") +
       geom_point(data = df,
-                 mapping=aes(x=X, y=Y, color=color, fill = color), 
+                 mapping=aes_string(x='X', y='Y', color='color', fill = 'color'), 
                  size=df$size_prey, 
                  alpha=0.2,
                  shape = shape,
@@ -327,9 +251,8 @@ plot_2D_stoichio <- function( res,
                  inherit.aes = FALSE, 
                  show.legend = FALSE) +
       coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
-      #geom_density_2d(colour=rgb(1,0,0),size=0.5) +
       geom_text_repel(data = df,
-                      mapping=aes(x=X, y=Y, label=names),
+                      mapping=aes_string(x='X', y='Y', label='names'),
                       size=df$size_label,
                       force=0.002, 
                       segment.size = 0.1,
@@ -345,8 +268,7 @@ plot_2D_stoichio <- function( res,
   }
   
   return(plist)
-  #print(p)
-  #output=p
+
 }
 
 
@@ -533,12 +455,10 @@ plot_volcanos <- function( res,
     label_y <- "-log10(p_value)"
     if (asinh_transform) label_y <- "asinh(-log10(p_value))"
     
-    plist[[i]] <- ggplot( df , aes( label=names ) ) +
+    plist[[i]] <- ggplot( df , aes_string( label='names' ) ) +
       coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
       xlab(label_x ) + 
-      ylab(label_y) + 
-      #scale_y_continuous(limits=c(0,ymax)) +
-      #scale_x_continuous(limits=c(-xmax,xmax)) +
+      ylab(label_y) +
       ggtitle(conditions[i])
     
     
@@ -546,7 +466,7 @@ plot_volcanos <- function( res,
       plist[[i]] <- plist[[i]] +
         geom_polygon(data=data.frame(x=c(x1,xrange[2],xrange[2],x1),
                                      y=c(y1,y1,yrange[2],yrange[2])), 
-                     mapping=aes(x=x, y=y),
+                     mapping=aes_string(x='x', y='y'),
                      alpha=0.1,
                      inherit.aes=FALSE) +
         annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
@@ -571,21 +491,19 @@ plot_volcanos <- function( res,
                                          xpath_right[length(xpath_right)] ),
                                      y=c(ypath_right,
                                          ypath_right[1])),
-                     mapping=aes(x=x, y=y),
+                     mapping=aes_string(x='x', y='y'),
                      alpha=0.1,
                      inherit.aes=FALSE) +
-        geom_path(data=data.frame(x=xpath_right, y=ypath_right), mapping=aes(x=xpath_right, y=ypath_right), 
+        geom_path(data=data.frame(x=xpath_right, y=ypath_right), mapping=aes_string(x='xpath_right', y='ypath_right'), 
                   colour = rgb(1,0,0,0.5), inherit.aes=FALSE)+
-        geom_path(data=data.frame(x=xpath_left, y=ypath_left), mapping=aes(x=xpath_left, y=ypath_left), 
+        geom_path(data=data.frame(x=xpath_left, y=ypath_left), mapping=aes_string(x='xpath_left', y='ypath_left'), 
                   colour = rgb(1,0,0,0.5), inherit.aes=FALSE)
     }
     
     plist[[i]] <- plist[[i]] + 
-      geom_point(data=df, mapping=aes(x=X, y=Y), alpha=0.2) +
+      geom_point(data=df, mapping=aes_string(x='X', y='Y'), alpha=0.2) +
       geom_text_repel(data=df[idx_print, ],
-                      aes(x=X, y=Y, label = names, colour=label_color), size=5) +
-      # geom_text(data=df[idx_print, ],
-      #                 aes(x=X, y=Y, label = names, colour=label_color), size=3) +
+                      aes_string(x='X', y='Y', label = 'names', colour='label_color'), size=5) +
       scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
       theme(legend.position="none")
     
@@ -593,8 +511,6 @@ plot_volcanos <- function( res,
   
   if( length(save_file)>0 ){
     pdf( save_file, 6, 6)
-    #layout <- matrix(1:length(conditions), nrow = 1, byrow = TRUE)
-    #multiplot(plotlist = plist, layout = layout)
     print(plist)
     dev.off()
   }
@@ -771,7 +687,6 @@ dot_plot <- function(Dot_Size,
     }
   }
   
-  #pos <- 1+dim(M)[1] - ( 1:dim(M)[1] )
   pos <-  - ( 1:dim(M)[1] )
   
   for( k in 1:dim(M)[2] ){
@@ -800,8 +715,8 @@ dot_plot <- function(Dot_Size,
     size_label_x <- max(6, 16 - (dim(M)[2] %/% 5)*1.5 )
   }
   
-  p <- ggplot(df, aes(x=xpos, y=ypos, size=size, col=color ) ) +
-    theme(#plot.margin=unit(c(0.2,0,0,0), "cm"),
+  p <- ggplot(df, aes_string(x='xpos', y='ypos', size='size', col='color' ) ) +
+    theme(
       plot.title = element_text(size=12),
       axis.text.y= element_text(size=size_label_y), 
       axis.text.x = element_text(size=size_label_x, angle = 90, hjust = 1,vjust=0.5) ) +
@@ -813,7 +728,6 @@ dot_plot <- function(Dot_Size,
                        limits=c(0.5, dim(M)[2]+0.5),
                        labels=xlabels) +
     scale_y_continuous(breaks=pos,
-                       #limits= -c(0.25, dim(M)[1]+0.75),
                        limits= -c(dim(M)[1]+0.75, 0.25 ),
                        labels=ylabels) +
     geom_point(alpha=0.5, show.legend = TRUE)
@@ -823,9 +737,6 @@ dot_plot <- function(Dot_Size,
   }else{
     p <- p + scale_radius(limits = size_limits, range = size_range, name=size_var)
   }
-  
-  #scale_colour_manual(values=setNames(unique_col, c( "red", "purple",  "blue", "black" ) )) +
-  
   
   return(p)
   
@@ -876,15 +787,17 @@ plot_stoichio <- function(res,
     comparisons[[i]] <- c(ref_condition, cond_test[i])
   }
   
-  p <- ggplot(df_tot, aes(x=cond, y=log10(stoichio))) + 
+  df_tot$log10_stoichio <- log10(df_tot$stoichio)
+  
+  p <- ggplot(df_tot, aes_string(x='cond', y='log10_stoichio')) + 
     theme(axis.text.x = element_text(size=10, angle = 90, hjust = 1,vjust=0.5),
           axis.text.y = element_text(size=10)
     ) +
     geom_point(size=0, alpha = 0) +  
     ggtitle(plot_title) + 
     xlab("conditions") +
-    geom_line( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), group=bio, color=bio), alpha = 0.2) +
-    geom_point( data = df_tot, mapping = aes(x=cond, y=log10(stoichio), color=bio), size=3, alpha = 0.8) + 
+    geom_line( data = df_tot, mapping = aes_string(x='cond', y='log10_stoichio', group='bio', color='bio'), alpha = 0.2) +
+    geom_point( data = df_tot, mapping = aes_string(x='cond', y='log10_stoichio', color='bio'), size=3, alpha = 0.8) + 
     geom_signif(comparisons = comparisons, 
                 step_increase = 0.1,
                 test = test,
@@ -959,7 +872,6 @@ plot_comparison <- function(res,
                             position = "position_jitter",
                             position.args = list(width=0.3, height=0)){
   
-  #plot_title <- paste(name, test, sep = " / ") 
   plot_title <- paste(test, sep = " / ") 
   
   if("paired" %in% names(test.args)){
@@ -1021,51 +933,6 @@ plot_comparison <- function(res,
   }
   
   
-  
-  #     which( res$data$conditions$time == cond)
-  #     
-  #     for(bckg in c(res$))
-  #     for ( bio in res$replicates){
-  #       if (is.null(dim(res$intensity_bait[[cond]][[bio]])) ){
-  #         intensity <- res$intensity_bait[[cond]][[bio]][idx_match]
-  #         intensity_na <- res$intensity_na_bait[[cond]][[bio]][idx_match]
-  #       } else {
-  #         intensity <- res$intensity_bait[[cond]][[bio]][idx_match, ]
-  #         intensity_na <- res$intensity_na_bait[[cond]][[bio]][idx_match, ]
-  #       }
-  #       df <- data.frame(intensity = intensity,
-  #                        intensity_na = intensity_na,
-  #                        bckg = rep("bait", length(intensity)), 
-  #                        bio = rep(bio, length(intensity)), 
-  #                        cond=  rep(cond, length(intensity)),
-  #                        name = rep(name, length(intensity)))
-  #       df_tot <- rbind(df_tot, df)
-  #     }
-  #   }
-  # }
-  #   
-  # for(name in names){
-  #   idx_match <- which(res$names == name)
-  #   for( cond in conditions){
-  #     for ( bio in res$replicates){
-  #       if (is.null(dim(res$intensity_ctrl[[cond]][[bio]])) ){
-  #         intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match]
-  #         intensity_na <- res$intensity_na_ctrl[[cond]][[bio]][idx_match]
-  #       } else {
-  #         intensity <- res$intensity_ctrl[[cond]][[bio]][idx_match, ]
-  #         intensity_na <- res$intensity_na_ctrl[[cond]][[bio]][idx_match, ]
-  #       }
-  #       df <- data.frame(intensity = intensity,
-  #                        intensity_na = intensity_na,
-  #                        bckg = rep("ctrl", length(intensity)), 
-  #                        bio = rep(bio, length(intensity)), 
-  #                        cond=  rep(cond, length(intensity)),
-  #                        name = rep(name, length(intensity)))
-  #       df_tot <- rbind(df_tot, df)
-  #     }
-  #   }
-  # }
-  
   df_tot$x <- df_tot[[var_x]]
   if(!is.null(levels_x)){
     df_tot$x <- factor(df_tot$x, levels = levels_x, labels = labels_x) 
@@ -1085,8 +952,9 @@ plot_comparison <- function(res,
     label_y <- "log10(Intensity Norm.)"
   }
   
+  df_tot$log10_intensity <- log10(df$intensity)
   
-  p <- ggplot(df_tot, aes(x=x, y=log10(intensity)  )) + 
+  p <- ggplot(df_tot, aes_string(x='x', y='log10_intensity'  )) + 
     theme(axis.text = element_text(size=12),
           axis.text.x = element_text(angle=90, hjust = 1)) +
     geom_point(size=0, alpha = 0) + 
@@ -1096,12 +964,15 @@ plot_comparison <- function(res,
   
   if(show_bar){
     if(mapping == "bar")  {
-      p <- p + geom_bar(data = df_tot, mapping = aes(x=x, y=log10(intensity), alpha = alpha, fill = color ), stat = "summary", fun.y = "mean") 
+      p <- p + geom_bar(data = df_tot,
+                        mapping = aes_string(x='x', y='log10_intensity', alpha = 'alpha', fill = 'color',
+                        stat = "summary", fun.y = "mean") )
       if(!is.null(color_values)){
         p <- p + scale_fill_manual(values = color_values)
       }
     } else {
-      p <- p + geom_bar(data = df_tot, mapping = aes(x=x, y=log10(intensity)), stat = "summary", fun.y = "mean") 
+      p <- p + geom_bar(data = df_tot, 
+                        mapping = aes_string(x='x', y='log10_intensity', stat = "summary", fun.y = "mean"))
     }
   }
   
@@ -1111,7 +982,7 @@ plot_comparison <- function(res,
   
   if(mapping == "point")  {
     p <- p + geom_point( data = df_tot, 
-                         mapping = aes(x=x, y=log10(intensity), color= color, alpha = alpha),
+                         mapping = aes_string(x='x', y='log10_intensity', color='color', alpha = 'alpha'),
                          size=1.5,
                          position = do.call(position, position.args) )
     if(!is.null(color_values)){
@@ -1123,14 +994,11 @@ plot_comparison <- function(res,
     
   }else{
     p <- p + geom_point( data = df_tot,
-                         mapping = aes(x=x, y=log10(intensity)), 
+                         mapping = aes_string(x='x', y='log10_intensity'), 
                          size=1.5,
                          alpha = 0.8,
                          position = do.call(position, position.args) )
   }
-  
-  #scale_alpha_manual(values = c("TRUE" = 0.33, "FALSE"=1))
-  
   
   
   if(!is.null(alpha_values)){
@@ -1168,14 +1036,6 @@ plot_comparison <- function(res,
   }
   
   p <- p + facet_grid(facet_y ~ facet_x)
-  # if(length(names) > 1 & length(conditions) > 1){
-  #   p <- p + facet_grid(cond ~ name)
-  # } else if (length(names) > 1 & length(conditions) == 1){
-  #   p <- p + facet_grid( ~ name)
-  # } else if (length(names) == 1 & length(conditions) > 1){
-  #   p <- p + facet_grid( ~ cond)
-  # }
-  
   
   return(p)
   
@@ -1230,11 +1090,10 @@ plot_QC <- function(data){
   }
   message_outlier_1 <- paste(message_outlier_1, "(in bait bckg)", sep=" ")
   
-  p1 <- ggplot(Ravg, aes(x=bckg, y=Ravg, col=bio)) + 
-    #theme(legend.position="top") +
+  p1 <- ggplot(Ravg, aes_string(x='bckg', y='Ravg', col='bio')) + 
     ggtitle("QC: Intensity Correlation", subtitle = message_outlier_1) +
     ylab("average R")+
-    geom_boxplot(data=Ravg, mapping=aes(x=bckg, y=Ravg), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_boxplot(data=Ravg, mapping=aes_string(x='bckg', y='Ravg'), inherit.aes = FALSE, outlier.alpha = 0) +
     geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
   
   p_list[[1]] <- p1
@@ -1252,12 +1111,12 @@ plot_QC <- function(data){
     message_outlier_2 <- "No outliers"
   }
   message_outlier_2 <- paste(message_outlier_2, "(in bait bckg)", sep=" ")
+  Ibait$log10_Ibait <- log10(df$Ibait)
   
-  p2 <- ggplot(Ibait, aes(x=bckg, y=log10(Ibait), col=bio)) + 
-    #theme(legend.position="top") +
+  p2 <- ggplot(Ibait, aes_string(x='bckg', y='log10_Ibait', col='bio')) + 
     ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
     ylab("norm. Intensity (log10)") +
-    geom_boxplot(data=Ibait, mapping=aes(x=bckg, y=log10(Ibait)), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_boxplot(data=Ibait, mapping=aes_string(x='bckg', y='log10_Ibait'), inherit.aes = FALSE, outlier.alpha = 0) +
     geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
   
   p_list[[2]] <- p2
@@ -1277,12 +1136,12 @@ plot_QC <- function(data){
     message_outlier_3 <- "No outliers"
   }
   message_outlier_3 <- paste(message_outlier_3, "(in bait bckg)", sep=" ")
+  nNA$log10_nNA <- log10(nNA$nNA)
   
-  p3 <- ggplot(nNA, aes(x=bckg, y=log10(nNA), col=bio)) +
-    #theme(legend.position="top") +
+  p3 <- ggplot(nNA, aes_string(x='bckg', y='log10_nNA', col='bio')) +
     ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
     ylab("NA counts (log10)") +
-    geom_boxplot(data=nNA, mapping=aes(x=bckg, y=log10(nNA)), inherit.aes = FALSE, outlier.alpha = 0) +
+    geom_boxplot(data=nNA, mapping=aes_string(x='bckg', y='log10_nNA'), inherit.aes = FALSE, outlier.alpha = 0) +
     geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
   
   p_list[[3]] <- p3
@@ -1360,8 +1219,6 @@ plot_correlation_network <- function(res,
   net <- igraph::graph.data.frame(df_corr_filtered[ , c(source, target)], directed=FALSE)
   net <- igraph::simplify(net)
   
-  #plot(cfg, as.undirected(net.s))
-  #plot(igraph::as.undirected(net.s), mark.groups = igraph::communities(cfg))
   
   if(!is.null(cluster)){
     idx_match <- match(vertex.attributes(net)$name, names(cluster))
@@ -1404,9 +1261,9 @@ plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2]){
   df$y <- df[[var_y]]
   Pcorr <- rcorr(x=df[[var_x]], y=df[[var_y]]  )
   
-  p <- ggplot(df, aes(y=y, x=x  ) ) +
+  p <- ggplot(df, aes_string(y='y', x='x' ) ) +
     theme(axis.text=element_text(size=16), plot.title = element_text(size=16))+
-    stat_density2d(aes(alpha=..level.., fill=..level..), size=2, geom="polygon", bins=20) + 
+    stat_density2d(aes_string(alpha='..level..', fill='..level..'), size=2, geom="polygon", bins=20) + 
     scale_fill_gradient(low = "yellow", high = "red") +
     scale_alpha(range = c(0.00, 0.5), guide = FALSE) +
     geom_point(alpha=0.2, size=1.5)+
@@ -1426,6 +1283,9 @@ plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2]){
 #' @param xlim x-axis plot limits
 #' @param ylim y-axis plot limits
 #' @param colors color palette. Should have \code{length(FDR_bins)-1} colors.
+#' @importFrom stats reshape
+#' @importFrom graphics filled.contour title
+#' @importFrom grDevices terrain.colors
 #' @export
 plot_FDR_map <- function(FDR_res, 
                          FDR_bins = c(0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.2),
@@ -1438,8 +1298,8 @@ plot_FDR_map <- function(FDR_res,
   T2 <- FDR_res$max_TP_parameters
   
   T3 <- T1[ , c("x0", "c", "FDR")]
-  T4 <- reshape(T3, idvar = "x0", timevar = "c", direction = "wide")
-  T5<-as.matrix(T4[,2:dim(T4)[2]]);
+  T4 <- stats::reshape(T3, idvar = "x0", timevar = "c", direction = "wide")
+  T5 <- as.matrix(T4[,2:dim(T4)[2]]);
   
   
   filled.contour(x = unique(T3$x0),
@@ -1451,20 +1311,6 @@ plot_FDR_map <- function(FDR_res,
                  col = colors ,
                  plot.title = title(xlab = "x0", 
                                     ylab = "c")
-                 # ,
-                 # plot.axes={
-                 #   axis(1);
-                 #   axis(2);
-                 #   points(x=T2$x0[idx_bin],
-                 #          y=T2$c[idx_bin], pch=16,col="black")
-                 # }
+                 
   )
 }
-
-
-# p <- ggplot(T1, aes(x0,p0,fill=FDR,z=FDR) ) + geom_tile() + 
-#   geom_contour(colour = "white", binwidth=0.05, show.legend = TRUE ) +
-#   #geom_contour(mapping=aes(x0,p0,z=TP), colour = "red") +
-#   scale_x_continuous(limits = c(0, 1.5)) +
-#   scale_y_continuous(limits = c(0, 3)) +
-#   annotate("point",x=T2$x0[idx_bin], y=T2$p0[idx_bin],color="red" );

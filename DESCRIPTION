@@ -1,10 +1,15 @@
 Package: InteRact
-Title: InteRact : Analysis of proteomics data
+Title: Analysis of affinity purification/tandem MS data
 Version: 0.1.0
 Date: 2018-02-21
+Authors@R:
+  person("Guillaume", "Voisinne",
+  email = "voisinne@ciml.univ-mrs.fr",
+  role = c("aut", "cre"), 
+  comment = c(ORCID = "https://orcid.org/0000-0003-3922-2121"))
 Author: Guillaume Voisinne
 Maintainer: Guillaume Voisinne <voisinne@ciml.univ-mrs.fr>
-Description: The InteRact package provides tools to analyze affinity purification data
+Description: The InteRact package provides tools to analyze affinity purification/tandem MS data.
 Imports:
 	dplyr, 
 	ggplot2, 
@@ -20,7 +25,7 @@ Remotes: VoisinneG/pannot
 biocViews:
 LazyData: TRUE
 License: file LICENSE
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
 Depends:
   mice (>= 2.46),
   R (>= 2.10)

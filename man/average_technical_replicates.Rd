@@ -31,4 +31,5 @@ df <- proteinGroups_Cbl
 cond <- identify_conditions(df)
 Column_intensity_pattern <- "^Intensity."
 df_int <- df[ , grep(Column_intensity_pattern, colnames(df))]
+avg <- average_technical_replicates(df_int, cond)
 }

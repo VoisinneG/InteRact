@@ -65,7 +65,7 @@ data("proteinGroups_Cbl")
 #Run InteRact with default parameters
 res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 
-#You now have an \\code{InteRactome}. See its elements.
+#You now have an `InteRactome`. See its elements.
 class(res)
 names(res)
 #Generate volcano plots
@@ -77,8 +77,6 @@ res <- identify_interactors(res, p_val_thresh = 0.05, fold_change_thresh = 2)
 #Visualize interaction kinetics
 plot_per_condition(res)
 
-# Append protein abundance information
-res <- merge_proteome(res)
 # Append annotations
 res <- append_annotations(res,  annotations = "")
 #Create a summary data frame

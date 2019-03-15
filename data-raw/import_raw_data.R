@@ -175,31 +175,31 @@
 
 # import HPRD database
 
-THPRD <- read.table(paste("~/ownCloud/++Work/++Research/Resources-Databases/HPRD/",
-                          "HPRD_Release9_062910/BINARY_PROTEIN_PROTEIN_INTERACTIONS.txt",
-                          sep=""),
-                    sep="\t",header = TRUE,quote="\"")
+#THPRD <- read.table(paste("~/ownCloud/++Work/++Research/Resources-Databases/HPRD/",
+                    #       "HPRD_Release9_062910/BINARY_PROTEIN_PROTEIN_INTERACTIONS.txt",
+                    #       sep=""),
+                    # sep="\t",header = TRUE,quote="\"")
 
 # import proteome data ------------------------------------------------------------------------------------------
 
-load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Merge_Proteome_OST_and_CD4_kinetics/proteome_CD4.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Proteome_CD4+_transfected_expanded/proteome_CD4_expanded.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Proteome_Jurkat_Itsn2_KO/proteome_Jurkat.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Cbl.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Cblb.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Fyb.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Grb2.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Inpp5d.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Itk.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Lck.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Lcp2.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Nck1.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Nfatc2.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Plcg1.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Ptpn22.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Ptpn6.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Themis.rda")
-load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Vav1.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Merge_Proteome_OST_and_CD4_kinetics/proteome_CD4.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Proteome_CD4+_transfected_expanded/proteome_CD4_expanded.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Proteomes/Proteome_Jurkat_Itsn2_KO/proteome_Jurkat.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Cbl.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Cblb.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Fyb.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Grb2.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Inpp5d.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Itk.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Lck.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Lcp2.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Nck1.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Nfatc2.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Plcg1.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Ptpn22.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Ptpn6.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Themis.rda")
+# load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analysis/InteRactomes/Interactome_Vav1.rda")
 
 # proteome_data <- read.table(paste("~/ownCloud/++Work/++Research/++Projects/",
 #                                   "Proteomes/Proteome_Comparison_OST_vs_kinetics/",
@@ -212,7 +212,7 @@ load("~/ownCloud/++Work/++Research/++Projects/Integration_16_interactomes/Analys
 
 # save in ./R/sysdata.rda  ---------------------------------------------------------------------------------------
 
-devtools::use_data(
+#devtools::use_data(
   #uniprot_data_mouse,
   #uniprot_data_human,
   #reactome_mouse,
@@ -226,13 +226,13 @@ devtools::use_data(
   #GOA_mouse_slim,
   #GOA_human,
   #GOA_human_slim,
-  proteome_CD4,
-  proteome_CD4_expanded,
-  proteome_Jurkat,
-  THPRD,
-  pkg=".",
-  internal = TRUE,
-  overwrite = TRUE)
+  #proteome_CD4,
+  #proteome_CD4_expanded,
+  #proteome_Jurkat,
+  #THPRD,
+  #pkg=".",
+  #internal = TRUE,
+  #overwrite = TRUE)
 
 # devtools::use_data( uniprot_data_mouse,
 #                     #uniprot_data_human,
@@ -244,25 +244,25 @@ devtools::use_data(
 
 proteinGroups_Cbl <- read.csv("~/Documents/Data/BMMlab/CBL-CBLB_paper/C-CBL/data/ProteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=",")
 
-devtools::use_data(proteinGroups_Cbl,
-                   proteome_CD4,
-                   proteome_CD4_expanded,
-                   proteome_Jurkat,
-                   Interactome_Cbl,
-                   Interactome_Cblb,
-                   Interactome_Fyb,
-                   Interactome_Grb2,
-                   Interactome_Inpp5d,
-                   Interactome_Itk,
-                   Interactome_Lck,
-                   Interactome_Lcp2,
-                   Interactome_Nck1,
-                   Interactome_Nfatc2,
-                   Interactome_Plcg1,
-                   Interactome_Ptpn22,
-                   Interactome_Ptpn6,
-                   Interactome_Themis,
-                   Interactome_Vav1,
-                   pkg=".",
+usethis::use_data(proteinGroups_Cbl,
+                   # proteome_CD4,
+                   # proteome_CD4_expanded,
+                   # proteome_Jurkat,
+                   # Interactome_Cbl,
+                   # Interactome_Cblb,
+                   # Interactome_Fyb,
+                   # Interactome_Grb2,
+                   # Interactome_Inpp5d,
+                   # Interactome_Itk,
+                   # Interactome_Lck,
+                   # Interactome_Lcp2,
+                   # Interactome_Nck1,
+                   # Interactome_Nfatc2,
+                   # Interactome_Plcg1,
+                   # Interactome_Ptpn22,
+                   # Interactome_Ptpn6,
+                   # Interactome_Themis,
+                   # Interactome_Vav1,
+                   #pkg=".",
                    internal = FALSE,
                    overwrite = TRUE)
