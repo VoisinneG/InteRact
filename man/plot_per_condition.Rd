@@ -44,7 +44,7 @@ plot_per_condition(res, names = NULL,
 
 \item{clustering}{logical or numeric vector. If logical, use hierarchical}
 
-\item{...}{additionnal arguments passed to \code{dot_ploy()}
+\item{...}{additionnal arguments passed to \code{dot_plot()}
 clustering to order proteins. If numeric, ordering indexes for displayed proteins 
 (must be the same length as \code{idx_rows})}
 }

@@ -6,8 +6,9 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' (use parameter \code{Column_intensity_pattern} to change)
 #' @param updateProgress function to show progress bar in shiny app
 #' @param N_rep Number of iterations for the replacement of missing values
-#' @param method Method to replace missing values. Methods from the "mice" package are supported. By default, 
-#' missing values are sampled from a normal distribution centered on the quantile of ctrl intensities defined by parameter \code{quantile_rep}
+#' @param method Method to replace missing values. Methods from the "mice" package are supported. 
+#' Use "none" if you do not want to replace missing values. By default, missing values are sampled from a 
+#' normal distribution centered on the quantile of ctrl intensities defined by parameter \code{quantile_rep}
 #' with the standard deviation set to the mean SD of ctrl intensities across all proteins.
 #' @param quantile_rep Numeric value between 0 and 1. Quantile of the distribution of mean intensities 
 #' in the control background used to replace missing values.
@@ -55,7 +56,7 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 InteRact <- function(
   df,
   updateProgress = NULL,
-  N_rep=3,
+  N_rep=1,
   method = "default",
   quantile_rep  = 0.05,
   pool_background = FALSE, 
@@ -84,7 +85,7 @@ InteRact <- function(
   
   # replace missing values N_rep times
   
-  if(N_rep>0){
+  if(N_rep>0 & method != "none"){
     
     res <- vector("list", N_rep)
     names(res)<-paste( rep('Rep_',N_rep), 1:N_rep, sep="" )
@@ -311,7 +312,7 @@ preprocess_data <- function(df,
     warning(paste("Column ", Column_ID, " could not be found", sep=""))
   }
   if(! Column_gene_name %in% names(df)){
-    stop(paste("Column ", Column_gene_name, " could not be found", sep=""))
+    warning(paste("Column ", Column_gene_name, " could not be found", sep=""))
   }
   
   # Identify conditions corresponding to intensity columns
@@ -486,7 +487,11 @@ identify_conditions <- function(df,
   time[nchar(time)==0] <- paste("time", "0", sep=split)
   
   
-  cond <- dplyr::tibble(column=col_I, bckg, time, bio, tech)
+  cond <- dplyr::tibble(column=factor(col_I), 
+                        bckg = factor(bckg), 
+                        time = factor(time), 
+                        bio = factor(bio), 
+                        tech = factor(tech))
   
 }
 
@@ -872,6 +877,20 @@ analyse_interactome <- function(Intensity,
                                 substract_ctrl = TRUE,
                                 use_mean_for_bait = TRUE){
   
+  if( ! bckg_bait %in% conditions$bckg ){
+    stop(paste("Could not find", 
+               bckg_bait,
+               "in available backgrounds.",
+               "Please choose parameter `bckg_bait` from", 
+               unique(conditions$bckg)))
+  }
+  if( ! bckg_ctrl %in% conditions$bckg ){
+    stop(paste("Could not find", 
+               bckg_ctrl,
+               "in available backgrounds.",
+               "Please choose parameter `bckg_ctrl` from", 
+               unique(conditions$bckg)))
+  }
   
   if(!by_conditions){
     conds<-rep(-1,length(conditions$time))
@@ -1535,9 +1554,9 @@ identify_interactors <- function(res,
         idx_mod[ idx_mod == 0] <- n_cond
         M_test <- rbind(M_test, M[i, idx_mod])
       }
-      is_interactor[i] <- sum( colMeans( M_test ) == 1 ) > 0
+      is_interactor[i] <- sum( colMeans(M_test, na.rm = TRUE ) == 1, na.rm = TRUE) > 0
     } else {
-      is_interactor[i] <- n_success[i] >= n_success_min
+      is_interactor[i] <- (!is.na(n_success[i]) & n_success[i] >= n_success_min)
     }
     
   }

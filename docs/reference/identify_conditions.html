@@ -12,8 +12,8 @@ from column names — identify_conditions • InteRact</title>
 <!-- jquery -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
 <!-- Bootstrap -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/3.3.7/paper/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" />
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha256-916EbMg70RQy9LHiGkXzG8hSg9EdNy97GazNG/aiY1w=" crossorigin="anonymous" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha256-U5ZEeKfGNOja007MMD3YBI0A3OSZOQbeG6z2f2Y0hu8=" crossorigin="anonymous"></script>
 
 <!-- Font Awesome icons -->
@@ -79,12 +79,35 @@ from column names" />
   </a>
 </li>
 <li>
+  <a href="../articles/InteRact.html">Get started</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    articles
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="../articles/Metadata.html">Metadata</a>
+    </li>
+    <li>
+      <a href="../articles/Preprocessing.html">Data preprocessing</a>
+    </li>
+  </ul>
+</li>
+<li>
   <a href="../reference/index.html">Reference</a>
 </li>
       </ul>
       
       <ul class="nav navbar-nav navbar-right">
-        
+        <li>
+  <a href="https://github.com/VoisinneG/InteRact">
+    <span class="fa fa-github fa-lg"></span>
+     
+  </a>
+</li>
       </ul>
       
     </div><!--/.nav-collapse -->
@@ -99,7 +122,7 @@ from column names" />
     <div class="page-header">
     <h1>Identify conditions (background, time of stimulation, biological and technical replicates) 
 from column names</h1>
-    
+    <small class="dont-index">Source: <a href='https://github.com/VoisinneG/InteRact/blob/master/R/Main_functions.R'><code>R/Main_functions.R</code></a></small>
     <div class="hidden name"><code>identify_conditions.Rd</code></div>
     </div>
 
@@ -155,15 +178,109 @@ biological and technical replicates, and experimental conditions</p>
     
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
-    <pre class="examples"><span class='co'># NOT RUN {</span>
-<span class='co'>#load data :</span>
+    <pre class="examples"><div class='input'><span class='co'>#load data :</span>
 <span class='fu'><a href='https://www.rdocumentation.org/packages/utils/topics/data'>data</a></span>(<span class='st'>"proteinGroups_Cbl"</span>)
-<span class='co'># You can identify columns and their description separately using \code{identify_conditions()}</span>
+<span class='co'># You can identify columns and their description separately using `identify_conditions()`</span>
 <span class='no'>cond</span> <span class='kw'>&lt;-</span> <span class='fu'>identify_conditions</span>(<span class='no'>proteinGroups_Cbl</span>)
-<span class='fu'><a href='https://www.rdocumentation.org/packages/base/topics/print.dataframe'>print.data.frame</a></span>(<span class='no'>cond</span>)
-<span class='co'># and use it as parameters for function InteRact()</span>
-<span class='no'>res</span> <span class='kw'>&lt;-</span> <span class='fu'><a href='InteRact.html'>InteRact</a></span>(<span class='no'>proteinGroups_Cbl</span>, <span class='kw'>bait_gene_name</span> <span class='kw'>=</span> <span class='st'>"Cbl"</span>, <span class='kw'>condition</span> <span class='kw'>=</span> <span class='no'>cond</span>)
-<span class='co'># }</span></pre>
+<span class='fu'><a href='https://www.rdocumentation.org/packages/base/topics/print.dataframe'>print.data.frame</a></span>(<span class='no'>cond</span>)</div><div class='output co'>#&gt;                       column bckg time  bio tech
+#&gt; 1    Intensity.Cbl_0_Ech1_R1  Cbl    0 Ech1   R1
+#&gt; 2    Intensity.Cbl_0_Ech1_R2  Cbl    0 Ech1   R2
+#&gt; 3    Intensity.Cbl_0_Ech1_R3  Cbl    0 Ech1   R3
+#&gt; 4    Intensity.Cbl_0_Ech2_R1  Cbl    0 Ech2   R1
+#&gt; 5    Intensity.Cbl_0_Ech2_R2  Cbl    0 Ech2   R2
+#&gt; 6    Intensity.Cbl_0_Ech2_R3  Cbl    0 Ech2   R3
+#&gt; 7    Intensity.Cbl_0_Ech3_R1  Cbl    0 Ech3   R1
+#&gt; 8    Intensity.Cbl_0_Ech3_R2  Cbl    0 Ech3   R2
+#&gt; 9    Intensity.Cbl_0_Ech3_R3  Cbl    0 Ech3   R3
+#&gt; 10 Intensity.Cbl_030_Ech1_R1  Cbl  030 Ech1   R1
+#&gt; 11 Intensity.Cbl_030_Ech1_R2  Cbl  030 Ech1   R2
+#&gt; 12 Intensity.Cbl_030_Ech1_R3  Cbl  030 Ech1   R3
+#&gt; 13 Intensity.Cbl_030_Ech2_R1  Cbl  030 Ech2   R1
+#&gt; 14 Intensity.Cbl_030_Ech2_R2  Cbl  030 Ech2   R2
+#&gt; 15 Intensity.Cbl_030_Ech2_R3  Cbl  030 Ech2   R3
+#&gt; 16 Intensity.Cbl_030_Ech3_R1  Cbl  030 Ech3   R1
+#&gt; 17 Intensity.Cbl_030_Ech3_R2  Cbl  030 Ech3   R2
+#&gt; 18 Intensity.Cbl_030_Ech3_R3  Cbl  030 Ech3   R3
+#&gt; 19 Intensity.Cbl_120_Ech1_R1  Cbl  120 Ech1   R1
+#&gt; 20 Intensity.Cbl_120_Ech1_R2  Cbl  120 Ech1   R2
+#&gt; 21 Intensity.Cbl_120_Ech1_R3  Cbl  120 Ech1   R3
+#&gt; 22 Intensity.Cbl_120_Ech2_R1  Cbl  120 Ech2   R1
+#&gt; 23 Intensity.Cbl_120_Ech2_R2  Cbl  120 Ech2   R2
+#&gt; 24 Intensity.Cbl_120_Ech2_R3  Cbl  120 Ech2   R3
+#&gt; 25 Intensity.Cbl_120_Ech3_R1  Cbl  120 Ech3   R1
+#&gt; 26 Intensity.Cbl_120_Ech3_R2  Cbl  120 Ech3   R2
+#&gt; 27 Intensity.Cbl_120_Ech3_R3  Cbl  120 Ech3   R3
+#&gt; 28 Intensity.Cbl_300_Ech1_R1  Cbl  300 Ech1   R1
+#&gt; 29 Intensity.Cbl_300_Ech1_R2  Cbl  300 Ech1   R2
+#&gt; 30 Intensity.Cbl_300_Ech1_R3  Cbl  300 Ech1   R3
+#&gt; 31 Intensity.Cbl_300_Ech2_R1  Cbl  300 Ech2   R1
+#&gt; 32 Intensity.Cbl_300_Ech2_R2  Cbl  300 Ech2   R2
+#&gt; 33 Intensity.Cbl_300_Ech2_R3  Cbl  300 Ech2   R3
+#&gt; 34 Intensity.Cbl_300_Ech3_R1  Cbl  300 Ech3   R1
+#&gt; 35 Intensity.Cbl_300_Ech3_R2  Cbl  300 Ech3   R2
+#&gt; 36 Intensity.Cbl_300_Ech3_R3  Cbl  300 Ech3   R3
+#&gt; 37 Intensity.Cbl_600_Ech1_R1  Cbl  600 Ech1   R1
+#&gt; 38 Intensity.Cbl_600_Ech1_R2  Cbl  600 Ech1   R2
+#&gt; 39 Intensity.Cbl_600_Ech1_R3  Cbl  600 Ech1   R3
+#&gt; 40 Intensity.Cbl_600_Ech2_R1  Cbl  600 Ech2   R1
+#&gt; 41 Intensity.Cbl_600_Ech2_R2  Cbl  600 Ech2   R2
+#&gt; 42 Intensity.Cbl_600_Ech2_R3  Cbl  600 Ech2   R3
+#&gt; 43 Intensity.Cbl_600_Ech3_R1  Cbl  600 Ech3   R1
+#&gt; 44 Intensity.Cbl_600_Ech3_R2  Cbl  600 Ech3   R2
+#&gt; 45 Intensity.Cbl_600_Ech3_R3  Cbl  600 Ech3   R3
+#&gt; 46    Intensity.WT_0_Ech1_R1   WT    0 Ech1   R1
+#&gt; 47    Intensity.WT_0_Ech1_R2   WT    0 Ech1   R2
+#&gt; 48    Intensity.WT_0_Ech1_R3   WT    0 Ech1   R3
+#&gt; 49    Intensity.WT_0_Ech2_R1   WT    0 Ech2   R1
+#&gt; 50    Intensity.WT_0_Ech2_R2   WT    0 Ech2   R2
+#&gt; 51    Intensity.WT_0_Ech2_R3   WT    0 Ech2   R3
+#&gt; 52    Intensity.WT_0_Ech3_R1   WT    0 Ech3   R1
+#&gt; 53    Intensity.WT_0_Ech3_R2   WT    0 Ech3   R2
+#&gt; 54    Intensity.WT_0_Ech3_R3   WT    0 Ech3   R3
+#&gt; 55  Intensity.WT_030_Ech1_R1   WT  030 Ech1   R1
+#&gt; 56  Intensity.WT_030_Ech1_R2   WT  030 Ech1   R2
+#&gt; 57  Intensity.WT_030_Ech1_R3   WT  030 Ech1   R3
+#&gt; 58  Intensity.WT_030_Ech2_R1   WT  030 Ech2   R1
+#&gt; 59  Intensity.WT_030_Ech2_R2   WT  030 Ech2   R2
+#&gt; 60  Intensity.WT_030_Ech2_R3   WT  030 Ech2   R3
+#&gt; 61  Intensity.WT_030_Ech3_R1   WT  030 Ech3   R1
+#&gt; 62  Intensity.WT_030_Ech3_R2   WT  030 Ech3   R2
+#&gt; 63  Intensity.WT_030_Ech3_R3   WT  030 Ech3   R3
+#&gt; 64  Intensity.WT_120_Ech1_R1   WT  120 Ech1   R1
+#&gt; 65  Intensity.WT_120_Ech1_R2   WT  120 Ech1   R2
+#&gt; 66  Intensity.WT_120_Ech1_R3   WT  120 Ech1   R3
+#&gt; 67  Intensity.WT_120_Ech2_R1   WT  120 Ech2   R1
+#&gt; 68  Intensity.WT_120_Ech2_R2   WT  120 Ech2   R2
+#&gt; 69  Intensity.WT_120_Ech2_R3   WT  120 Ech2   R3
+#&gt; 70  Intensity.WT_120_Ech3_R1   WT  120 Ech3   R1
+#&gt; 71  Intensity.WT_120_Ech3_R2   WT  120 Ech3   R2
+#&gt; 72  Intensity.WT_120_Ech3_R3   WT  120 Ech3   R3
+#&gt; 73  Intensity.WT_300_Ech1_R1   WT  300 Ech1   R1
+#&gt; 74  Intensity.WT_300_Ech1_R2   WT  300 Ech1   R2
+#&gt; 75  Intensity.WT_300_Ech1_R3   WT  300 Ech1   R3
+#&gt; 76  Intensity.WT_300_Ech2_R1   WT  300 Ech2   R1
+#&gt; 77  Intensity.WT_300_Ech2_R2   WT  300 Ech2   R2
+#&gt; 78  Intensity.WT_300_Ech2_R3   WT  300 Ech2   R3
+#&gt; 79  Intensity.WT_300_Ech3_R1   WT  300 Ech3   R1
+#&gt; 80  Intensity.WT_300_Ech3_R2   WT  300 Ech3   R2
+#&gt; 81  Intensity.WT_300_Ech3_R3   WT  300 Ech3   R3
+#&gt; 82  Intensity.WT_600_Ech1_R1   WT  600 Ech1   R1
+#&gt; 83  Intensity.WT_600_Ech1_R2   WT  600 Ech1   R2
+#&gt; 84  Intensity.WT_600_Ech1_R3   WT  600 Ech1   R3
+#&gt; 85  Intensity.WT_600_Ech2_R1   WT  600 Ech2   R1
+#&gt; 86  Intensity.WT_600_Ech2_R2   WT  600 Ech2   R2
+#&gt; 87  Intensity.WT_600_Ech2_R3   WT  600 Ech2   R3
+#&gt; 88  Intensity.WT_600_Ech3_R1   WT  600 Ech3   R1
+#&gt; 89  Intensity.WT_600_Ech3_R2   WT  600 Ech3   R2
+#&gt; 90  Intensity.WT_600_Ech3_R3   WT  600 Ech3   R3</div><div class='input'><span class='co'># and use it as parameters for function InteRact()</span>
+<span class='no'>res</span> <span class='kw'>&lt;-</span> <span class='fu'><a href='InteRact.html'>InteRact</a></span>(<span class='no'>proteinGroups_Cbl</span>, <span class='kw'>bait_gene_name</span> <span class='kw'>=</span> <span class='st'>"Cbl"</span>, <span class='kw'>condition</span> <span class='kw'>=</span> <span class='no'>cond</span>)</div><div class='output co'>#&gt; <span class='warning'>Warning: Column 'Score' not available : Data NOT Filtered based on portein identification score</span></div><div class='output co'>#&gt; Contaminant proteins discarded
+#&gt; Proteins with no gene name available discarded
+#&gt; Number of theoretically observable peptides unavailable : used MW instead
+#&gt; Merge protein groups associated to the same gene name (sum of intensities) 
+#&gt; Rescale median intensity across conditions
+#&gt; Replace missing values and perform interactome analysis for 1 replicates
+#&gt; Nrep=1
+#&gt; Averaging 1 interactomes</div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div><div class='output co'>#&gt; <span class='warning'>Warning: NaNs produced</span></div></pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="sidebar">
     <h2>Contents</h2>

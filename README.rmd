@@ -1,0 +1,67 @@
+---
+title: "R package: InteRact"
+author: "Guillaume Voisinne"
+output: 
+  github_document :
+    html_preview: true
+date: "`r format(Sys.time(), '%Y - %m - %d')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+[![Travis-CI Build Status](https://travis-ci.org/VoisinneG/InteRact.svg?branch=master)](https://travis-ci.org/VoisinneG/InteRact) 
+
+# InteRact
+Analysis of affinity purification/tandem MS data with R
+
+* flexible : no strict input format
+* publication-ready figures
+
+More info on the [website](https://voisinneg.github.io/InteRact)
+
+## Install
+
+The package is available from github:
+```
+devtools::install_github("VoisinneG/InteRact")
+
+```
+A shiny based GUI can be accessed [here](https://voisinneg.shinyapps.io/interact/)
+
+## Use
+
+```{r echo = FALSE, message=FALSE, warning=FALSE}
+library(InteRact)
+```
+Load example protein group dataset and run `InteRact`:
+
+```{r message=FALSE, warning=FALSE}
+data("proteinGroups_Cbl")
+names(proteinGroups_Cbl)[1:10]
+```
+
+```{r message=TRUE, warning=FALSE}
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
+```
+
+
+Identify specific interactors
+```{r message=TRUE, warning=FALSE}
+res <- identify_interactors(res,
+                            p_val_thresh = 0.001, 
+                            fold_change_thresh = 3, 
+                            n_success_min = 1, 
+                            consecutive_success = TRUE)
+print(res$interactor)
+```
+
+Show summary table
+
+```{r}
+sum_tbl <- summary_table(res)
+head(sum_tbl[, c("bait", "names", "max_fold_change" ,"max_stoichio", "is_interactor")])
+```
+
+

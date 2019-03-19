@@ -1,3 +1,5 @@
+^README\.rmd$
+^_pkgdown\.yml$
 ^docs$
 ^\.travis\.yml$
 ^.*\.Rproj$

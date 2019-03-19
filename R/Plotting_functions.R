@@ -1,5 +1,5 @@
 #' Plot indirect interactions
-#' @param score output of the \code{identify_indirect_interactions} function
+#' @param score output of the \code{identify_indirect_interactions()} function
 #' @param var_threshold Variable of \code{score} on which the threshold will be applied
 #' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
 #' @param min_range Minimum range (in log10 scale) displayed on the y-axis (centered on the mean)
@@ -534,7 +534,7 @@ plot_volcanos <- function( res,
 #' @param plot_width width of the output .pdf file
 #' @param plot_height height of the output .pdf file
 #' @param clustering logical or numeric vector. If logical, use hierarchical 
-#' @param ... additionnal arguments passed to \code{dot_ploy()}
+#' @param ... additionnal arguments passed to \code{dot_plot()}
 #' clustering to order proteins. If numeric, ordering indexes for displayed proteins 
 #' (must be the same length as \code{idx_rows})
 #' @return a list conataining :
@@ -837,10 +837,10 @@ plot_stoichio <- function(res,
 #' @param show_violin logical, show point distribution using \code{geom_violin}
 #' @param comparisons list of comparison pairs (as indices or x variable names)
 #' @param test name of the test function to compare intensities between background
-#' @param test.args arguments passed to function \code{test}
+#' @param test.args arguments passed to function \code{test()}
 #' @param map_signif_level named vector with labels and corresponding significance levels
 #' @param position name of the function used to position data points 
-#' @param position.args arguments passed to function \code{position}
+#' @param position.args arguments passed to function \code{position()}
 #' @return a plot
 #' @import ggplot2
 #' @import ggsignif
@@ -952,7 +952,7 @@ plot_comparison <- function(res,
     label_y <- "log10(Intensity Norm.)"
   }
   
-  df_tot$log10_intensity <- log10(df$intensity)
+  df_tot$log10_intensity <- log10(df_tot$intensity)
   
   p <- ggplot(df_tot, aes_string(x='x', y='log10_intensity'  )) + 
     theme(axis.text = element_text(size=12),
@@ -1046,6 +1046,7 @@ plot_comparison <- function(res,
 #' @return Several QC plots
 #' @import ggplot2
 #' @importFrom stats quantile IQR
+#' @importFrom Hmisc rcorr
 #' @export
 plot_QC <- function(data){
   
@@ -1061,7 +1062,7 @@ plot_QC <- function(data){
   ibait <- which(rownames(df$Intensity) == df$bait)
   
   M <- as.matrix(df$Intensity)
-  R <- rcorr(M)
+  R <- Hmisc::rcorr(M)
   
   
   idx_bait <- df$conditions$bckg == df$bckg_bait
@@ -1111,7 +1112,7 @@ plot_QC <- function(data){
     message_outlier_2 <- "No outliers"
   }
   message_outlier_2 <- paste(message_outlier_2, "(in bait bckg)", sep=" ")
-  Ibait$log10_Ibait <- log10(df$Ibait)
+  Ibait$log10_Ibait <- log10(Ibait$Ibait)
   
   p2 <- ggplot(Ibait, aes_string(x='bckg', y='log10_Ibait', col='bio')) + 
     ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +

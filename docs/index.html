@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Analysis of affinity purification/tandem MS data • InteRact</title>
-<!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script><!-- Bootstrap --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha256-916EbMg70RQy9LHiGkXzG8hSg9EdNy97GazNG/aiY1w=" crossorigin="anonymous">
+<!-- jquery --><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script><!-- Bootstrap --><link href="https://cdnjs.cloudflare.com/ajax/libs/bootswatch/3.3.7/paper/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha256-U5ZEeKfGNOja007MMD3YBI0A3OSZOQbeG6z2f2Y0hu8=" crossorigin="anonymous"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0=" crossorigin="anonymous">
 <!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.4/clipboard.min.js" integrity="sha256-FiZwavyI2V6+EXO1U+xzLG3IKldpiTFf3153ea9zikQ=" crossorigin="anonymous"></script><!-- sticky kit --><script src="https://cdnjs.cloudflare.com/ajax/libs/sticky-kit/1.1.3/sticky-kit.min.js" integrity="sha256-c4Rlo1ZozqTPE2RLuvbusY3+SU1pQaJC0TjuhygMipw=" crossorigin="anonymous"></script><!-- pkgdown --><link href="pkgdown.css" rel="stylesheet">
 <script src="pkgdown.js"></script><meta property="og:title" content="Analysis of affinity purification/tandem MS data">
@@ -18,7 +18,7 @@
 <![endif]-->
 </head>
 <body>
-    <div class="container template-home">
+    <div class="container template-article">
       <header><div class="navbar navbar-default navbar-fixed-top" role="navigation">
   <div class="container">
     <div class="navbar-header">
@@ -43,10 +43,35 @@
   </a>
 </li>
 <li>
+  <a href="articles/InteRact.html">Get started</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    articles
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+<li>
+      <a href="articles/Metadata.html">Metadata</a>
+    </li>
+    <li>
+      <a href="articles/Preprocessing.html">Data preprocessing</a>
+    </li>
+  </ul>
+</li>
+<li>
   <a href="reference/index.html">Reference</a>
 </li>
       </ul>
-<ul class="nav navbar-nav navbar-right"></ul>
+<ul class="nav navbar-nav navbar-right">
+<li>
+  <a href="https://github.com/VoisinneG/InteRact">
+    <span class="fa fa-github fa-lg"></span>
+     
+  </a>
+</li>
+      </ul>
 </div>
 <!--/.nav-collapse -->
   </div>
@@ -56,32 +81,84 @@
 
       
       </header><div class="row">
-  <div class="contents col-md-9">
+  <div class="col-md-9 contents">
+    
 
+    
+    
 
 <div id="interact" class="section level1">
 <div class="page-header"><h1 class="hasAnchor">
 <a href="#interact" class="anchor"></a>InteRact</h1></div>
-<p>A R package to analyze proteomics data</p>
-<div id="installation" class="section level2">
+<p>Analysis of affinity purification/tandem MS data with R</p>
+<ul>
+<li>flexible : no strict input format</li>
+<li>publication-ready figures</li>
+</ul>
+<p>More info on the <a href="https://voisinneg.github.io/InteRact">website</a></p>
+<div id="install" class="section level2">
 <h2 class="hasAnchor">
-<a href="#installation" class="anchor"></a>Installation</h2>
-<p>Install the package from the github repository using:</p>
-<pre><code><a href="https://www.rdocumentation.org/packages/devtools/topics/reexports">devtools::install_github("VoisinneG/InteRact")</a></code></pre>
+<a href="#install" class="anchor"></a>Install</h2>
+<p>The package is available from github:</p>
+<pre><code><a href="https://www.rdocumentation.org/packages/devtools/topics/reexports">devtools::install_github("VoisinneG/InteRact")
+</a></code></pre>
+<p>A shiny based GUI can be accessed <a href="https://voisinneg.shinyapps.io/interact/">here</a></p>
 </div>
-<div id="shiny-app" class="section level2">
+<div id="use" class="section level2">
 <h2 class="hasAnchor">
-<a href="#shiny-app" class="anchor"></a>Shiny App</h2>
-<p>Once the package is installed, run the shiny app using:</p>
-<pre><code>runGitHub( "InteRact", "VoisinneG", subdir = "shiny") </code></pre>
-<p>or use the version deployed on shinyapps.io using this link <a href="https://voisinneg.shinyapps.io/interact/" class="uri">https://voisinneg.shinyapps.io/interact/</a></p>
+<a href="#use" class="anchor"></a>Use</h2>
+<p>Load example protein group dataset and run <code>InteRact</code>:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw"><a href="https://www.rdocumentation.org/packages/utils/topics/data">data</a></span>(<span class="st">"proteinGroups_Cbl"</span>)
+<span class="kw"><a href="https://www.rdocumentation.org/packages/base/topics/names">names</a></span>(proteinGroups_Cbl)[<span class="dv">1</span><span class="op">:</span><span class="dv">10</span>]</code></pre></div>
+<pre><code>##  [1] "Protein.IDs"                   "Majority.protein.IDs"         
+##  [3] "Peptide.counts..all."          "Peptide.counts..razor.unique."
+##  [5] "Peptide.counts..unique."       "Protein.names"                
+##  [7] "Gene.names"                    "Fasta.headers"                
+##  [9] "Number.of.proteins"            "Peptides"</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">res &lt;-<span class="st"> </span><span class="kw"><a href="reference/InteRact.html">InteRact</a></span>(proteinGroups_Cbl, <span class="dt">bait_gene_name =</span> <span class="st">"Cbl"</span>)</code></pre></div>
+<pre><code>## Contaminant proteins discarded
+## Proteins with no gene name available discarded
+## Number of theoretically observable peptides unavailable : used MW instead
+## Merge protein groups associated to the same gene name (sum of intensities) 
+## Rescale median intensity across conditions
+## Replace missing values and perform interactome analysis for 1 replicates
+## Nrep=1
+## Averaging 1 interactomes</code></pre>
+<p>Identify specific interactors</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">res &lt;-<span class="st"> </span><span class="kw"><a href="reference/identify_interactors.html">identify_interactors</a></span>(res,
+                            <span class="dt">p_val_thresh =</span> <span class="fl">0.001</span>, 
+                            <span class="dt">fold_change_thresh =</span> <span class="dv">3</span>, 
+                            <span class="dt">n_success_min =</span> <span class="dv">1</span>, 
+                            <span class="dt">consecutive_success =</span> <span class="ot">TRUE</span>)
+<span class="kw"><a href="https://www.rdocumentation.org/packages/base/topics/print">print</a></span>(res<span class="op">$</span>interactor)</code></pre></div>
+<pre><code>##  [1] "Cbl"      "Mccc1"    "Sh3kbp1"  "Ubash3a"  "Crkl"     "Pik3r1"  
+##  [7] "Ywhah"    "Ywhag"    "Pik3ca"   "Grb2"     "StrepTag" "Pik3cd"  
+## [13] "Emb"      "Pccb"     "Cox4i1"   "Myl6"     "Sod1"</code></pre>
+<p>Show summary table</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">sum_tbl &lt;-<span class="st"> </span><span class="kw"><a href="reference/summary_table.html">summary_table</a></span>(res)
+<span class="kw"><a href="https://www.rdocumentation.org/packages/utils/topics/head">head</a></span>(sum_tbl[, <span class="kw"><a href="https://www.rdocumentation.org/packages/base/topics/c">c</a></span>(<span class="st">"bait"</span>, <span class="st">"names"</span>, <span class="st">"max_fold_change"</span> ,<span class="st">"max_stoichio"</span>, <span class="st">"is_interactor"</span>)])</code></pre></div>
+<pre><code>##   bait    names max_fold_change max_stoichio is_interactor
+## 1  Cbl      Cbl      6028.12350    1.0000000             1
+## 2  Cbl StrepTag       894.39480    1.8500618             1
+## 3  Cbl     Pccb        22.03694    1.2265462             1
+## 4  Cbl     Crkl       871.35901    0.6316826             1
+## 5  Cbl    Ywhah       124.87974    0.2295337             1
+## 6  Cbl    Ywhag       227.57076    0.2230696             1</code></pre>
 </div>
 </div>
-
   </div>
 
   <div class="col-md-3 hidden-xs hidden-sm" id="sidebar">
-    <div class="license">
+    <div class="links">
+<h2>Links</h2>
+<ul class="list-unstyled">
+<li>Browse source code at <br><a href="https://github.com/VoisinneG/InteRact">https://​github.com/​VoisinneG/​InteRact</a>
+</li>
+<li>Report a bug at <br><a href="https://github.com/VoisinneG/InteRact/issues">https://​github.com/​VoisinneG/​InteRact/​issues</a>
+</li>
+</ul>
+</div>
+<div class="license">
 <h2>License</h2>
 <ul class="list-unstyled">
 <li>file <a href="LICENSE-text.html">LICENSE</a>
@@ -91,18 +168,20 @@
 <div class="developers">
 <h2>Developers</h2>
 <ul class="list-unstyled">
-<li>Guillaume Voisinne <br><small class="roles"> Maintainer </small>  </li>
+<li>Guillaume Voisinne <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/0000-0003-3922-2121" target="orcid.widget"><img src="https://members.orcid.org/sites/default/files/vector_iD_icon.svg" class="orcid" alt="ORCID" height="16"></a> </li>
 </ul>
 </div>
 
-  <div class="dev-status">
+      <div class="dev-status">
 <h2>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://travis-ci.org/VoisinneG/InteRact"><img src="https://travis-ci.org/VoisinneG/InteRact.svg?branch=master" alt="Travis-CI Build Status"></a></li>
 </ul>
 </div>
 </div>
+
 </div>
+
 
       <footer><div class="copyright">
   <p>Developed by Guillaume Voisinne.</p>

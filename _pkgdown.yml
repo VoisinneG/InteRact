@@ -1,0 +1,36 @@
+template:
+  params:
+    bootswatch: paper
+navbar:
+  structure:
+    left:
+    - home
+    - intro
+    - articles
+    - reference
+    - tutorials
+    - news
+    right: github
+  components:
+    home:
+      icon: fa-home fa-lg
+      href: index.html
+    articles:
+      text: articles
+      href: articles/index.html
+    reference:
+      text: Reference
+      href: reference/index.html
+    github:
+      icon: fa-github fa-lg
+      href: https://github.com/VoisinneG/InteRact
+reference:
+  - title: Data processing
+    desc:
+    contents:
+      - -starts_with("plot_")
+  - title: Visualization
+    desc:
+    contents:
+      - starts_with("plot_")
+      

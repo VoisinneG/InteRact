@@ -10,7 +10,7 @@ plot_indirect_interactions(score,
   plot_height = 2, show_legend = FALSE)
 }
 \arguments{
-\item{score}{output of the \code{identify_indirect_interactions} function}
+\item{score}{output of the \code{identify_indirect_interactions()} function}
 
 \item{var_threshold}{Variable of \code{score} on which the threshold will be applied}
 

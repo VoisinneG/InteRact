@@ -4,7 +4,7 @@
 \alias{InteRact}
 \title{Analysis of AP-MS data}
 \usage{
-InteRact(df, updateProgress = NULL, N_rep = 3, method = "default",
+InteRact(df, updateProgress = NULL, N_rep = 1, method = "default",
   quantile_rep = 0.05, pool_background = FALSE, log_test = TRUE,
   log_stoichio = TRUE, log_mean = TRUE, by_conditions = TRUE,
   substract_ctrl = TRUE, use_mean_for_bait = FALSE,
@@ -18,8 +18,9 @@ InteRact(df, updateProgress = NULL, N_rep = 3, method = "default",
 
 \item{N_rep}{Number of iterations for the replacement of missing values}
 
-\item{method}{Method to replace missing values. Methods from the "mice" package are supported. By default, 
-missing values are sampled from a normal distribution centered on the quantile of ctrl intensities defined by parameter \code{quantile_rep}
+\item{method}{Method to replace missing values. Methods from the "mice" package are supported. 
+Use "none" if you do not want to replace missing values. By default, missing values are sampled from a 
+normal distribution centered on the quantile of ctrl intensities defined by parameter \code{quantile_rep}
 with the standard deviation set to the mean SD of ctrl intensities across all proteins.}
 
 \item{quantile_rep}{Numeric value between 0 and 1. Quantile of the distribution of mean intensities 

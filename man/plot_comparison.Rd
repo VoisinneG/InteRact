@@ -61,13 +61,13 @@ plot_comparison(res, names, conditions = res$conditions, textsize = 4,
 
 \item{test}{name of the test function to compare intensities between background}
 
-\item{test.args}{arguments passed to function \code{test}}
+\item{test.args}{arguments passed to function \code{test()}}
 
 \item{map_signif_level}{named vector with labels and corresponding significance levels}
 
 \item{position}{name of the function used to position data points}
 
-\item{position.args}{arguments passed to function \code{position}}
+\item{position.args}{arguments passed to function \code{position()}}
 }
 \value{
 a plot

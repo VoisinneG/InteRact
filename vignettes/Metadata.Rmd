@@ -1,0 +1,90 @@
+---
+title: "Metadata"
+date: "`r format(Sys.time(), '%Y - %m - %d')`"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: false
+vignette: >
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteIndexEntry{Metadata}
+  %\usepackage[UTF-8]{inputenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(InteRact)
+data("proteinGroups_Cbl")
+```
+
+## Generate metadata from column names
+
+In the example dataset `proteinGroups_Cbl`, protein intensities are found in data columns whose names start with "Intensity".
+We identify such columns using `grep()`
+
+```{r message=FALSE, warning=FALSE}
+idx_intensity_columns <- grep("^Intensity.", names(proteinGroups_Cbl))
+print(names(proteinGroups_Cbl)[idx_intensity_columns][1:10])
+```
+
+Intensity columns are usually named using a pattern. Here the names of the cell type, of the experimental condition (time of stimulation), of the biological replicate and of the technical replicate are separated by the character `_`. We can use the function `identify_conditions()` to map conditions from intensity column names:
+
+```{r message=FALSE, warning=FALSE}
+condition <- identify_conditions(proteinGroups_Cbl,
+                                  Column_intensity_pattern = "^Intensity.",
+                                  split = "_", 
+                                  bckg_pos = 1,
+                                  time_pos = 2,
+                                  bio_pos = 3,
+                                  tech_pos = 4)
+summary(condition)
+```
+
+## Import custom metadata
+
+You can also import this metadata from a separate file. The package comes with one such file.
+
+```{r message=FALSE, warning=FALSE}
+condition_custom <- read.csv( system.file("extdata", "proteinGroups_Cbl_metadata.csv", package = "InteRact") )
+summary(condition_custom)
+```
+
+This is the right place to reorder conditions if needed:
+
+```{r message=FALSE, warning=FALSE}
+levels(condition_custom$Stim.time) <- c("t=0s", "t=030s", "t=120s", "t=300s", "t=600s") 
+```
+
+Finally, metadata column names must be changed to match those obtained by calling `identify_conditions()`.
+
+```{r message=FALSE, warning=FALSE}
+names(condition_custom) <- c("column", "bckg", "time", "bio", "tech")
+```
+As documented for `identify_conditions()`, `column` contains intensity column names (as they appear when calling `names()`), `bckg` contains the identity of the cell type, `time` contains the name of the experimental condition, and `bio` and `rep` contain the names of the biological and technical replicate respectively.
+
+This custom metadata can then be passed to `InteRact()`:
+
+```{r message=TRUE, warning=FALSE}
+
+res <- InteRact(proteinGroups_Cbl, 
+                bait_gene_name = "Cbl", 
+                condition = condition_custom, 
+                bckg_bait = "CBL-OST",
+                bckg_ctrl = "Wild-type")
+```
+
+Note that we had to change parameters `bckg_bait` and `bckg_ctrl` according to the values taken by `condition_custom$bckg`.
+Custom names now appears in the interactome and in subsequent plots (as for instance in the title of volcano plots):
+
+```{r message=TRUE, warning=FALSE}
+print(res$conditions)
+print(res$replicates)
+```
+
+
+
+```{r message=TRUE, warning=FALSE}
+plot_volcanos(res, p_val_thresh = 0.005, fold_change_thresh = 3)[[1]]
+```
+

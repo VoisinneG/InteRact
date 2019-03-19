@@ -1,0 +1,132 @@
+---
+title: "Analysis of an example dataset"
+date: "`r format(Sys.time(), '%Y - %m - %d')`"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      toc_collapsed: false
+    theme: flatly
+vignette: >
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteIndexEntry{Analysis of an example dataset}
+  %\usepackage[UTF-8]{inputenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Input data format
+
+The input file can be of many types as long as it can be converted to a `data.frame` containing a number of columns with protein intensities and one column with protein identifiers. A protein identifier correspond to a unique entry in the UniProt database. Multiple protein identifiers can be associated with a single protein group.
+
+## Load data
+Load an example dataset containing protein group intensities:
+
+```{r message=FALSE, warning=FALSE}
+library(InteRact)
+data("proteinGroups_Cbl")
+names(proteinGroups_Cbl)[1:20]
+```
+
+## Map conditions
+
+Protein intensity column names start with "Intensity" :
+
+```{r message=FALSE, warning=FALSE}
+idx_intensity_columns <- grep("^Intensity.", names(proteinGroups_Cbl))
+print(names(proteinGroups_Cbl)[idx_intensity_columns][1:10])
+```
+
+Use the function `identify_conditions()` to map conditions from intensity column names:
+
+```{r message=FALSE, warning=FALSE}
+condition <- identify_conditions(proteinGroups_Cbl,
+                                  Column_intensity_pattern = "^Intensity.",
+                                  split = "_", 
+                                  bckg_pos = 1,
+                                  time_pos = 2,
+                                  bio_pos = 3,
+                                  tech_pos = 4)
+print(condition)
+```
+
+## Preprocess data
+
+
+```{r message=FALSE, warning=FALSE}
+
+preprocessed_data <- preprocess_data(proteinGroups_Cbl,
+                            Column_gene_name = "Gene.names",
+                            Column_score = "Score",
+                            Column_ID = "Protein.IDs",
+                            Column_Npep = NULL,
+                            Column_intensity_pattern = "^Intensity.",
+                            bait_gene_name = "Cbl",
+                            condition = condition,
+                            bckg_bait = "Cbl",
+                            bckg_ctrl = "WT"
+                            )
+
+```
+
+## Run `InteRact`
+
+Replace missing values with methode `method`, compare protein intensities between bait and control backgrounds (`bckg_bait` and `bckg_ctrl` respectively) across experimental conditions:
+
+```{r message=TRUE, warning=FALSE}
+res <- InteRact(preprocess_df = preprocessed_data, 
+                method = "none",
+                pool_background = TRUE)
+```
+
+## Identify specific interactions
+
+Identify prey proteins specifically enriched in the bait background :
+```{r message=TRUE, warning=FALSE}
+res <- identify_interactors(res, 
+                            p_val_thresh = 0.001, 
+                            fold_change_thresh = 3, 
+                            n_success_min = 2, 
+                            consecutive_success = TRUE)
+names(res)
+```
+
+```{r message=TRUE, warning=FALSE}
+print(res$interactor)
+```
+
+## Summarize results
+
+Create a summary data.frame :
+```{r}
+#Create a summary data frame
+sum_tbl <- summary_table(res)
+head(sum_tbl[, 1:10])
+```
+
+## Volcano plots
+
+Generate volcano plots :
+```{r message=TRUE, warning=FALSE}
+
+plot_volcanos(res, conditions = "030", p_val_thresh = 0.005, fold_change_thresh = 3, asinh_transform = FALSE)
+
+```
+
+
+## Recruitment kinetics
+
+Plot kinetics of recruitment:
+```{r message=TRUE, warning=FALSE, fig.width=3.5, fig.height=6 }
+plot_per_condition(res)$plot
+```
+
+
+## Focus on a protein
+
+Compare protein intensities across condition for a given protein
+```{r message=TRUE, warning=FALSE}
+plot_comparison(res, names = "Crkl")
+```
