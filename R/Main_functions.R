@@ -643,7 +643,9 @@ merge_duplicate_groups <- function(df, idx_col = NULL, merge_column = "gene_name
       for (k in idx_col ){
         s=0;
         for(j in idx_u ){
-          s= s + df[j, k];
+          if(!is.na(df[j, k])){
+            s= s + df[j, k]
+          }
         }
         if(sum_intensities){
           df_int[idx_u[jmax[1]], k] = s;
