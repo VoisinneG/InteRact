@@ -8,7 +8,7 @@ output:
       toc_collapsed: false
 vignette: >
   %\VignetteEngine{knitr::knitr}
-  %\VignetteIndexEntry{Metadata}
+  %\VignetteIndexEntry{Data preprocessing}
   %\usepackage[UTF-8]{inputenc}
 ---
 
@@ -58,7 +58,7 @@ You can assess the distribution of missing values, the correlations in protein i
 ```{r message=FALSE, warning=FALSE}
 library(gridExtra)
 grobs <- plot_QC(preprocessed_data)$plot
-grid.arrange(grobs = grobs, nrow = 1)
+gridExtra::grid.arrange(grobs = grobs, nrow = 1)
 ```
 
 

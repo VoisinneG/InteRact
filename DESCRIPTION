@@ -32,5 +32,6 @@ URL: https://github.com/VoisinneG/InteRact
 BugReports: https://github.com/VoisinneG/InteRact/issues
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    gridExtra
 VignetteBuilder: knitr
