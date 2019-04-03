@@ -35,7 +35,7 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' #load data :
 #' data("proteinGroups_Cbl")
 #' #Run InteRact with default parameters
-#' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
+#' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl",)
 #' 
 #' #You now have an `InteRactome`. See its elements.
 #' class(res)
@@ -50,7 +50,7 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' plot_per_condition(res)
 #' 
 #' # Append annotations
-#' res <- append_annotations(res,  annotations = "")
+#' # res <- append_annotations(res)
 #' #Create a summary data frame
 #' sum_tbl <- summary_table(res)
 InteRact <- function(
@@ -1408,8 +1408,8 @@ global_analysis <- function( res ){
 }
 
 #' Add protein abundance to an \code{InteRactome}
-#' @description Add protein abundance to an \code{InteRactome}. 
-#' Protein abundance are obtained from CD4+ effector T cells.
+#' @description Add protein abundance to an \code{InteRactome}. For multiple identifiers, 
+#' the abundance of the first match in the proteome dataset is returned.
 #' @param res an \code{InteRactome}
 #' @param col_ID name of \code{res} containing protein IDs
 #' @param col_names name of \code{res} containing gene names. Only used if \code{map_gene_name = TRUE}.
@@ -1430,7 +1430,7 @@ merge_proteome <- function( res,
                             sep_primary = ";",
                             sep_secondary = c("|", "-"), 
                             proteome_dataset, 
-                            pdata_col_ID = "Protein.ID",
+                            pdata_col_ID = "Protein.IDs",
                             pdata_col_gene_name = "Gene.names",
                             pdata_col_copy_number = "Copy.Number",
                             map_gene_name = FALSE,
@@ -1489,7 +1489,6 @@ merge_proteome <- function( res,
       
       if(length(idx_match)>0){
         idx_match_all[i] <- idx_match[1]
-        
         break
       }
     }
@@ -1504,7 +1503,7 @@ merge_proteome <- function( res,
     res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
   }
   
-  output=res_int
+  res_int
   
 }
 

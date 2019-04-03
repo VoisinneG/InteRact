@@ -2,6 +2,7 @@
 
 export(InteRact)
 export(append_FDR)
+export(append_PPI)
 export(append_annotations)
 export(average_technical_replicates)
 export(compare_stoichio)

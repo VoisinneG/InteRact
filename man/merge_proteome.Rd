@@ -6,7 +6,7 @@
 \usage{
 merge_proteome(res, col_ID = "Protein.IDs", col_names = "names",
   sep_primary = ";", sep_secondary = c("|", "-"), proteome_dataset,
-  pdata_col_ID = "Protein.ID", pdata_col_gene_name = "Gene.names",
+  pdata_col_ID = "Protein.IDs", pdata_col_gene_name = "Gene.names",
   pdata_col_copy_number = "Copy.Number", map_gene_name = FALSE,
   updateProgress = NULL)
 }
@@ -36,6 +36,6 @@ identify protein IDs for each protein}
 protein abundances (in log10)}
 }
 \description{
-Add protein abundance to an \code{InteRactome}. 
-Protein abundance are obtained from CD4+ effector T cells.
+Add protein abundance to an \code{InteRactome}. For multiple identifiers, 
+the abundance of the first match in the proteome dataset is returned.
 }

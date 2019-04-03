@@ -64,7 +64,7 @@ Analysis of AP-MS data
 #load data :
 data("proteinGroups_Cbl")
 #Run InteRact with default parameters
-res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl",)
 
 #You now have an `InteRactome`. See its elements.
 class(res)
@@ -79,7 +79,7 @@ res <- identify_interactors(res, p_val_thresh = 0.05, fold_change_thresh = 2)
 plot_per_condition(res)
 
 # Append annotations
-res <- append_annotations(res,  annotations = "")
+# res <- append_annotations(res)
 #Create a summary data frame
 sum_tbl <- summary_table(res)
 }

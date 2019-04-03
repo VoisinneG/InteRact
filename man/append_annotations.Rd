@@ -4,17 +4,19 @@
 \alias{append_annotations}
 \title{Append annotations to an \code{InteRactome}}
 \usage{
-append_annotations(res, annotations = NULL, name_id = "Protein.IDs",
-  organism = "mouse")
+append_annotations(res, annotations = c("keywords", "families", "go"),
+  name_id = "Protein.IDs", sep = ";", name_id_annot = "Protein.IDs")
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
 \item{annotations}{type of annotations to append}
 
-\item{name_id}{column name used to map protein identifiers}
+\item{name_id}{column name from \code{res} used to map protein identifiers}
 
-\item{organism}{organism for which the annotations have to be appended}
+\item{sep}{Character separating different proteoin ids}
+
+\item{name_id_annot}{column name from the annotation data.frame used to map protein identifiers}
 }
 \value{
 an \code{InteRactome}
