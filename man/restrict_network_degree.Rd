@@ -4,11 +4,16 @@
 \alias{restrict_network_degree}
 \title{Limit the number of edges per node within a network}
 \usage{
-restrict_network_degree(df_corr, source = "name_1", target = "name_2",
+restrict_network_degree(df_corr, var_order = "r_corr",
+  decreasing = TRUE, source = "name_1", target = "name_2",
   nmax = NULL, strict = TRUE)
 }
 \arguments{
 \item{df_corr}{a data.frame}
+
+\item{var_order}{column in \code{df_corr} used to order network edges before filtering}
+
+\item{decreasing}{logical, use decreasing order to order network edges according to column \code{var_order}}
 
 \item{source}{column with source nodes}
 

@@ -30,7 +30,8 @@ plot_correlation_network(res, idx = NULL, source = "name_1",
 
 \item{p_val_thresh}{threshold for variable \code{var_p_val} (max)}
 
-\item{...}{other parameters passed to function \code{compute_correlations()}}
+\item{...}{other parameters passed either to function \code{compute_correlations()} if \code{df_corr} is NULL
+or to function \code{restrict_network_degree()} otherwise.}
 }
 \value{
 an interactive networkD3 plot

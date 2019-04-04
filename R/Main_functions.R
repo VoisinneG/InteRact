@@ -1781,13 +1781,17 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, stri
 #' Limit the number of edges per node within a network
 #' @description Limit the number of edges per node within a network
 #' @param df_corr a data.frame
+#' @param var_order column in \code{df_corr} used to order network edges before filtering
+#' @param decreasing logical, use decreasing order to order network edges according to column \code{var_order}
 #' @param source column with source nodes
 #' @param target column with target nodes
 #' @param nmax integer, limits the number of edges per node
 #' @param strict logical, if TRUE, ensures a strict upper bound on the maximal degree
 #' @return a network with a maximum degree lower than \code{nmax}
 #' @export
-restrict_network_degree <- function(df_corr, source = "name_1", target = "name_2", nmax = NULL, strict = TRUE){
+restrict_network_degree <- function(df_corr, var_order = "r_corr", decreasing = TRUE, source = "name_1", target = "name_2", nmax = NULL, strict = TRUE){
+  
+  df_corr <- df_corr[order(df_corr[[var_order]], decreasing = decreasing), ]
   
   nmax_int <- nmax
   if(!is.null(nmax)){

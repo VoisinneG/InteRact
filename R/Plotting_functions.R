@@ -1164,7 +1164,8 @@ plot_QC <- function(data){
 #' @param var_r_corr variable for which the threshold \code{r_corr_thresh} will be applied. Set to 'r_corr' by default
 #' @param r_corr_thresh threshold for variable 'r_corr' (min)
 #' @param p_val_thresh threshold for variable \code{var_p_val} (max)
-#' @param ... other parameters passed to function \code{compute_correlations()}
+#' @param ... other parameters passed either to function \code{compute_correlations()} if \code{df_corr} is NULL
+#' or to function \code{restrict_network_degree()} otherwise.
 #' @return an interactive networkD3 plot
 #' @import igraph
 #' @import networkD3
@@ -1178,7 +1179,7 @@ plot_correlation_network <- function(res,
                                      var_p_val = "p_corr", 
                                      var_r_corr = "r_corr", 
                                      r_corr_thresh = 0.8, 
-                                     p_val_thresh = 0.05, 
+                                     p_val_thresh = 0.05,
                                      ...){
   
   if(is.null(df_corr)){
@@ -1213,6 +1214,7 @@ plot_correlation_network <- function(res,
       idx_filter_corr <- idx
       df_corr_filtered <- df_corr[idx_filter_corr, ]
     }
+    df_corr_filtered <- restrict_network_degree(df_corr_filtered, ...)
   }
   
   
