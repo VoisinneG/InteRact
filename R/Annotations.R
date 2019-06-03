@@ -59,13 +59,14 @@ append_annotations <- function(res,
 #' @param mapping name of the \code{InteRactome}'s variable containing gene names
 #' @param df_summary data.frame with PPI information obatined from a call to \code{create_summary_table_PPI()}
 #' @return an \code{InteRactome}
+#' @import pannot
 #' @export
 append_PPI <- function( res, mapping = "names", df_summary = NULL){
   
   res_int <- res
   
   if(is.null(df_summary)){
-    df_ppi <- create_summary_table_PPI( res$bait )
+    df_ppi <- pannot::create_summary_table_PPI( res$bait )
   }else{
     if(length(unique(df_summary$gene_name_A))>1 | toupper(df_summary$gene_name_A[1]) != toupper(res$bait)){
       warning("incorrect PPI data")

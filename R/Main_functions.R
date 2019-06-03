@@ -35,7 +35,7 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' #load data :
 #' data("proteinGroups_Cbl")
 #' #Run InteRact with default parameters
-#' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl",)
+#' res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
 #' 
 #' #You now have an `InteRactome`. See its elements.
 #' class(res)
@@ -1411,100 +1411,21 @@ global_analysis <- function( res ){
 #' @description Add protein abundance to an \code{InteRactome}. For multiple identifiers, 
 #' the abundance of the first match in the proteome dataset is returned.
 #' @param res an \code{InteRactome}
-#' @param col_ID name of \code{res} containing protein IDs
-#' @param col_names name of \code{res} containing gene names. Only used if \code{map_gene_name = TRUE}.
-#' @param sep_primary Separator between different proteins
-#' @param sep_secondary Set of separators used sequentially (from right to left) to 
-#' identify protein IDs for each protein
-#' @param proteome_dataset Dataset containing protein abundances.
-#' @param pdata_col_ID column of \code{proteome_dataset} containing protein IDs
-#' @param pdata_col_gene_name column of \code{proteome_dataset} containing gene names
-#' @param pdata_col_copy_number column of \code{proteome_dataset} containing
-#' @param map_gene_name logical, map protein using gene names rather than protein IDs
-#' @param updateProgress used to display progress in shiny apps
-#' protein abundances (in log10)
+#' @param ... Parameters passed to \code{proteinRuler::map_proteome()}
+#' @importFrom proteinRuler map_proteome 
 #' @export
-merge_proteome <- function( res, 
-                            col_ID = "Protein.IDs",
-                            col_names = "names",
-                            sep_primary = ";",
-                            sep_secondary = c("|", "-"), 
-                            proteome_dataset, 
-                            pdata_col_ID = "Protein.IDs",
-                            pdata_col_gene_name = "Gene.names",
-                            pdata_col_copy_number = "Copy.Number",
-                            map_gene_name = FALSE,
-                            updateProgress = NULL){
-  
+merge_proteome <- function( res, ...){
   
   res_int <- res
-  if(class(res) == "InteRactome"){
-    ibait <- match(res$bait, res$names)
-  }
+
+  ibait = which(res$names == res$bait)
+
+  res_int <- map_proteome(df = res_int, ...)
   
-  pdata <- proteome_dataset
-  col_map <- col_ID
-  pdata_col_map <- pdata_col_ID
-  sep_secondary_int <- sep_secondary
-  sep_primary_int <- sep_primary
-  
-  if(map_gene_name){
-    col_map <- col_names
-    pdata_col_map <- pdata_col_gene_name
-    sep_secondary_int <- NULL
-    sep_primary_int <- " "
-  }
-  
-  ######### Retrieve protein abundance and compute related quantities
-  
-  idx_match_all <- rep(NA, length(res$names));
-  Copy_Number <- rep(NA, length(res$names));
-  
-  cat("Get protein abundances...\n")
-  pb <- txtProgressBar(min = 0, max = 100, style = 3)
-  
-  for( i in 1:length(res$names) ){
-    
-    if (is.function(updateProgress)) {
-      text <- paste0( i/length(res$names)*100)
-      updateProgress(value = format(i/length(res$names)*100, digits = 0), detail = text)
-    }
-    setTxtProgressBar(pb, i/length(res$names)*100)
-    
-    prot_ids <- strsplit(as.character(res[[col_map]][i]), split = sep_primary_int, fixed = TRUE)[[1]]
-    
-    for(j in 1:length(prot_ids)){
-      
-      prot_id_int <- prot_ids[j]
-      if(length(sep_secondary_int)>0){
-        for(k in 1:length(sep_secondary_int)){
-          prot_id_int <- strsplit(prot_id_int, split = sep_secondary_int[k], fixed = TRUE)[[1]][1]
-        }
-      }
-      
-      idx_match <-grep( paste("(^|", sep_primary_int, ")", toupper(prot_id_int), "($|", sep_primary_int, ")", sep =""),
-                        toupper(as.character(pdata[[pdata_col_map]])),
-                        fixed = FALSE)
-            
-      
-      if(length(idx_match)>0){
-        idx_match_all[i] <- idx_match[1]
-        break
-      }
-    }
-    
-  }
-  close(pb)
-  
-  Copy_Number <- pdata[[pdata_col_copy_number]][idx_match_all]
-  res_int$Copy_Number <- Copy_Number
-  
-  if(class(res) == "InteRactome"){
-    res_int$stoch_abundance = Copy_Number / Copy_Number[ibait]
-  }
+  res_int$stoch_abundance = res_int$Copy_Number / res_int$Copy_Number[ibait]
   
   res_int
-  
+
 }
 
 #' Identify specific interactors in an \code{InteRactome}
@@ -1680,43 +1601,54 @@ order_interactome <- function(res, idx = NULL,
 #' Compute correlation in protein recruitment
 #' @description Compute correlation in protein recruitment from interaction stoichiometries 
 #' computed across all conditions for each biological replicate. Pearson correlations are used.
-#' @param res an \code{InteRactome}
+#' @param res an \code{InteRactome} or a data.frame
 #' @param idx indexes of the set of proteins for which correlations will be computed
 #' @param log logical, use log-transformed stoichiometries
-#' @param nmax integer, limits the number of edges per node
+#' @param n_edges_max integer, limits the number of edges per node
 #' @param strict logical, if TRUE, ensures a strict upper bound on the maximal degree
 #' @param Rmin minimum absolute value of the Pearson R coefficient 
+#' @param n_min minimum number of values used to compute correlation
+#' @param P_max maximum p-value associated with the correlation
 #' @return a data.frame with protein correlation information 
 #' (correlation coefficient in column 'r_corr' and associated p-value in column 'p-corr')
 #' @importFrom Hmisc rcorr
 #' @importFrom stats p.adjust
 #' @export
-compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, strict = TRUE, Rmin = 0){
+compute_correlations <- function(res, idx = NULL, log = FALSE, n_edges_max = NULL, strict = TRUE, Rmin = 0, n_min = 3, P_max = 1){
 
   
   # build matrix on which correlations will be computed
-  idx_selected <- 1:length(res$names)
-  if (!is.null(idx)) {
-    idx_selected <- idx
-  }
-  idx_bait <- which(res$names == res$bait)
-  idx_selected <- setdiff(idx_selected, idx_bait)
-  
-  names <- res$names[idx_selected]
-  
-  df<-NULL
-  names_df <- NULL
-  for (bio in res$replicates){
-    for (cond in res$conditions){
-      if(log){
-        df <- cbind(df, log10(res$stoichio_bio[[bio]][[cond]][idx_selected]))
-      }else{
-        df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
+  if(class(res) == "InteRactome"){
+    idx_selected <- 1:length(res$names)
+    if (!is.null(idx)) {
+      idx_selected <- idx
+    }
+    idx_bait <- which(res$names == res$bait)
+    idx_selected <- setdiff(idx_selected, idx_bait)
+    
+    names <- res$names[idx_selected]
+    
+    df<-NULL
+    names_df <- NULL
+    for (bio in res$replicates){
+      for (cond in res$conditions){
+        if(log){
+          df <- cbind(df, log10(res$stoichio_bio[[bio]][[cond]][idx_selected]))
+        }else{
+          df <- cbind(df, res$stoichio_bio[[bio]][[cond]][idx_selected])
+        }
+        
+        
       }
-      
-      
+    }
+  }else{
+    df <- res
+    names <- rownames(df)
+    if(is.null(names)){
+      names <- as.character(1:dim(df)[1])
     }
   }
+  
   
   M <- as.matrix(df)
   row.names(M) <- names
@@ -1729,6 +1661,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, stri
   
   r_corr <- rep(NA, n*(n-1)/2)
   p_corr <- rep(NA, n*(n-1)/2)
+  n_corr <- rep(NA, n*(n-1)/2)
   name_1 <- rep("", n*(n-1)/2)
   name_2 <- rep("", n*(n-1)/2)
   
@@ -1743,6 +1676,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, stri
         count<-count+1
         r_corr[count] <- R$r[i, j]
         p_corr[count] <- R$P[i, j]
+        n_corr[count] <- R$n[i, j]
         name_1[count] <- names[i]
         name_2[count] <- names[j]
         M_transpose[i, j] <- 1
@@ -1753,17 +1687,22 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, stri
     
   }
   
-  df_corr <- data.frame( bait = rep(res$bait, length(name_1)),
-                         name_1 = name_1, 
-                         name_2 = name_2, 
-                         r_corr = r_corr, 
-                         p_corr = p_corr)
-  
+  df_corr <- data.frame(name_1 = name_1, 
+                        name_2 = name_2, 
+                        r_corr = r_corr, 
+                        p_corr = p_corr,
+                        n_corr = n_corr)
+  if(class(res) == "InteRactome"){
+    df_corr$bait <- res$bait
+  }
+
   #Filter edges based on correlation coefficient
   
   df_corr <- df_corr[!is.na(df_corr$r_corr) & 
-                       !is.na(df_corr$p_corr) & 
-                       df_corr$p_corr>0 & 
+                       !is.na(df_corr$p_corr) &
+                       !is.na(df_corr$n_corr) &
+                       df_corr$p_corr <= P_max &
+                       df_corr$n_corr > n_min &
                        abs(df_corr$r_corr) >= Rmin, ]
   
   df_corr$p_corr_bonferroni <- stats::p.adjust(df_corr$p_corr, method="bonferroni")
@@ -1773,7 +1712,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, nmax = NULL, stri
   
   #limit the number of edges per node
   
-  df_corr <- restrict_network_degree(df_corr = df_corr, source = "name_1", target = "name_2", nmax = nmax, strict = strict)
+  df_corr <- restrict_network_degree(df_corr = df_corr, source = "name_1", target = "name_2", nmax = n_edges_max , strict = strict)
   
   return(df_corr)
 }
@@ -1802,9 +1741,9 @@ restrict_network_degree <- function(df_corr, var_order = "r_corr", decreasing = 
   
   delete_edge <- rep(FALSE, dim(df_corr)[1])
   
-  df_corr$source <- as.character(df_corr[[source]])
-  df_corr$target <- as.character(df_corr[[target]])
-  u_nodes <- unique(c(df_corr$source, df_corr$target))
+  df_corr[[source]] <- as.character(df_corr[[source]])
+  df_corr[[target]] <- as.character(df_corr[[target]])
+  u_nodes <- unique(c(df_corr[[source]], df_corr[[target]]))
   
   if(!is.null(nmax_int)){
     
@@ -1812,14 +1751,14 @@ restrict_network_degree <- function(df_corr, var_order = "r_corr", decreasing = 
     names(n_edges) <- u_nodes
     
     for(i in 1:dim(df_corr)[1]){
-      n_edges[[df_corr$source[i]]] <- n_edges[[df_corr$source[i]]] + 1 
-      n_edges[[df_corr$target[i]]] <- n_edges[[df_corr$target[i]]] + 1 
+      n_edges[[df_corr[[source]][i]]] <- n_edges[[df_corr[[source]][i]]] + 1 
+      n_edges[[df_corr[[target]][i]]] <- n_edges[[df_corr[[target]][i]]] + 1 
       if(strict){
-        if(n_edges[[df_corr$source[i]]] > nmax_int | n_edges[[df_corr$target[i]]] > nmax_int){
+        if(n_edges[[df_corr[[source]][i]]] > nmax_int | n_edges[[df_corr[[target]][i]]] > nmax_int){
           delete_edge[i] <- TRUE
         }
       }else{
-        if(n_edges[[df_corr$source[i]]] > nmax_int & n_edges[[df_corr$target[i]]] > nmax_int){
+        if(n_edges[[df_corr[[source]][i]]] > nmax_int & n_edges[[df_corr[[target]][i]]] > nmax_int){
           delete_edge[i] <- TRUE
         }
       }

@@ -4,21 +4,26 @@
 \alias{compute_correlations}
 \title{Compute correlation in protein recruitment}
 \usage{
-compute_correlations(res, idx = NULL, log = FALSE, nmax = NULL,
-  strict = TRUE, Rmin = 0)
+compute_correlations(res, idx = NULL, log = FALSE,
+  n_edges_max = NULL, strict = TRUE, Rmin = 0, n_min = 3,
+  P_max = 1)
 }
 \arguments{
-\item{res}{an \code{InteRactome}}
+\item{res}{an \code{InteRactome} or a data.frame}
 
 \item{idx}{indexes of the set of proteins for which correlations will be computed}
 
 \item{log}{logical, use log-transformed stoichiometries}
 
-\item{nmax}{integer, limits the number of edges per node}
+\item{n_edges_max}{integer, limits the number of edges per node}
 
 \item{strict}{logical, if TRUE, ensures a strict upper bound on the maximal degree}
 
 \item{Rmin}{minimum absolute value of the Pearson R coefficient}
+
+\item{n_min}{minimum number of values used to compute correlation}
+
+\item{P_max}{maximum p-value associated with the correlation}
 }
 \value{
 a data.frame with protein correlation information 

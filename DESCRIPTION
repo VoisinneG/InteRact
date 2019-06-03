@@ -19,8 +19,11 @@ Imports:
 	networkD3,
 	ggsignif,
 	reshape2,
-	pannot
-Remotes: VoisinneG/pannot
+	pannot,
+	proteinRuler
+Remotes: 
+  VoisinneG/pannot,
+  VoisinneG/proteinRuler
 biocViews:
 LazyData: TRUE
 License: file LICENSE

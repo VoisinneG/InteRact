@@ -4,36 +4,12 @@
 \alias{merge_proteome}
 \title{Add protein abundance to an \code{InteRactome}}
 \usage{
-merge_proteome(res, col_ID = "Protein.IDs", col_names = "names",
-  sep_primary = ";", sep_secondary = c("|", "-"), proteome_dataset,
-  pdata_col_ID = "Protein.IDs", pdata_col_gene_name = "Gene.names",
-  pdata_col_copy_number = "Copy.Number", map_gene_name = FALSE,
-  updateProgress = NULL)
+merge_proteome(res, ...)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
-\item{col_ID}{name of \code{res} containing protein IDs}
-
-\item{col_names}{name of \code{res} containing gene names. Only used if \code{map_gene_name = TRUE}.}
-
-\item{sep_primary}{Separator between different proteins}
-
-\item{sep_secondary}{Set of separators used sequentially (from right to left) to 
-identify protein IDs for each protein}
-
-\item{proteome_dataset}{Dataset containing protein abundances.}
-
-\item{pdata_col_ID}{column of \code{proteome_dataset} containing protein IDs}
-
-\item{pdata_col_gene_name}{column of \code{proteome_dataset} containing gene names}
-
-\item{pdata_col_copy_number}{column of \code{proteome_dataset} containing}
-
-\item{map_gene_name}{logical, map protein using gene names rather than protein IDs}
-
-\item{updateProgress}{used to display progress in shiny apps
-protein abundances (in log10)}
+\item{...}{Parameters passed to \code{proteinRuler::map_proteome()}}
 }
 \description{
 Add protein abundance to an \code{InteRactome}. For multiple identifiers, 
