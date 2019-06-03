@@ -77,48 +77,53 @@ append_PPI <- function( res, mapping = "names", df_summary = NULL){
     
   }
   
-  uInteractors <- df_ppi$gene_name_B
-  
-  sh_preys<-intersect(toupper(res[[mapping]]), uInteractors)
-  sh_preys<-setdiff(sh_preys, toupper(res$bait))
-  
-  N_pub <- rep(0,length(res$names));
-  Authors <- rep("",length(res$names));
-  Pubmed_ID <- rep("",length(res$names));
-  Detection_method <- rep("",length(res$names));
-  Int_type <- rep("",length(res$names));
-  Database <- rep("",length(res$names));
-  
-  if(length(sh_preys)>0){
+  if("gene_name_B" %in% names(df_ppi)){
     
-    for (i in 1:length(sh_preys) ){
+    uInteractors <- df_ppi$gene_name_B
+    
+    sh_preys<-intersect(toupper(res[[mapping]]), uInteractors)
+    sh_preys<-setdiff(sh_preys, toupper(res$bait))
+    
+    N_pub <- rep(0,length(res$names));
+    Authors <- rep("",length(res$names));
+    Pubmed_ID <- rep("",length(res$names));
+    Detection_method <- rep("",length(res$names));
+    Int_type <- rep("",length(res$names));
+    Database <- rep("",length(res$names));
+    
+    if(length(sh_preys)>0){
       
-      idx_int <- which(toupper(res[[mapping]]) == sh_preys[i] );
-      i_int <- which( toupper(as.character(df_ppi$gene_name_A)) == sh_preys[i] | toupper(as.character(df_ppi$gene_name_B)) == sh_preys[i]  )
-      
-      Authors[idx_int] <- paste(as.character(unique(df_ppi$Authors[i_int])), collapse="|")
-      
-      Pubmed_ID[idx_int] <- paste(as.character(unique(df_ppi$Pubmed_ID[i_int])), collapse="|")
-      spl <- strsplit(Pubmed_ID[idx_int], split="|", fixed=TRUE);
-      
-      N_pub[idx_int] <- length(unique(spl[[1]]));
-      
-      #N_pub[idx_int] <- length(unique(df_ppi$pubmed_ID[i_int]));
-      
-      Detection_method[idx_int] <- paste(as.character(unique(df_ppi$Detection_method[i_int])), collapse="|")
-      Int_type[idx_int] <- paste(as.character(unique(df_ppi$Int_type[i_int])), collapse="|")
-      Database[idx_int] <- paste(as.character(unique(df_ppi$Database[i_int])), collapse="|")
+      for (i in 1:length(sh_preys) ){
+        
+        idx_int <- which(toupper(res[[mapping]]) == sh_preys[i] );
+        i_int <- which( toupper(as.character(df_ppi$gene_name_A)) == sh_preys[i] | toupper(as.character(df_ppi$gene_name_B)) == sh_preys[i]  )
+        
+        Authors[idx_int] <- paste(as.character(unique(df_ppi$Authors[i_int])), collapse="|")
+        
+        Pubmed_ID[idx_int] <- paste(as.character(unique(df_ppi$Pubmed_ID[i_int])), collapse="|")
+        spl <- strsplit(Pubmed_ID[idx_int], split="|", fixed=TRUE);
+        
+        N_pub[idx_int] <- length(unique(spl[[1]]));
+        
+        #N_pub[idx_int] <- length(unique(df_ppi$pubmed_ID[i_int]));
+        
+        Detection_method[idx_int] <- paste(as.character(unique(df_ppi$Detection_method[i_int])), collapse="|")
+        Int_type[idx_int] <- paste(as.character(unique(df_ppi$Int_type[i_int])), collapse="|")
+        Database[idx_int] <- paste(as.character(unique(df_ppi$Database[i_int])), collapse="|")
+        
+      }
       
     }
     
+    res_int$N_pub <- N_pub
+    res_int$Authors <- Authors
+    res_int$Pubmed_ID <- Pubmed_ID
+    res_int$Detection_method <- Detection_method
+    res_int$Int_type <- Int_type
+    res_int$Database <- Database
+    
   }
   
-  res_int$N_pub <- N_pub
-  res_int$Authors <- Authors
-  res_int$Pubmed_ID <- Pubmed_ID
-  res_int$Detection_method <- Detection_method
-  res_int$Int_type <- Int_type
-  res_int$Database <- Database
   
   return(res_int)
   
