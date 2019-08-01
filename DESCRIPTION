@@ -10,8 +10,8 @@ Authors@R:
 Maintainer: Guillaume Voisinne <voisinne@ciml.univ-mrs.fr>
 Description: The InteRact package provides tools to analyze affinity purification/tandem MS data.
 Imports:
-	dplyr, 
-	ggplot2, 
+	dplyr,
+	ggplot2,
 	ggrepel,
 	stringr,
 	Hmisc,

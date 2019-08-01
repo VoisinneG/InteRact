@@ -8,7 +8,7 @@
 #' @return an \code{InteRactome}
 #' @export
 append_annotations <- function(res, 
-                               annotations=c("keywords", "families", "go"), 
+                               annotations=c("keywords", "family", "go"), 
                                name_id = "Protein.IDs",
                                sep = ";",
                                name_id_annot = "Protein.IDs"){
@@ -38,7 +38,7 @@ append_annotations <- function(res,
     cat("Append annotation to interactome...\n")
     idx_match<-rep(NA,length(res$names))
     for(i in 1:length(res$names) ){
-      idx_match[i] <- which(as.character(df_annot[[name_id_annot]]) == as.character(res[[name_id]][i]) )
+      idx_match[i] <- match( as.character(res[[name_id]][i]), as.character(df_annot[[name_id_annot]]) )
     }
     
     for( var_names in setdiff(names(df_annot), name_id_annot) ){

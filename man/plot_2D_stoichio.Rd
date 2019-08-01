@@ -10,7 +10,9 @@ plot_2D_stoichio(res, condition = "max", xlim = NULL, ylim = NULL,
   "blue", bait = "yellow"), color_values = c(not_regulated = "black",
   induced = "red", repressed = "blue", bait = "black"), shape = 21,
   stroke = 1, p_val_thresh = 0.05, fold_change_thresh = 1,
-  ref_condition = res$conditions[1])
+  ref_condition = res$conditions[1], label_size_min = 1,
+  label_size_max = 3, label_size_scale_factor = 25,
+  label_range = NULL, ...)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -39,6 +41,16 @@ plot_2D_stoichio(res, condition = "max", xlim = NULL, ylim = NULL,
 \item{fold_change_thresh}{Threshold on fold-change used to identify regulated interactions}
 
 \item{ref_condition}{Reference condition used to identify regulated interactions}
+
+\item{label_size_min}{minimum label size (between 0 and \code{label_size_max})}
+
+\item{label_size_max}{maximum label size (a threshold on log10(fold-change))}
+
+\item{label_size_scale_factor}{scale label size according to plot range (the higher the bigger the label)}
+
+\item{label_range}{if NULL, scales labels according to plot range (in log10 scale).}
+
+\item{...}{parameters passed to \code{geom_text_repel()}}
 }
 \value{
 a plot

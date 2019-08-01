@@ -15,8 +15,13 @@ plot_indirect_interactions <- function(score,
                                        save_dir = NULL,
                                        plot_width = 2, 
                                        plot_height = 2,
-                                       show_legend = FALSE
+                                       show_legend = FALSE,
+                                       theme_name = "theme_gray"
                                        ){
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
+  
   idx_select <- which(!is.na(score[[var_threshold]]))
   if(length(idx_select) > 0){
     if(sum(score[[var_threshold]][idx_select] <= threshold, na.rm = TRUE) == 0){
@@ -57,12 +62,14 @@ plot_indirect_interactions <- function(score,
         df_stoichio$log10_stoichio <- log10(df_stoichio$stoichio)
         
         plist[[i]] <- ggplot(df_stoichio, aes_string(x='conditions', y='log10_stoichio', color='type', group='type')) +
+          theme_function() +
           theme(axis.text.x = element_text(angle=90, hjust = 1),
                 title = element_text(size = 6) ) +
           ggtitle(paste(score$bait_A,"<",score$bait_B,"<", name_interactor," (", signif(score_display, 3), ")", sep="")) +
           geom_point(show.legend = FALSE) +
           geom_line(show.legend = show_legend) +
           coord_cartesian(ylim = c(ymin, ymax))
+          
           
         if(!is.null(save_dir)){
           pdf(paste(save_dir,"A_",
@@ -98,6 +105,11 @@ plot_indirect_interactions <- function(score,
 #' @param p_val_thresh Threshold on p-value used to identify regulated interactions
 #' @param fold_change_thresh Threshold on fold-change used to identify regulated interactions
 #' @param ref_condition Reference condition used to identify regulated interactions
+#' @param label_size_min minimum label size (between 0 and \code{label_size_max})
+#' @param label_size_max maximum label size (a threshold on log10(fold-change))
+#' @param label_size_scale_factor scale label size according to plot range (the higher the bigger the label)
+#' @param label_range if NULL, scales labels according to plot range (in log10 scale).
+#' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @import ggplot2
 #' @import ggrepel
@@ -120,8 +132,19 @@ plot_2D_stoichio <- function( res,
                               stroke = 1,
                               p_val_thresh = 0.05,
                               fold_change_thresh = 1,
-                              ref_condition = res$conditions[1]
+                              ref_condition = res$conditions[1],
+                              label_size_min = 1,
+                              label_size_max = 3,
+                              label_size_scale_factor = 25,
+                              label_range = NULL,
+                              theme_name = "theme_gray",
+                              ...
+                              
 ){
+  
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
   
   if(!"Copy_Number" %in% names(res)){
     warning("Protein abundances not available. Please import and merge a proteome first.")
@@ -169,6 +192,11 @@ plot_2D_stoichio <- function( res,
       center_x <- ( xlim[2] + xlim[1] )/2
       center_y <- ( ylim[2] + ylim[1] )/2
     }
+
+    if(is.null(label_range)){
+      label_range <- max_range
+    }
+    
     xmin<-center_x - max_range/1.85
     xmax<-center_x + max_range/1.85
     ymin<-center_y - max_range/1.85
@@ -176,7 +204,11 @@ plot_2D_stoichio <- function( res,
     
     
     df$size_prey <- log10(df$size)/max_range*20
-    df$size_label <- unlist(lapply(log10(df$size), function(x) { ifelse(x>0.5, min(c(x,3)), 0.5) }))/max_range*20/3
+    df$size_label <- unlist(lapply(log10(df$size), function(x) { 
+      ifelse(x>label_size_min, min(c(x,label_size_max)), label_size_min) 
+      })
+      )/label_range*label_size_scale_factor/label_size_max
+    
     df$sat_max_fold_t0 <- rep(1,dim(df)[1])
     
     idx_plot <- which(df$X<=xmax & df$X>=xmin & df$Y<=ymax & df$Y>=ymin)
@@ -220,6 +252,7 @@ plot_2D_stoichio <- function( res,
     df <- df[idx_plot, ]
     
     p<-ggplot(df,aes_string(x='X', y='Y', label='names')) +
+      theme_function() +
       theme(aspect.ratio=1) +
       ggtitle(cond) + 
       geom_polygon(data=data.frame(x=c(ylow, xmax, xmax), 
@@ -240,8 +273,9 @@ plot_2D_stoichio <- function( res,
                       y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
       annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5), linetype = "dashed" ) +
       annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
-      xlab("log10(Interaction Stoichiometry)") +
-      ylab("log10(Abundance Stoichiometry)") +
+      xlab(expression(paste('Interaction Stoichiometry (log'[10], ')'))) +
+      ylab(expression(paste('Abundance Stoichiometry (log'[10], ')'))) +
+      #ylab(bquote('Abundance Stoichiometry ('~log[10]~')')) +
       geom_point(data = df,
                  mapping=aes_string(x='X', y='Y', color='color', fill = 'color'), 
                  size=df$size_prey, 
@@ -254,10 +288,15 @@ plot_2D_stoichio <- function( res,
       geom_text_repel(data = df,
                       mapping=aes_string(x='X', y='Y', label='names'),
                       size=df$size_label,
-                      force=0.002, 
-                      segment.size = 0.1,
-                      min.segment.length = unit(0.15, "lines"), 
-                      point.padding = NA, inherit.aes = FALSE, show.legend = FALSE, max.iter = 100000)
+                      ...
+                      #inherit.aes = FALSE, 
+                      #show.legend = FALSE,
+                      #force=force, 
+                      #segment.size = segment.size,
+                      #min.segment.length = unit(0.15, "lines"), 
+                      #point.padding = NA,
+                      #max.iter = 100000
+                      )
     
     if(!is.null(color_values)) {
       p <- p + scale_color_manual( values = color_values) +
@@ -335,7 +374,13 @@ plot_volcanos <- function( res,
                            xlim=NULL,
                            ylim=NULL,
                            asinh_transform = TRUE,
-                           norm = FALSE){
+                           norm = FALSE,
+                           theme_name = "theme_gray"
+                           ){
+  
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
   
   res_int <- res
   
@@ -505,7 +550,9 @@ plot_volcanos <- function( res,
       geom_text_repel(data=df[idx_print, ],
                       aes_string(x='X', y='Y', label = 'names', colour='label_color'), size=5) +
       scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
+      theme_function() +
       theme(legend.position="none")
+      
     
   }
   
@@ -559,8 +606,8 @@ plot_per_condition <- function( res,
                                 plot_width=2.5 + length(res$conditions)/5,
                                 plot_height=2 + length(idx_rows)/5,
                                 clustering = FALSE,
+                                theme_name = "theme_gray",
                                 ...){
-  
   
   if(length(idx_rows)==1){
     idx_rows<-1:idx_rows
@@ -622,8 +669,9 @@ plot_per_condition <- function( res,
                size_limits=size_limits,
                color_var=color_var,
                color_values = color_values, 
+               theme_name = theme_name,
                ...)
-  
+    
   if(!is.null(save_file)){
     pdf(save_file, plot_width, plot_height)
     print(p)
@@ -659,7 +707,12 @@ dot_plot <- function(Dot_Size,
                      color_var="color",
                      color_values = c( "red", "purple",  "blue", "black" ),
                      size_label_y = NULL,
-                     size_label_x = NULL){
+                     size_label_x = NULL,
+                     theme_name = "theme_gray"){
+  
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
   
   # Dot_Size: matrix of dot size
   
@@ -716,6 +769,7 @@ dot_plot <- function(Dot_Size,
   }
   
   p <- ggplot(df, aes_string(x='xpos', y='ypos', size='size', col='color' ) ) +
+    theme_function()+
     theme(
       plot.title = element_text(size=12),
       axis.text.y= element_text(size=size_label_y), 
@@ -737,7 +791,7 @@ dot_plot <- function(Dot_Size,
   }else{
     p <- p + scale_radius(limits = size_limits, range = size_range, name=size_var)
   }
-  
+
   return(p)
   
 }
@@ -763,7 +817,13 @@ plot_stoichio <- function(res,
                           test="t.test", 
                           test.args = list("paired"=TRUE),
                           map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
-                          save_file = NULL){
+                          save_file = NULL,
+                          theme_name = "theme_gray"){
+  
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
+  
   plot_title <- paste(name, " / ",test, sep = "") 
   
   if("paired" %in% names(test.args)){
@@ -790,6 +850,7 @@ plot_stoichio <- function(res,
   df_tot$log10_stoichio <- log10(df_tot$stoichio)
   
   p <- ggplot(df_tot, aes_string(x='cond', y='log10_stoichio')) + 
+    theme_function() +
     theme(axis.text.x = element_text(size=10, angle = 90, hjust = 1,vjust=0.5),
           axis.text.y = element_text(size=10)
     ) +
@@ -870,7 +931,12 @@ plot_comparison <- function(res,
                             test.args = list("paired"=FALSE),
                             map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
                             position = "position_jitter",
-                            position.args = list(width=0.3, height=0)){
+                            position.args = list(width=0.3, height=0),
+                            theme_name = "theme_gray"){
+  
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
   
   plot_title <- paste(test, sep = " / ") 
   
@@ -955,6 +1021,7 @@ plot_comparison <- function(res,
   df_tot$log10_intensity <- log10(df_tot$intensity)
   
   p <- ggplot(df_tot, aes_string(x='x', y='log10_intensity'  )) + 
+    theme_function() +
     theme(axis.text = element_text(size=12),
           axis.text.x = element_text(angle=90, hjust = 1)) +
     geom_point(size=0, alpha = 0) + 
@@ -1048,7 +1115,11 @@ plot_comparison <- function(res,
 #' @importFrom stats quantile IQR
 #' @importFrom Hmisc rcorr
 #' @export
-plot_QC <- function(data){
+plot_QC <- function(data, theme_name = "theme_gray"){
+  
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
   
   p_list <- list()
   
@@ -1092,6 +1163,7 @@ plot_QC <- function(data){
   message_outlier_1 <- paste(message_outlier_1, "(in bait bckg)", sep=" ")
   
   p1 <- ggplot(Ravg, aes_string(x='bckg', y='Ravg', col='bio')) + 
+    theme_function()+
     ggtitle("QC: Intensity Correlation", subtitle = message_outlier_1) +
     ylab("average R")+
     geom_boxplot(data=Ravg, mapping=aes_string(x='bckg', y='Ravg'), inherit.aes = FALSE, outlier.alpha = 0) +
@@ -1115,6 +1187,7 @@ plot_QC <- function(data){
   Ibait$log10_Ibait <- log10(Ibait$Ibait)
   
   p2 <- ggplot(Ibait, aes_string(x='bckg', y='log10_Ibait', col='bio')) + 
+    theme_function() +
     ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
     ylab("norm. Intensity (log10)") +
     geom_boxplot(data=Ibait, mapping=aes_string(x='bckg', y='log10_Ibait'), inherit.aes = FALSE, outlier.alpha = 0) +
@@ -1140,6 +1213,7 @@ plot_QC <- function(data){
   nNA$log10_nNA <- log10(nNA$nNA)
   
   p3 <- ggplot(nNA, aes_string(x='bckg', y='log10_nNA', col='bio')) +
+    theme_function() +
     ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
     ylab("NA counts (log10)") +
     geom_boxplot(data=nNA, mapping=aes_string(x='bckg', y='log10_nNA'), inherit.aes = FALSE, outlier.alpha = 0) +
@@ -1258,13 +1332,18 @@ plot_correlation_network <- function(res,
 #' @import ggplot2
 #' @import Hmisc
 #' @export
-plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2]){
+plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2], theme_name = "theme_gray"){
+  
+  theme_function <- function(...){
+    do.call(theme_name, list(...))
+  }
   
   df$x <- df[[var_x]]
   df$y <- df[[var_y]]
   Pcorr <- rcorr(x=df[[var_x]], y=df[[var_y]]  )
   
   p <- ggplot(df, aes_string(y='y', x='x' ) ) +
+    theme_function() + 
     theme(axis.text=element_text(size=16), plot.title = element_text(size=16))+
     stat_density2d(aes_string(alpha='..level..', fill='..level..'), size=2, geom="polygon", bins=20) + 
     scale_fill_gradient(low = "yellow", high = "red") +
