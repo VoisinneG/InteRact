@@ -4,11 +4,23 @@
 \alias{analyse_interactome}
 \title{Construct an interactome by comparing bait and control background across experimental conditions}
 \usage{
-analyse_interactome(Intensity, Intensity_na_replaced = Intensity,
-  conditions, bait_gene_name, Npep, Protein.IDs, names, bckg_bait,
-  bckg_ctrl, by_conditions = TRUE, pool_background = TRUE,
-  log_test = TRUE, log_stoichio = TRUE, substract_ctrl = TRUE,
-  use_mean_for_bait = TRUE)
+analyse_interactome(
+  Intensity,
+  Intensity_na_replaced = Intensity,
+  conditions,
+  bait_gene_name,
+  Npep,
+  Protein.IDs,
+  names,
+  bckg_bait,
+  bckg_ctrl,
+  by_conditions = TRUE,
+  pool_background = TRUE,
+  log_test = TRUE,
+  log_stoichio = TRUE,
+  substract_ctrl = TRUE,
+  use_mean_for_bait = TRUE
+)
 }
 \arguments{
 \item{Intensity}{a data frame of protein intensities (without replacement of missing values). columns are experimental samples and rows are proteins}

@@ -4,9 +4,13 @@
 \alias{compute_FDR_from_asymmetry}
 \title{Compute the FDR from the asymmetry of the volcano plot}
 \usage{
-compute_FDR_from_asymmetry(df = NULL, x = NULL, y = NULL,
-  c = seq(from = 0, to = 10, by = 0.1), x0 = seq(from = 0, to = 10, by
-  = 0.1))
+compute_FDR_from_asymmetry(
+  df = NULL,
+  x = NULL,
+  y = NULL,
+  c = seq(from = 0, to = 10, by = 0.1),
+  x0 = seq(from = 0, to = 10, by = 0.1)
+)
 }
 \arguments{
 \item{df}{: a data.frame containing columns \code{p_val} and \code{fold_change}}

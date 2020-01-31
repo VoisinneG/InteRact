@@ -4,7 +4,12 @@
 \alias{plot_density}
 \title{Plot points with density background with correlation coefficient}
 \usage{
-plot_density(df, var_x = names(df)[1], var_y = names(df)[2])
+plot_density(
+  df,
+  var_x = names(df)[1],
+  var_y = names(df)[2],
+  theme_name = "theme_gray"
+)
 }
 \arguments{
 \item{df}{a data.frame}
@@ -12,6 +17,8 @@ plot_density(df, var_x = names(df)[1], var_y = names(df)[2])
 \item{var_x}{name of the x variable}
 
 \item{var_y}{name of the y variable}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 }
 \value{
 a plot

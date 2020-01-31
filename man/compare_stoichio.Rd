@@ -4,10 +4,15 @@
 \alias{compare_stoichio}
 \title{Compare stoichiometries between two conditions using a t-test}
 \usage{
-compare_stoichio(res, names = res$names,
+compare_stoichio(
+  res,
+  names = res$names,
   ref_condition = res$conditions[1],
   test_conditions = setdiff(res$conditions, ref_condition),
-  p_val_thresh = 0.05, fold_change_thresh = 3, ...)
+  p_val_thresh = 0.05,
+  fold_change_thresh = 3,
+  ...
+)
 }
 \arguments{
 \item{res}{an \code{Interactome}}

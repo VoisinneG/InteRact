@@ -4,20 +4,38 @@
 \alias{plot_2D_stoichio}
 \title{Plot abundance versus interaction stoichiometries}
 \usage{
-plot_2D_stoichio(res, condition = "max", xlim = NULL, ylim = NULL,
-  N_display = 30, only_interactors = FALSE,
-  fill_values = c(not_regulated = "black", induced = "red", repressed =
-  "blue", bait = "yellow"), color_values = c(not_regulated = "black",
-  induced = "red", repressed = "blue", bait = "black"), shape = 21,
-  stroke = 1, p_val_thresh = 0.05, fold_change_thresh = 1,
-  ref_condition = res$conditions[1], label_size_min = 1,
-  label_size_max = 3, label_size_scale_factor = 25,
-  label_range = NULL, ...)
+plot_2D_stoichio(
+  res,
+  condition = "max",
+  names = NULL,
+  xlim = NULL,
+  ylim = NULL,
+  N_display = 30,
+  only_interactors = FALSE,
+  fill_values = c(not_regulated = "black", induced = "red", repressed = "blue", bait =
+    "yellow"),
+  color_values = c(not_regulated = "black", induced = "red", repressed = "blue", bait =
+    "black"),
+  shape = 21,
+  stroke = 1,
+  p_val_thresh = 0.05,
+  fold_change_thresh = 1,
+  ref_condition = res$conditions[1],
+  label_size_min = 1,
+  label_size_max = 3,
+  label_size_scale_factor = 25,
+  label_range = NULL,
+  theme_name = "theme_gray",
+  ...
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
 
 \item{condition}{condition selected. If "max", the maximum stoichiometry across conditions will be used.}
+
+\item{names}{names of the proteins to display. If not NULL, supersedes \code{N_display} and
+\code{only_interactors}}
 
 \item{xlim}{range of x values}
 
@@ -49,6 +67,8 @@ plot_2D_stoichio(res, condition = "max", xlim = NULL, ylim = NULL,
 \item{label_size_scale_factor}{scale label size according to plot range (the higher the bigger the label)}
 
 \item{label_range}{if NULL, scales labels according to plot range (in log10 scale).}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }

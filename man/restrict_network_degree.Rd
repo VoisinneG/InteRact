@@ -4,9 +4,15 @@
 \alias{restrict_network_degree}
 \title{Limit the number of edges per node within a network}
 \usage{
-restrict_network_degree(df_corr, var_order = "r_corr",
-  decreasing = TRUE, source = "name_1", target = "name_2",
-  nmax = NULL, strict = TRUE)
+restrict_network_degree(
+  df_corr,
+  var_order = "r_corr",
+  decreasing = TRUE,
+  source = "name_1",
+  target = "name_2",
+  nmax = NULL,
+  strict = TRUE
+)
 }
 \arguments{
 \item{df_corr}{a data.frame}

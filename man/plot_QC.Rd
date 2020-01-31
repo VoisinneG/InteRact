@@ -4,10 +4,12 @@
 \alias{plot_QC}
 \title{Quality check plots for preprocessed AP-MS data}
 \usage{
-plot_QC(data)
+plot_QC(data, theme_name = "theme_gray")
 }
 \arguments{
 \item{data}{an \code{Interactome} or preprocessed data as obtained using function \code{preprocess_data()}}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 }
 \value{
 Several QC plots

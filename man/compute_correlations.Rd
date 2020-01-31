@@ -4,9 +4,16 @@
 \alias{compute_correlations}
 \title{Compute correlation in protein recruitment}
 \usage{
-compute_correlations(res, idx = NULL, log = FALSE,
-  n_edges_max = NULL, strict = TRUE, Rmin = 0, n_min = 3,
-  P_max = 1)
+compute_correlations(
+  res,
+  idx = NULL,
+  log = FALSE,
+  n_edges_max = NULL,
+  strict = TRUE,
+  Rmin = 0,
+  n_min = 3,
+  P_max = 1
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome} or a data.frame}

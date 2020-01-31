@@ -4,11 +4,20 @@
 \alias{dot_plot}
 \title{Dot plot representation of matrices}
 \usage{
-dot_plot(Dot_Size, Dot_Color = NULL, title = "Dot Plot",
-  size_range = c(0, 5.5), size_limits = range(Dot_Size),
-  size_breaks = NULL, size_var = "size", color_var = "color",
+dot_plot(
+  Dot_Size,
+  Dot_Color = NULL,
+  title = "Dot Plot",
+  size_range = c(0, 5.5),
+  size_limits = range(Dot_Size),
+  size_breaks = NULL,
+  size_var = "size",
+  color_var = "color",
   color_values = c("red", "purple", "blue", "black"),
-  size_label_y = NULL, size_label_x = NULL)
+  size_label_y = NULL,
+  size_label_x = NULL,
+  theme_name = "theme_gray"
+)
 }
 \arguments{
 \item{Dot_Size}{a matrix of dot sizes}
@@ -32,6 +41,8 @@ dot_plot(Dot_Size, Dot_Color = NULL, title = "Dot Plot",
 \item{size_label_y}{size of y-axis labels}
 
 \item{size_label_x}{size of x-axis labels}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 }
 \value{
 a plot

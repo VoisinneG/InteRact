@@ -4,9 +4,18 @@
 \alias{row_stoichio}
 \title{Compute the stoichiometry of interaction using the method described in ...}
 \usage{
-row_stoichio(df, idx_group_1, idx_group_2, idx_bait, Npep, log = TRUE,
-  substract_ctrl = TRUE, use_mean_for_bait = TRUE, idx_group_1_mean,
-  idx_group_2_mean)
+row_stoichio(
+  df,
+  idx_group_1,
+  idx_group_2,
+  idx_bait,
+  Npep,
+  log = TRUE,
+  substract_ctrl = TRUE,
+  use_mean_for_bait = TRUE,
+  idx_group_1_mean,
+  idx_group_2_mean
+)
 }
 \arguments{
 \item{df}{a data frame}

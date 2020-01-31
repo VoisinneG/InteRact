@@ -4,10 +4,17 @@
 \alias{plot_stoichio}
 \title{Plot interaction stoichiometries per biological replicate}
 \usage{
-plot_stoichio(res, name, conditions = res$conditions,
-  ref_condition = conditions[1], test = "t.test",
-  test.args = list(paired = TRUE), map_signif_level = c(`***` = 0.001,
-  `**` = 0.01, `*` = 0.05), save_file = NULL)
+plot_stoichio(
+  res,
+  name,
+  conditions = res$conditions,
+  ref_condition = conditions[1],
+  test = "t.test",
+  test.args = list(paired = TRUE),
+  map_signif_level = c(`***` = 0.001, `**` = 0.01, `*` = 0.05),
+  save_file = NULL,
+  theme_name = "theme_gray"
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -25,6 +32,8 @@ plot_stoichio(res, name, conditions = res$conditions,
 \item{map_signif_level}{named vector with labels and corresponding significance levels}
 
 \item{save_file}{path of output file (.pdf)}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 }
 \value{
 a plot

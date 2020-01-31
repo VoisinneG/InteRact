@@ -5,9 +5,15 @@
 \title{Filtering of a data frame using a threshold on protein identification score and 
 gene names}
 \usage{
-filter_Proteins(df, min_score = 0, filter_gene_name = TRUE,
-  Column_ID = "Protein.IDs", Column_gene_name = "Gene.names",
-  Column_score = "Score", split_param = ";")
+filter_Proteins(
+  df,
+  min_score = 0,
+  filter_gene_name = TRUE,
+  Column_ID = "Protein.IDs",
+  Column_gene_name = "Gene.names",
+  Column_score = "Score",
+  split_param = ";"
+)
 }
 \arguments{
 \item{df}{A data frame}

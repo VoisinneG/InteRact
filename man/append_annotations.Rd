@@ -4,8 +4,13 @@
 \alias{append_annotations}
 \title{Append annotations to an \code{InteRactome}}
 \usage{
-append_annotations(res, annotations = c("keywords", "families", "go"),
-  name_id = "Protein.IDs", sep = ";", name_id_annot = "Protein.IDs")
+append_annotations(
+  res,
+  annotations = c("keywords", "family", "go"),
+  name_id = "Protein.IDs",
+  sep = ";",
+  name_id_annot = "Protein.IDs"
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

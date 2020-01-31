@@ -4,8 +4,12 @@
 \alias{merge_duplicate_groups}
 \title{Merge protein groups with the same gene name.}
 \usage{
-merge_duplicate_groups(df, idx_col = NULL, merge_column = "gene_name",
-  sum_intensities = TRUE)
+merge_duplicate_groups(
+  df,
+  idx_col = NULL,
+  merge_column = "gene_name",
+  sum_intensities = TRUE
+)
 }
 \arguments{
 \item{df}{A data frame}

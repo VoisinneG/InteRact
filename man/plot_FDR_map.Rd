@@ -4,9 +4,13 @@
 \alias{plot_FDR_map}
 \title{Plot FDR as a function of parameters used to divide the volcano plot}
 \usage{
-plot_FDR_map(FDR_res, FDR_bins = c(0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1,
-  0.15, 0.2), xlim = c(0, 3), ylim = c(0, 3),
-  colors = terrain.colors(length(FDR_bins) - 1))
+plot_FDR_map(
+  FDR_res,
+  FDR_bins = c(0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.15, 0.2),
+  xlim = c(0, 3),
+  ylim = c(0, 3),
+  colors = terrain.colors(length(FDR_bins) - 1)
+)
 }
 \arguments{
 \item{FDR_res}{output from the function \code{compute_FDR_from_asymmetry()}}

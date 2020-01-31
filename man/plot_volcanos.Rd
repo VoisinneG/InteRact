@@ -4,10 +4,22 @@
 \alias{plot_volcanos}
 \title{Plot protein enrichement fold-change versus p-value}
 \usage{
-plot_volcanos(res, labels = NULL, N_print = 15, conditions = NULL,
-  p_val_thresh = 0.05, fold_change_thresh = 2, x0 = NULL, c = NULL,
-  save_file = NULL, xlim = NULL, ylim = NULL,
-  asinh_transform = TRUE, norm = FALSE)
+plot_volcanos(
+  res,
+  labels = NULL,
+  N_print = 15,
+  conditions = NULL,
+  p_val_thresh = 0.05,
+  fold_change_thresh = 2,
+  x0 = NULL,
+  c = NULL,
+  save_file = NULL,
+  xlim = NULL,
+  ylim = NULL,
+  asinh_transform = TRUE,
+  norm = FALSE,
+  theme_name = "theme_gray"
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -37,6 +49,8 @@ Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are 
 \item{asinh_transform}{logical, display asinh(log10(p-value)) on the y-axis}
 
 \item{norm}{Use normalized fold-changes}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 }
 \value{
 a plot

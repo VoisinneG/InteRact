@@ -4,10 +4,17 @@
 \alias{plot_indirect_interactions}
 \title{Plot indirect interactions}
 \usage{
-plot_indirect_interactions(score,
-  var_threshold = "max_delta_stoichio_log", threshold = 1,
-  min_range = NULL, save_dir = NULL, plot_width = 2,
-  plot_height = 2, show_legend = FALSE)
+plot_indirect_interactions(
+  score,
+  var_threshold = "max_delta_stoichio_log",
+  threshold = 1,
+  min_range = NULL,
+  save_dir = NULL,
+  plot_width = 2,
+  plot_height = 2,
+  show_legend = FALSE,
+  theme_name = "theme_gray"
+)
 }
 \arguments{
 \item{score}{output of the \code{identify_indirect_interactions()} function}
@@ -25,6 +32,8 @@ plot_indirect_interactions(score,
 \item{plot_height}{set plot height}
 
 \item{show_legend}{logical, shows plot legend}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 }
 \description{
 Plot indirect interactions

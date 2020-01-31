@@ -4,8 +4,12 @@
 \alias{smooth_interactome}
 \title{Smooth, using a moving average across conditions, selected variables of an \code{InteRactome}}
 \usage{
-smooth_interactome(res, n = 1, order_conditions = NULL,
-  var_smooth = c("fold_change", "p_val"))
+smooth_interactome(
+  res,
+  n = 1,
+  order_conditions = NULL,
+  var_smooth = c("fold_change", "p_val")
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

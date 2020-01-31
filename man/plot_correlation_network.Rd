@@ -4,10 +4,19 @@
 \alias{plot_correlation_network}
 \title{Plot an interactive correlation network with communities highlighted}
 \usage{
-plot_correlation_network(res, idx = NULL, source = "name_1",
-  target = "name_2", cluster = NULL, df_corr = NULL,
-  var_p_val = "p_corr", var_r_corr = "r_corr", r_corr_thresh = 0.8,
-  p_val_thresh = 0.05, ...)
+plot_correlation_network(
+  res,
+  idx = NULL,
+  source = "name_1",
+  target = "name_2",
+  cluster = NULL,
+  df_corr = NULL,
+  var_p_val = "p_corr",
+  var_r_corr = "r_corr",
+  r_corr_thresh = 0.8,
+  p_val_thresh = 0.05,
+  ...
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

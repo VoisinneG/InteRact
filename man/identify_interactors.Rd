@@ -4,12 +4,19 @@
 \alias{identify_interactors}
 \title{Identify specific interactors in an \code{InteRactome}}
 \usage{
-identify_interactors(res, var_p_val = "p_val", p_val_thresh = 0.05,
-  fold_change_thresh = 2, conditions = res$conditions,
-  n_success_min = 1, consecutive_success = FALSE, p_val_breaks = c(1,
-  min(1, 4 * p_val_thresh), min(1, 2 * p_val_thresh), min(1,
-  p_val_thresh)), var_min_p_val = paste("min_", var_p_val, sep = ""),
-  ...)
+identify_interactors(
+  res,
+  var_p_val = "p_val",
+  p_val_thresh = 0.05,
+  fold_change_thresh = 2,
+  conditions = res$conditions,
+  n_success_min = 1,
+  consecutive_success = FALSE,
+  p_val_breaks = c(1, min(1, 4 * p_val_thresh), min(1, 2 * p_val_thresh), min(1,
+    p_val_thresh)),
+  var_min_p_val = paste("min_", var_p_val, sep = ""),
+  ...
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

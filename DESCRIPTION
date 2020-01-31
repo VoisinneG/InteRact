@@ -27,7 +27,7 @@ Remotes:
 biocViews:
 LazyData: TRUE
 License: file LICENSE
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.2
 Depends:
   mice (>= 2.46),
   R (>= 2.10)

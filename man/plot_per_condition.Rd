@@ -4,14 +4,25 @@
 \alias{plot_per_condition}
 \title{Dot plot representation of interaction as a function of experimental conditions}
 \usage{
-plot_per_condition(res, names = NULL,
-  idx_cols = 1:length(res$conditions), idx_rows = 1:20,
-  size_var = "norm_stoichio", size_range = c(0, 5.5),
-  size_limits = c(0, 1), color_var = "p_val", color_breaks = c(1,
-  0.1, 0.05, 0.01), color_values = c("black", "blue", "purple", "red"),
-  color_default = 1, save_file = NULL, plot_width = 2.5 +
-  length(res$conditions)/5, plot_height = 2 + length(idx_rows)/5,
-  clustering = FALSE, ...)
+plot_per_condition(
+  res,
+  names = NULL,
+  idx_cols = 1:length(res$conditions),
+  idx_rows = 1:20,
+  size_var = "norm_stoichio",
+  size_range = c(0, 5.5),
+  size_limits = c(0, 1),
+  color_var = "p_val",
+  color_breaks = c(1, 0.1, 0.05, 0.01),
+  color_values = c("black", "blue", "purple", "red"),
+  color_default = 1,
+  save_file = NULL,
+  plot_width = 2.5 + length(res$conditions)/5,
+  plot_height = 2 + length(idx_rows)/5,
+  clustering = FALSE,
+  theme_name = "theme_gray",
+  ...
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
@@ -43,6 +54,8 @@ plot_per_condition(res, names = NULL,
 \item{plot_height}{height of the output .pdf file}
 
 \item{clustering}{logical or numeric vector. If logical, use hierarchical}
+
+\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 
 \item{...}{additionnal arguments passed to \code{dot_plot()}
 clustering to order proteins. If numeric, ordering indexes for displayed proteins 

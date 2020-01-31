@@ -7,6 +7,7 @@
 #' @param plot_width set plot width
 #' @param plot_height set plot height
 #' @param show_legend logical, shows plot legend
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @export
 plot_indirect_interactions <- function(score,
                                        var_threshold = "max_delta_stoichio_log",
@@ -93,6 +94,8 @@ plot_indirect_interactions <- function(score,
 #' Plot abundance versus interaction stoichiometries
 #' @param res an \code{InteRactome}
 #' @param condition condition selected. If "max", the maximum stoichiometry across conditions will be used.
+#' @param names names of the proteins to display. If not NULL, supersedes \code{N_display} and
+#' \code{only_interactors}
 #' @param xlim range of x values
 #' @param ylim range of y values
 #' @param N_display maximum number of protein to display
@@ -109,6 +112,7 @@ plot_indirect_interactions <- function(score,
 #' @param label_size_max maximum label size (a threshold on log10(fold-change))
 #' @param label_size_scale_factor scale label size according to plot range (the higher the bigger the label)
 #' @param label_range if NULL, scales labels according to plot range (in log10 scale).
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @import ggplot2
@@ -116,6 +120,7 @@ plot_indirect_interactions <- function(score,
 #' @export
 plot_2D_stoichio <- function( res, 
                               condition = "max", 
+                              names = NULL,
                               xlim = NULL, 
                               ylim = NULL,
                               N_display=30,
@@ -170,11 +175,16 @@ plot_2D_stoichio <- function( res,
       stop("Condition is not defined")
     }
     
-    if(only_interactors){
-      df <- df[!is.na(match(df$names, res$interactor)), ]
+    if(!is.null(names)){
+      df <- df[df$names %in% names, ]
+    }else{
+      if(only_interactors){
+        df <- df[!is.na(match(df$names, res$interactor)), ]
+      }
+      
+      df<-df[1:min(N_display, dim(df)[1]), ]
     }
     
-    df<-df[1:min(N_display, dim(df)[1]), ]
     
     xc <- -0.5
     yc <- 0
@@ -357,6 +367,7 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param ylim range of y values
 #' @param asinh_transform logical, display asinh(log10(p-value)) on the y-axis
 #' @param norm Use normalized fold-changes
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return a plot
 #' @importFrom grDevices dev.off pdf rgb
 #' @import ggplot2
@@ -581,6 +592,7 @@ plot_volcanos <- function( res,
 #' @param plot_width width of the output .pdf file
 #' @param plot_height height of the output .pdf file
 #' @param clustering logical or numeric vector. If logical, use hierarchical 
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @param ... additionnal arguments passed to \code{dot_plot()}
 #' clustering to order proteins. If numeric, ordering indexes for displayed proteins 
 #' (must be the same length as \code{idx_rows})
@@ -694,6 +706,7 @@ plot_per_condition <- function( res,
 #' @param color_values values parameter passed to \code{scale_color_manual()}
 #' @param size_label_y size of y-axis labels
 #' @param size_label_x size of x-axis labels
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return a plot
 #' @import ggplot2
 #' @export
@@ -805,6 +818,7 @@ dot_plot <- function(Dot_Size,
 #' @param test.args arguments passed to function \code{test}
 #' @param map_signif_level named vector with labels and corresponding significance levels
 #' @param save_file path of output file (.pdf)
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return a plot
 #' @import ggplot2
 #' @import ggsignif
@@ -902,6 +916,7 @@ plot_stoichio <- function(res,
 #' @param map_signif_level named vector with labels and corresponding significance levels
 #' @param position name of the function used to position data points 
 #' @param position.args arguments passed to function \code{position()}
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return a plot
 #' @import ggplot2
 #' @import ggsignif
@@ -1110,6 +1125,7 @@ plot_comparison <- function(res,
 
 #' Quality check plots for preprocessed AP-MS data
 #' @param data an \code{Interactome} or preprocessed data as obtained using function \code{preprocess_data()}
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return Several QC plots
 #' @import ggplot2
 #' @importFrom stats quantile IQR
@@ -1328,6 +1344,7 @@ plot_correlation_network <- function(res,
 #' @param df a data.frame
 #' @param var_x name of the x variable
 #' @param var_y name of the y variable
+#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return a plot
 #' @import ggplot2
 #' @import Hmisc

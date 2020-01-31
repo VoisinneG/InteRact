@@ -4,9 +4,14 @@
 \alias{order_interactome}
 \title{Order proteins within an \code{InteRactome}}
 \usage{
-order_interactome(res, idx = NULL, var_min_p_val = "min_p_val",
-  p_val_breaks = c(1, 0.1, 0.05, 0.01), var_order = "max_stoichio",
-  bait_first = TRUE)
+order_interactome(
+  res,
+  idx = NULL,
+  var_min_p_val = "min_p_val",
+  p_val_breaks = c(1, 0.1, 0.05, 0.01),
+  var_order = "max_stoichio",
+  bait_first = TRUE
+)
 }
 \arguments{
 \item{res}{an \code{InteRactome}}

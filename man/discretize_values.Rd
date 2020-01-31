@@ -4,8 +4,7 @@
 \alias{discretize_values}
 \title{Discretize values in a vector based on a finite set of values}
 \usage{
-discretize_values(x, breaks = c(1, 0.1, 0.05, 0.01),
-  decreasing_order = TRUE)
+discretize_values(x, breaks = c(1, 0.1, 0.05, 0.01), decreasing_order = TRUE)
 }
 \arguments{
 \item{x}{numeric vector}
