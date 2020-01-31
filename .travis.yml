@@ -1,8 +1,4 @@
 language: r
-r_packages: BiocInstaller 
 Remotes: VoisinneG/pannot
-bioc_packages: 
-  - PSICQUIC
-  - S4Vectors
 use_bioc: true
 cache: packages
