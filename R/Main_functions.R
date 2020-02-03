@@ -1885,7 +1885,8 @@ compare_stoichio <- function(res,
     cond_tot <- NULL
     df_tot <- NULL
     for ( bio in res$replicates){
-      stoichio <- do.call(cbind, res$stoichio_bio[[bio]])[idx_match , conditions]
+      
+      stoichio <- as.data.frame(do.call(cbind, res$stoichio_bio[[bio]]))[idx_match , conditions]
       df <- data.frame(stoichio = stoichio)
       if(!is.null(df_tot)){
         df_tot <- cbind(df_tot, df)
@@ -1901,6 +1902,7 @@ compare_stoichio <- function(res,
                           idx_group_1 = which(cond_tot == conditions[1]), 
                           idx_group_2 = which(cond_tot == conditions[2]),
                           ...)
+    
     p_val[[i]] <- test_res$p_val
     fold_change[[i]] <- test_res$fold_change
     
