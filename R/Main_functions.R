@@ -1568,7 +1568,7 @@ order_interactome <- function(res, idx = NULL,
     }
     else{
       names_var <- names(res[[var]])
-      if( setequal(names_var, res$conditions) ){
+      if( all(names_var %in% res$conditions) ){
         for(i in 1:length(names_var) ){
           res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
         }

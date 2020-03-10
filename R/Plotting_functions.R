@@ -113,6 +113,8 @@ plot_indirect_interactions <- function(score,
 #' @param label_size_scale_factor scale label size according to plot range (the higher the bigger the label)
 #' @param label_range if NULL, scales labels according to plot range (in log10 scale).
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
+#' @param show_core logical. Show core interaction area?
+#' @param range_factor numeric factor to expand plot range
 #' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @import ggplot2
@@ -143,6 +145,8 @@ plot_2D_stoichio <- function( res,
                               label_size_scale_factor = 25,
                               label_range = NULL,
                               theme_name = "theme_gray",
+                              show_core = TRUE,
+                              range_factor = 1.1,
                               ...
                               
 ){
@@ -190,8 +194,14 @@ plot_2D_stoichio <- function( res,
     yc <- 0
     rc<-1
     
-    ylow <- min(df$Y, na.rm = TRUE) - 0.5
-    df$Y[is.na(df$Y)] <- ylow - 0.25
+    
+    ylow <- NULL
+    
+    if(sum(is.na(df$Y))>0){
+      ylow <- min(df$Y, na.rm = TRUE) - 0.25
+      df$Y[is.na(df$Y)] <- ylow - 0.25
+    }
+   
     
     if(is.null(xlim) & is.null(ylim)){
       max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-min(df$Y,na.rm=TRUE))
@@ -207,13 +217,18 @@ plot_2D_stoichio <- function( res,
       label_range <- max_range
     }
     
-    xmin<-center_x - max_range/1.85
-    xmax<-center_x + max_range/1.85
-    ymin<-center_y - max_range/1.85
-    ymax<-center_y + max_range/1.85
+    xmin<-center_x - max_range/2*range_factor
+    xmax<-center_x + max_range/2*range_factor
+    ymin<-center_y - max_range/2*range_factor
+    ymax<-center_y + max_range/2*range_factor
     
     
-    df$size_prey <- log10(df$size)/max_range*20
+    if(is.null(ylow)){
+      ylow <- ymin - 1
+    }
+    
+    #df$size_prey <- log10(df$size)/max_range*20
+    df$size_prey <- log10(df$size)*5
     df$size_label <- unlist(lapply(log10(df$size), function(x) { 
       ifelse(x>label_size_min, min(c(x,label_size_max)), label_size_min) 
       })
@@ -277,10 +292,13 @@ plot_2D_stoichio <- function( res,
                           alpha=0.1,
                           inherit.aes=FALSE)
     
+    if(show_core){
+      p <- p + annotate("path",
+                        x=xc+rc*cos(seq(0,2*pi,length.out=100)),
+                        y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) )
+    }
     
-    p <- p + annotate("path",
-                      x=xc+rc*cos(seq(0,2*pi,length.out=100)),
-                      y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) ) +
+    p <- p + 
       annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5), linetype = "dashed" ) +
       annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
       xlab(expression(paste('Interaction Stoichiometry (log'[10], ')'))) +
@@ -353,6 +371,8 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 
 #' Plot protein enrichement fold-change versus p-value
 #' @param res an \code{InteRactome}
+#' @param data data.frame with columns 'names', 'p_val' and 'fold_change'
+#' @param names Names of proteins highlighted
 #' @param N_print maximum of protein labels to display
 #' @param labels labels for proteins in plot. Must the same length as \code{res$names}
 #' @param conditions conditions to plot
@@ -367,13 +387,16 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param ylim range of y values
 #' @param asinh_transform logical, display asinh(log10(p-value)) on the y-axis
 #' @param norm Use normalized fold-changes
+#' @param both_sides logical. Shading on right and left upper graphs.
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return a plot
 #' @importFrom grDevices dev.off pdf rgb
 #' @import ggplot2
 #' @import ggrepel
 #' @export
-plot_volcanos <- function( res,
+plot_volcanos <- function( res=NULL,
+                           data = NULL,
+                           names = NULL,
                            labels=NULL, 
                            N_print=15, 
                            conditions=NULL,
@@ -386,6 +409,7 @@ plot_volcanos <- function( res,
                            ylim=NULL,
                            asinh_transform = TRUE,
                            norm = FALSE,
+                           both_sides = FALSE,
                            theme_name = "theme_gray"
                            ){
   
@@ -393,25 +417,37 @@ plot_volcanos <- function( res,
     do.call(theme_name, list(...))
   }
   
-  res_int <- res
+  if(!is.null(res)){
+    res_int <- res
+    if (is.null(labels)) labels=res_int$names
+    if (is.null(conditions)) conditions=res_int$conditions
+  }
   
-  if (is.null(labels)) labels=res_int$names
-  if (is.null(conditions)) conditions=res_int$conditions
+  
+  
+  
+  
   
   plist <- vector("list",length(conditions));
   
-  if(norm){
-    if("norm_log_fold_change" %in% names(res_int)){
-      xval <- do.call(cbind, res_int$norm_log_fold_change)
+  if(is.null(data)){
+    if(norm){
+      if("norm_log_fold_change" %in% names(res_int)){
+        xval <- do.call(cbind, res_int$norm_log_fold_change)
+      }else{
+        res_int <- normalize_interactome(res_int)
+        xval <- do.call(cbind, res_int$norm_log_fold_change)
+      }
     }else{
-      res_int <- normalize_interactome(res_int)
-      xval <- do.call(cbind, res_int$norm_log_fold_change)
+      xval <- log10(do.call(cbind, res_int$fold_change))
     }
+    
+    yval <- -log10(do.call(cbind,res_int$p_val))
   }else{
-    xval <- log10(do.call(cbind, res_int$fold_change))
+      conditions <- ""
+      xval <- log10(data$fold_change)
+      yval <- -log10(data$p_val)
   }
-  
-  yval <- -log10(do.call(cbind,res_int$p_val))
   
   ymax <- max(yval[is.finite(yval)])
   if (asinh_transform) ymax <- asinh(ymax)
@@ -437,30 +473,37 @@ plot_volcanos <- function( res,
   if(!is.null(xlim) ){
     xrange <- xlim
   }else{
-    xrange <- c(-xmax,xmax)
+    xrange <- c(-xmax*1.05, xmax*1.05)
   }
   
   if(!is.null(ylim)){
     yrange <- ylim
   }else{
-    yrange <- c(0,ymax)
+    yrange <- c(-0.1, ymax*1.05)
   }
   
   for( i in seq_along(conditions) ){
     
-    if(norm){
-      df <- data.frame(p_val=res_int$p_val[[conditions[i]]], 
-                       fold_change= res_int$norm_log_fold_change[[conditions[i]]], 
-                       names=labels)
-      df$X <- df$fold_change
-      df$Y <- -log10(df$p_val)
-      
+    if(is.null(data)){
+      if(norm){
+        df <- data.frame(p_val=res_int$p_val[[conditions[i]]], 
+                         fold_change= res_int$norm_log_fold_change[[conditions[i]]], 
+                         names=labels)
+        df$X <- df$fold_change
+        df$Y <- -log10(df$p_val)
+        
+      }else{
+        df <- data.frame(p_val=res_int$p_val[[conditions[i]]], 
+                         fold_change= res_int$fold_change[[conditions[i]]], 
+                         names=labels)
+        df$X <- log10(df$fold_change)
+        df$Y <- -log10(df$p_val)
+      }
     }else{
-      df <- data.frame(p_val=res_int$p_val[[conditions[i]]], 
-                       fold_change= res_int$fold_change[[conditions[i]]], 
-                       names=labels)
+      df <- data
+      df$names <- as.character(data$names)
+      df$Y <- -log10(data$p_val)
       df$X <- log10(df$fold_change)
-      df$Y <- -log10(df$p_val)
     }
     
     if (asinh_transform) df$Y <- asinh(df$Y)
@@ -524,7 +567,17 @@ plot_volcanos <- function( res,
                                      y=c(y1,y1,yrange[2],yrange[2])), 
                      mapping=aes_string(x='x', y='y'),
                      alpha=0.1,
-                     inherit.aes=FALSE) +
+                     inherit.aes=FALSE)
+      if(both_sides){
+        plist[[i]] <- plist[[i]] +
+          geom_polygon(data=data.frame(x=c(-x1,xrange[1],xrange[1],-x1),
+                                       y=c(y1,y1,yrange[2],yrange[2])), 
+                       mapping=aes_string(x='x', y='y'),
+                       alpha=0.1,
+                       inherit.aes=FALSE) 
+      }
+      
+      plist[[i]] <- plist[[i]] +
         annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
         annotate("segment", x = -x1, xend = -x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) ) +
         annotate("segment", x = x1, xend = x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) )
@@ -556,8 +609,16 @@ plot_volcanos <- function( res,
                   colour = rgb(1,0,0,0.5), inherit.aes=FALSE)
     }
     
+    
+    if(!is.null(names)){
+      idx_print <- which(df$names %in% names)
+      df$label_color[idx_print] <- "2"
+    }
+    
     plist[[i]] <- plist[[i]] + 
       geom_point(data=df, mapping=aes_string(x='X', y='Y'), alpha=0.2) +
+      geom_point(data=df[idx_print, ],
+                 aes_string(x='X', y='Y'), colour = "red", alpha=0.7) +
       geom_text_repel(data=df[idx_print, ],
                       aes_string(x='X', y='Y', label = 'names', colour='label_color'), size=5) +
       scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
@@ -1371,7 +1432,7 @@ plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2], theme_n
     ggtitle(paste('Pearson R=',signif(Pcorr$r[1,2],5),", n=",dim(df)[1],sep="") )
   
   return(p)
-  
+    
 }
 
 

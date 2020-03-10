@@ -26,6 +26,8 @@ plot_2D_stoichio(
   label_size_scale_factor = 25,
   label_range = NULL,
   theme_name = "theme_gray",
+  show_core = TRUE,
+  range_factor = 1.1,
   ...
 )
 }
@@ -69,6 +71,10 @@ plot_2D_stoichio(
 \item{label_range}{if NULL, scales labels according to plot range (in log10 scale).}
 
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
+
+\item{show_core}{logical. Show core interaction area?}
+
+\item{range_factor}{numeric factor to expand plot range}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }
