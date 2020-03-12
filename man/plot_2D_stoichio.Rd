@@ -28,6 +28,7 @@ plot_2D_stoichio(
   theme_name = "theme_gray",
   show_core = TRUE,
   range_factor = 1.1,
+  ratio_strong = 0.3,
   ...
 )
 }
@@ -75,6 +76,8 @@ plot_2D_stoichio(
 \item{show_core}{logical. Show core interaction area?}
 
 \item{range_factor}{numeric factor to expand plot range}
+
+\item{ratio_strong}{ratio of available proteins bound to bait usd to define gray-shaded area}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }

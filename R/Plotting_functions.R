@@ -115,6 +115,7 @@ plot_indirect_interactions <- function(score,
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @param show_core logical. Show core interaction area?
 #' @param range_factor numeric factor to expand plot range
+#' @param ratio_strong ratio of available proteins bound to bait usd to define gray-shaded area 
 #' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @import ggplot2
@@ -147,6 +148,7 @@ plot_2D_stoichio <- function( res,
                               theme_name = "theme_gray",
                               show_core = TRUE,
                               range_factor = 1.1,
+                              ratio_strong = 0.3,
                               ...
                               
 ){
@@ -287,7 +289,11 @@ plot_2D_stoichio <- function( res,
                    inherit.aes=FALSE)
     
     p <- p + geom_polygon(data=data.frame(y=c(ylow, 0, ymax, ymax, ylow),
-                                          x=c(ylow-1, -1, -1, xmax, xmax)), 
+                                          x=c(ylow + log10(ratio_strong), 
+                                              log10(ratio_strong), 
+                                              log10(ratio_strong),
+                                              xmax, 
+                                              xmax)), 
                           mapping=aes_string(x='x', y='y'),
                           alpha=0.1,
                           inherit.aes=FALSE)
