@@ -21,7 +21,12 @@ plot_volcanos(
   asinh_transform = TRUE,
   norm = FALSE,
   both_sides = FALSE,
-  theme_name = "theme_gray"
+  show_thresholds = TRUE,
+  alpha_segment = 0.2,
+  theme_name = "theme_gray",
+  size = 0.3,
+  alpha = 0.1,
+  ...
 )
 }
 \arguments{
@@ -59,7 +64,17 @@ Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are 
 
 \item{both_sides}{logical. Shading on right and left upper graphs.}
 
+\item{show_thresholds}{Show thresholds using red lines?}
+
+\item{alpha_segment}{transparency of threshold segments}
+
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
+
+\item{size}{dot size}
+
+\item{alpha}{dot transparency}
+
+\item{...}{parameters passed to \code{geom_text_repel()}}
 }
 \value{
 a plot

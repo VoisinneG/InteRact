@@ -394,7 +394,12 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param asinh_transform logical, display asinh(log10(p-value)) on the y-axis
 #' @param norm Use normalized fold-changes
 #' @param both_sides logical. Shading on right and left upper graphs.
+#' @param show_thresholds Show thresholds using red lines? 
+#' @param alpha_segment transparency of threshold segments
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
+#' @param size dot size
+#' @param alpha dot transparency
+#' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @importFrom grDevices dev.off pdf rgb
 #' @import ggplot2
@@ -416,7 +421,12 @@ plot_volcanos <- function( res=NULL,
                            asinh_transform = TRUE,
                            norm = FALSE,
                            both_sides = FALSE,
-                           theme_name = "theme_gray"
+                           show_thresholds = TRUE,
+                           alpha_segment = 0.2,
+                           theme_name = "theme_gray",
+                           size = 0.3,
+                           alpha = 0.1,
+                           ...
                            ){
   
   theme_function <- function(...){
@@ -583,10 +593,15 @@ plot_volcanos <- function( res=NULL,
                        inherit.aes=FALSE) 
       }
       
-      plist[[i]] <- plist[[i]] +
-        annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0,0.5) ) +
-        annotate("segment", x = -x1, xend = -x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) ) +
-        annotate("segment", x = x1, xend = x1, y = 0, yend = yrange[2], colour = rgb(1,0,0,0.5) )
+      plist[[i]] <- plist[[i]] + scale_x_continuous(limits = xrange)
+      
+      if(show_thresholds){
+        plist[[i]] <- plist[[i]] +
+          annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0, alpha_segment) ) +
+          annotate("segment", x = -x1, xend = -x1, y = 0, yend = yrange[2], colour = rgb(1,0,0, alpha_segment) ) +
+          annotate("segment", x = x1, xend = x1, y = 0, yend = yrange[2], colour = rgb(1,0,0, alpha_segment) )
+      }
+     
     }
     
     if(!is.null(x0) & !is.null(c)){
@@ -622,11 +637,11 @@ plot_volcanos <- function( res=NULL,
     }
     
     plist[[i]] <- plist[[i]] + 
-      geom_point(data=df, mapping=aes_string(x='X', y='Y'), alpha=0.2) +
+      geom_point(data=df, mapping=aes_string(x='X', y='Y'), size = size, alpha = alpha) +
       geom_point(data=df[idx_print, ],
-                 aes_string(x='X', y='Y'), colour = "red", alpha=0.7) +
+                 aes_string(x='X', y='Y'), colour = "red", size = size, alpha=0.7) +
       geom_text_repel(data=df[idx_print, ],
-                      aes_string(x='X', y='Y', label = 'names', colour='label_color'), size=5) +
+                      aes_string(x='X', y='Y', label = 'names', colour='label_color'), size = 4, ...) +
       scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
       theme_function() +
       theme(legend.position="none")
