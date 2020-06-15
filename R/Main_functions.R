@@ -4,6 +4,7 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' Analysis of AP-MS data
 #' @param df A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
 #' (use parameter \code{Column_intensity_pattern} to change)
+#' @param id The id of the \code{InteRactome}. 1 by default. Useful to distinguish \code{InteRactome}s with the same bait. 
 #' @param updateProgress function to show progress bar in shiny app
 #' @param N_rep Number of iterations for the replacement of missing values
 #' @param method Method to replace missing values. Methods from the "mice" package are supported. 
@@ -55,6 +56,7 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' sum_tbl <- summary_table(res)
 InteRact <- function(
   df,
+  id = 1,
   updateProgress = NULL,
   N_rep=1,
   method = "default",
@@ -153,6 +155,8 @@ InteRact <- function(
   }
   
   res_mean <- global_analysis(res_mean)
+  
+  res_mean$id <- id
   
   res_mean$params <- c( list(N_rep=N_rep,
                              method = method,
@@ -1097,6 +1101,7 @@ merge_conditions <- function( res,  selected_conditions = NULL){
         for (cond in conditions){
           names <- res_int$names
           df <- data.frame(
+            id = rep(res_int$id, length(names)),
             bait = rep(res_int$bait, length(names)),
             names = names,
             Protein.IDs = res_int$Protein.IDs,
@@ -1262,7 +1267,7 @@ compute_FDR_from_asymmetry <- function( df = NULL,
 
 #' Append a FDR column to an \code{InteRactome}
 #' @param res an \code{InteRactome}
-#' @param df a data.frame containing (at least) columns 'bait', names', 'FDR' and 'conditions'
+#' @param df a data.frame containing (at least) columns 'id', names', 'FDR' and 'conditions'
 #' @return an \code{InteRactome}
 #' @export
 #' @examples
@@ -1280,7 +1285,7 @@ append_FDR <- function(res, df){
   res_int <- res
   df_int <- df
   
-  df_int <- df_int[which(df_int$bait == res$bait), ]
+  df_int <- df_int[which(df_int$id == res$id), ]
   
   FDR <- list()
   
@@ -1560,7 +1565,7 @@ order_interactome <- function(res, idx = NULL,
   }
   
   res_order<-res;
-  for( var in setdiff( names(res), c("bait", "bckg_bait", "bckg_ctrl","conditions", "interactor", "replicates", "data", "params") ) ){
+  for( var in setdiff( names(res), c("bait", "id", "bckg_bait", "bckg_ctrl","conditions", "interactor", "replicates", "data", "params") ) ){
     
     
     if(length(res[[var]]) == length(res$names)){
@@ -1779,6 +1784,7 @@ summary_table <- function(res, add_columns = names(res) ){
   
   columns <- unique( c("names", add_columns) )
   columns <- setdiff(columns, c("bait", 
+                                "id",
                                 "bckg_bait", 
                                 "bckg_ctrl",
                                 "conditions", 
@@ -1792,12 +1798,14 @@ summary_table <- function(res, add_columns = names(res) ){
                                 "params"
   ))
   
-  df<-data.frame( bait=rep(res$bait, length(res$names)) )
-  names_df<-"bait"
-  idx<-1
+  df<-data.frame( id=rep(res$id, length(res$names)),
+                  bait=rep(res$bait, length(res$names)) )
+  
+  names_df<-c("id", "bait")
+  idx<-c(1,1)
   
   for( var in columns ){
-    
+    print(var)
     if(length(res[[var]]) == length(res$names)){
       idx<-c(idx,1)
       names_df<-c(names_df, var)
@@ -1858,6 +1866,7 @@ summary_protein <- function(res, name, idx = NULL){
 #' Compare stoichiometries between two conditions using a t-test
 #' @param res an \code{Interactome}
 #' @param names names selected
+#' @param replicates names of the biogical replicates used to compare stoichiometries
 #' @param ref_condition reference condition
 #' @param test_conditions set of conditions to be compared to \code{ref_condition}
 #' @param p_val_thresh Threshold for the t-test p-value
@@ -1866,6 +1875,7 @@ summary_protein <- function(res, name, idx = NULL){
 #' @export
 compare_stoichio <- function(res, 
                              names = res$names, 
+                             replicates = res$replicates,
                              ref_condition = res$conditions[1], 
                              test_conditions = setdiff(res$conditions, ref_condition),
                              p_val_thresh = 0.05,
@@ -1884,7 +1894,7 @@ compare_stoichio <- function(res,
     conditions <- c(test_conditions[i], ref_condition)
     cond_tot <- NULL
     df_tot <- NULL
-    for ( bio in res$replicates){
+    for ( bio in replicates){
       
       stoichio <- as.data.frame(do.call(cbind, res$stoichio_bio[[bio]]))[idx_match , conditions]
       df <- data.frame(stoichio = stoichio)

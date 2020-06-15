@@ -29,6 +29,7 @@ plot_2D_stoichio(
   show_core = TRUE,
   range_factor = 1.1,
   ratio_strong = 0.3,
+  n_character_max = 8,
   ...
 )
 }
@@ -78,6 +79,8 @@ plot_2D_stoichio(
 \item{range_factor}{numeric factor to expand plot range}
 
 \item{ratio_strong}{ratio of available proteins bound to bait usd to define gray-shaded area}
+
+\item{n_character_max}{max number of label characters (ignored if NULL)}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }

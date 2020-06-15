@@ -116,6 +116,7 @@ plot_indirect_interactions <- function(score,
 #' @param show_core logical. Show core interaction area?
 #' @param range_factor numeric factor to expand plot range
 #' @param ratio_strong ratio of available proteins bound to bait usd to define gray-shaded area 
+#' @param n_character_max max number of label characters (ignored if NULL)
 #' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @import ggplot2
@@ -149,6 +150,7 @@ plot_2D_stoichio <- function( res,
                               show_core = TRUE,
                               range_factor = 1.1,
                               ratio_strong = 0.3,
+                              n_character_max = 8,
                               ...
                               
 ){
@@ -304,6 +306,19 @@ plot_2D_stoichio <- function( res,
                         y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) )
     }
     
+    df$label <- df$names
+      
+    if(!is.null(n_character_max)){
+      df$label <- unlist(lapply(as.character(df$names), function(x){
+        l <- nchar(x)
+        if(l > n_character_max){
+          return(paste(substr(x,1,n_character_max), "...", sep = ""))
+        }else{
+          return(x)
+        }
+      }))
+    }
+    
     p <- p + 
       annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5), linetype = "dashed" ) +
       annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
@@ -320,7 +335,7 @@ plot_2D_stoichio <- function( res,
                  show.legend = FALSE) +
       coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
       geom_text_repel(data = df,
-                      mapping=aes_string(x='X', y='Y', label='names'),
+                      mapping=aes_string(x='X', y='Y', label='label'),
                       size=df$size_label,
                       ...
                       #inherit.aes = FALSE, 
@@ -399,6 +414,9 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @param size dot size
 #' @param alpha dot transparency
+#' @param color dot color
+#' @param label_size size of labels (5 by default)
+#' @param n_character_max max number of label characters
 #' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @importFrom grDevices dev.off pdf rgb
@@ -426,6 +444,9 @@ plot_volcanos <- function( res=NULL,
                            theme_name = "theme_gray",
                            size = 0.3,
                            alpha = 0.1,
+                           color = rgb(0.5, 0.5, 0.5, 0.5),
+                           label_size  =5,
+                           n_character_max = 8,
                            ...
                            ){
   
@@ -570,7 +591,20 @@ plot_volcanos <- function( res=NULL,
     label_y <- "-log10(p_value)"
     if (asinh_transform) label_y <- "asinh(-log10(p_value))"
     
-    plist[[i]] <- ggplot( df , aes_string( label='names' ) ) +
+
+    df$label <- unlist(lapply(as.character(df$names), function(x){
+      l <- nchar(x)
+      if(!is.null(n_character_max)){
+        if(l > n_character_max){
+          return(paste(substr(x,1,n_character_max), "...", sep = ""))
+        }else{return(x)}
+      }else{
+        return(x)
+      }
+    }))
+    
+    
+    plist[[i]] <- ggplot( df , aes_string( label='label' ) ) +
       coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
       xlab(label_x ) + 
       ylab(label_y) +
@@ -637,12 +671,12 @@ plot_volcanos <- function( res=NULL,
     }
     
     plist[[i]] <- plist[[i]] + 
-      geom_point(data=df, mapping=aes_string(x='X', y='Y'), size = size, alpha = alpha) +
+      geom_point(data=df, mapping=aes_string(x='X', y='Y'), size = size, alpha = alpha, color = color) +
       geom_point(data=df[idx_print, ],
-                 aes_string(x='X', y='Y'), colour = "red", size = size, alpha=0.7) +
+                 aes_string(x='X', y='Y'), colour = "red", size = size, alpha=0.8) +
       geom_text_repel(data=df[idx_print, ],
-                      aes_string(x='X', y='Y', label = 'names', colour='label_color'), size = 4, ...) +
-      scale_color_manual(values = c("0" = "black", "1" = "black", "2" = "red"), guide=FALSE) +
+                      aes_string(x='X', y='Y', label = 'label', colour='label_color'), size = label_size, ...) +
+      scale_color_manual(values = c("0" = color, "1" = color, "2" = rgb(1,0,0) ), guide=FALSE) +
       theme_function() +
       theme(legend.position="none")
       
@@ -675,6 +709,7 @@ plot_volcanos <- function( res=NULL,
 #' @param plot_height height of the output .pdf file
 #' @param clustering logical or numeric vector. If logical, use hierarchical 
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
+#' @param n_character_max max number of label characters (ignored if NULL)
 #' @param ... additionnal arguments passed to \code{dot_plot()}
 #' clustering to order proteins. If numeric, ordering indexes for displayed proteins 
 #' (must be the same length as \code{idx_rows})
@@ -701,6 +736,7 @@ plot_per_condition <- function( res,
                                 plot_height=2 + length(idx_rows)/5,
                                 clustering = FALSE,
                                 theme_name = "theme_gray",
+                                n_character_max = 8,
                                 ...){
   
   if(length(idx_rows)==1){
@@ -710,7 +746,19 @@ plot_per_condition <- function( res,
   M<-do.call(cbind, res[[size_var]])
   M1<-do.call(cbind, res[[color_var]])
   
-  row.names(M) <- unlist(lapply(res$names, function(x) substr(x,1,min(8,nchar(x))) ) )
+  row.names(M) <- unlist(lapply(res$names, function(x){
+    l <- nchar(x)
+    
+    if(!is.null(n_character_max)){
+      if(l > n_character_max){
+        return(paste(substr(x,1,n_character_max), "...", sep = ""))
+      }else{
+        return(x)
+      }
+    }else{return(x)}
+    
+  }))
+  
   if(!is.null(names)){
     row.names(M) <- names
   }  
@@ -1259,8 +1307,9 @@ plot_QC <- function(data, theme_name = "theme_gray"){
     message_outlier_1 <- "No outliers"
   }
   message_outlier_1 <- paste(message_outlier_1, "(in bait bckg)", sep=" ")
+  message_outlier_1 = ""
   
-  p1 <- ggplot(Ravg, aes_string(x='bckg', y='Ravg', col='bio')) + 
+  p1 <- ggplot(Ravg, aes_string(x='bckg', y='Ravg', col='bio', shape = "time")) + 
     theme_function()+
     ggtitle("QC: Intensity Correlation", subtitle = message_outlier_1) +
     ylab("average R")+
@@ -1282,9 +1331,10 @@ plot_QC <- function(data, theme_name = "theme_gray"){
     message_outlier_2 <- "No outliers"
   }
   message_outlier_2 <- paste(message_outlier_2, "(in bait bckg)", sep=" ")
+  message_outlier_2 = ""
   Ibait$log10_Ibait <- log10(Ibait$Ibait)
   
-  p2 <- ggplot(Ibait, aes_string(x='bckg', y='log10_Ibait', col='bio')) + 
+  p2 <- ggplot(Ibait, aes_string(x='bckg', y='log10_Ibait', col='bio', shape = "time")) + 
     theme_function() +
     ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
     ylab("norm. Intensity (log10)") +
@@ -1308,9 +1358,10 @@ plot_QC <- function(data, theme_name = "theme_gray"){
     message_outlier_3 <- "No outliers"
   }
   message_outlier_3 <- paste(message_outlier_3, "(in bait bckg)", sep=" ")
+  message_outlier_3 = ""
   nNA$log10_nNA <- log10(nNA$nNA)
   
-  p3 <- ggplot(nNA, aes_string(x='bckg', y='log10_nNA', col='bio')) +
+  p3 <- ggplot(nNA, aes_string(x='bckg', y='log10_nNA', col='bio', shape = "time")) +
     theme_function() +
     ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
     ylab("NA counts (log10)") +

@@ -6,6 +6,7 @@
 \usage{
 InteRact(
   df,
+  id = 1,
   updateProgress = NULL,
   N_rep = 1,
   method = "default",
@@ -24,6 +25,8 @@ InteRact(
 \arguments{
 \item{df}{A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
 (use parameter \code{Column_intensity_pattern} to change)}
+
+\item{id}{The id of the \code{InteRactome}. 1 by default. Useful to distinguish \code{InteRactome}s with the same bait.}
 
 \item{updateProgress}{function to show progress bar in shiny app}
 

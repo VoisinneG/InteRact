@@ -21,6 +21,7 @@ plot_per_condition(
   plot_height = 2 + length(idx_rows)/5,
   clustering = FALSE,
   theme_name = "theme_gray",
+  n_character_max = 8,
   ...
 )
 }
@@ -56,6 +57,8 @@ plot_per_condition(
 \item{clustering}{logical or numeric vector. If logical, use hierarchical}
 
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
+
+\item{n_character_max}{max number of label characters (ignored if NULL)}
 
 \item{...}{additionnal arguments passed to \code{dot_plot()}
 clustering to order proteins. If numeric, ordering indexes for displayed proteins 

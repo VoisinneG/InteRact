@@ -7,6 +7,7 @@
 compare_stoichio(
   res,
   names = res$names,
+  replicates = res$replicates,
   ref_condition = res$conditions[1],
   test_conditions = setdiff(res$conditions, ref_condition),
   p_val_thresh = 0.05,
@@ -18,6 +19,8 @@ compare_stoichio(
 \item{res}{an \code{Interactome}}
 
 \item{names}{names selected}
+
+\item{replicates}{names of the biogical replicates used to compare stoichiometries}
 
 \item{ref_condition}{reference condition}
 

@@ -26,6 +26,9 @@ plot_volcanos(
   theme_name = "theme_gray",
   size = 0.3,
   alpha = 0.1,
+  color = rgb(0.5, 0.5, 0.5, 0.5),
+  label_size = 5,
+  n_character_max = 8,
   ...
 )
 }
@@ -73,6 +76,12 @@ Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are 
 \item{size}{dot size}
 
 \item{alpha}{dot transparency}
+
+\item{color}{dot color}
+
+\item{label_size}{size of labels (5 by default)}
+
+\item{n_character_max}{max number of label characters}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }
