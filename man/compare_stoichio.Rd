@@ -2,10 +2,11 @@
 % Please edit documentation in R/Main_functions.R
 \name{compare_stoichio}
 \alias{compare_stoichio}
-\title{Compare stoichiometries between two conditions using a t-test}
+\title{Compare stoichiometries or intensities between conditions using a t-test}
 \usage{
 compare_stoichio(
   res,
+  var_comp = "stoichio_bio",
   names = res$names,
   replicates = res$replicates,
   ref_condition = res$conditions[1],
@@ -17,6 +18,9 @@ compare_stoichio(
 }
 \arguments{
 \item{res}{an \code{Interactome}}
+
+\item{var_comp}{variable used to compare values across conditions. 
+Can be either "stoichio_bio" or "norm_intensity_bio"}
 
 \item{names}{names selected}
 
@@ -33,5 +37,5 @@ compare_stoichio(
 \item{...}{Additionnal parameters passed to \code{row_ttest()}}
 }
 \description{
-Compare stoichiometries between two conditions using a t-test
+Compare stoichiometries or intensities between conditions using a t-test
 }

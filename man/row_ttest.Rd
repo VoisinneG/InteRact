@@ -2,7 +2,7 @@
 % Please edit documentation in R/Main_functions.R
 \name{row_ttest}
 \alias{row_ttest}
-\title{Perform a t-test comparison between two groups by row}
+\title{Perform a Welch two-sided t-test comparison between two groups by row}
 \usage{
 row_ttest(df, idx_group_1, idx_group_2, log = TRUE)
 }
@@ -19,5 +19,5 @@ row_ttest(df, idx_group_1, idx_group_2, log = TRUE)
 A data frame with columns 'p_val' and 'fold_change' (group_1 vs group_2)
 }
 \description{
-Perform a t-test comparison between two groups by row
+Perform a Welch two-sided t-test comparison between two groups by row
 }

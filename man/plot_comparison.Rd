@@ -9,11 +9,13 @@ plot_comparison(
   names,
   conditions = res$conditions,
   textsize = 4,
+  auto_scale = TRUE,
   ylims = NULL,
   mapping = "point",
   var_x = "bckg",
   var_facet_x = "cond",
   var_facet_y = "name",
+  facet_scales = "free",
   var_color = "bio",
   var_alpha = "missing",
   levels_x = c(res$bckg_ctrl, res$bckg_bait),
@@ -43,6 +45,8 @@ plot_comparison(
 
 \item{textsize}{size of labels corresponding to significance levels}
 
+\item{auto_scale}{logical. Set y axis limits automatically for all plots?}
+
 \item{ylims}{plot limits on the y axis}
 
 \item{mapping}{name of the plot elemnet on which the aestethics color and alpha are mapped. Can be either "point" or "bar".}
@@ -52,6 +56,8 @@ plot_comparison(
 \item{var_facet_x}{variable used for faceting plots horizontally}
 
 \item{var_facet_y}{variable used for faceting plots vertically}
+
+\item{facet_scales}{option passed to \code{facet_grid()} used for scaling data across facets}
 
 \item{var_color}{variable used for the color aestethic}
 

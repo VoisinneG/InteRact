@@ -280,10 +280,15 @@ plot_2D_stoichio <- function( res,
     
     df <- df[idx_plot, ]
     
+    title <- cond
+    if("id" %in% names(res)){
+      title <- paste(res$id, title, sep = ", ")
+    }
+    
     p<-ggplot(df,aes_string(x='X', y='Y', label='names')) +
       theme_function() +
       theme(aspect.ratio=1) +
-      ggtitle(cond) + 
+      ggtitle(title) + 
       geom_polygon(data=data.frame(x=c(ylow, xmax, xmax), 
                                    y=c(ylow, ylow, xmax)), 
                    mapping=aes_string(x='x', y='y'),
@@ -782,6 +787,9 @@ plot_per_condition <- function( res,
   } else {
     title_text <- paste(res$bckg_bait," vs ", res$bckg_ctrl, sep="")
   }
+  if("id" %in% names(res)){
+    title_text <- paste(res$id, title_text, sep = ", ")
+  }
   
   M <- M[idx_rows, idx_cols]
   Mcol <- Mcol[idx_rows, idx_cols]
@@ -942,12 +950,16 @@ dot_plot <- function(Dot_Size,
 #' Plot interaction stoichiometries per biological replicate
 #' @param res an \code{InteRactome}
 #' @param name name of the protein to display
+#' @param yvar name of the y-axis variable. 
+#' Either "stoichio_bio" or "norm_intensity_bio".
 #' @param conditions set of conditions to display
 #' @param ref_condition name of the reference condition for all \code{test}
 #' @param test name of the test function to compare sttoichiometries between conditions
 #' @param test.args arguments passed to function \code{test}
 #' @param map_signif_level named vector with labels and corresponding significance levels
 #' @param save_file path of output file (.pdf)
+#' @param show_violin logical. Display violin boxes?
+#' @param show_line logical. Dispaly lines?
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @return a plot
 #' @import ggplot2
@@ -956,13 +968,25 @@ dot_plot <- function(Dot_Size,
 #' @export
 plot_stoichio <- function(res, 
                           name,
+                          yvar = "stoichio_bio",
                           conditions = res$conditions,
                           ref_condition = conditions[1], 
                           test="t.test", 
-                          test.args = list("paired"=TRUE),
+                          test.args = list("paired"=FALSE),
                           map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
                           save_file = NULL,
+                          show_violin = TRUE,
+                          show_line = TRUE,
                           theme_name = "theme_gray"){
+  
+  if(yvar %in% c("stoichio_bio", "norm_intensity_bio")){
+    if(! yvar %in% names(res)){
+      stop(paste0(yvar, " could not be found"))
+    }
+  }
+  else{
+    stop(paste0("yvar not supported"))
+  }
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -980,8 +1004,8 @@ plot_stoichio <- function(res,
   idx_match <- which(res$names == name)
   df_tot <- NULL
   for ( bio in res$replicates){
-    stoichio <- do.call(cbind, res$stoichio_bio[[bio]])[idx_match, conditions]
-    df <- data.frame(stoichio = stoichio, cond = factor(names(stoichio), levels=conditions), bio = rep(bio, length(stoichio)))
+    values <- do.call(cbind, res[[yvar]][[bio]])[idx_match, conditions]
+    df <- data.frame(values = values, cond = factor(names(values), levels=conditions), bio = rep(bio, length(values)))
     df_tot <- rbind(df_tot, df)
   }
   
@@ -991,9 +1015,10 @@ plot_stoichio <- function(res,
     comparisons[[i]] <- c(ref_condition, cond_test[i])
   }
   
-  df_tot$log10_stoichio <- log10(df_tot$stoichio)
+  df_tot$log10_values <- log10(df_tot$values)
+  label_y <- paste0(gsub("_bio", "", yvar), " (log10)")
   
-  p <- ggplot(df_tot, aes_string(x='cond', y='log10_stoichio')) + 
+  p <- ggplot(df_tot, aes_string(x='cond', y='log10_values')) + 
     theme_function() +
     theme(axis.text.x = element_text(size=10, angle = 90, hjust = 1,vjust=0.5),
           axis.text.y = element_text(size=10)
@@ -1001,8 +1026,17 @@ plot_stoichio <- function(res,
     geom_point(size=0, alpha = 0) +  
     ggtitle(plot_title) + 
     xlab("conditions") +
-    geom_line( data = df_tot, mapping = aes_string(x='cond', y='log10_stoichio', group='bio', color='bio'), alpha = 0.2) +
-    geom_point( data = df_tot, mapping = aes_string(x='cond', y='log10_stoichio', color='bio'), size=3, alpha = 0.8) + 
+    ylab(label_y)
+  
+  if(show_violin){
+    p <- p + geom_violin()
+  }
+  
+  if(show_line){
+    p <- p + geom_line(mapping = aes_string(group='bio', color='bio'), alpha = 0.2)
+  }  
+    
+  p <- p + geom_point(mapping = aes_string(color='bio'), size=3, alpha = 0.8) + 
     geom_signif(comparisons = comparisons, 
                 step_increase = 0.1,
                 test = test,
@@ -1024,6 +1058,7 @@ plot_stoichio <- function(res,
 #' @param names name of the protein to display
 #' @param conditions set of conditions to display
 #' @param textsize size of labels corresponding to significance levels
+#' @param auto_scale logical. Set y axis limits automatically for all plots?
 #' @param ylims plot limits on the y axis
 #' @param mapping name of the plot elemnet on which the aestethics color and alpha are mapped. Can be either "point" or "bar".
 #' @param var_x x variable 
@@ -1031,6 +1066,7 @@ plot_stoichio <- function(res,
 #' @param labels_x defines the labels for the levels of the x variable
 #' @param var_facet_x variable used for faceting plots horizontally
 #' @param var_facet_y variable used for faceting plots vertically
+#' @param facet_scales option passed to \code{facet_grid()} used for scaling data across facets 
 #' @param var_color variable used for the color aestethic
 #' @param var_alpha variable used for the alpha aestethic
 #' @param color_values named vector of colors.
@@ -1055,11 +1091,13 @@ plot_comparison <- function(res,
                             names,
                             conditions = res$conditions, 
                             textsize = 4,
+                            auto_scale = TRUE,
                             ylims= NULL,
                             mapping = "point",
                             var_x = "bckg",
                             var_facet_x = "cond",
                             var_facet_y = "name",
+                            facet_scales = "free",
                             var_color = "bio",
                             var_alpha = "missing",
                             levels_x = c(res$bckg_ctrl, res$bckg_bait),
@@ -1236,18 +1274,19 @@ plot_comparison <- function(res,
                          map_signif_level = map_signif_level)
   }
   
-  p <- p + scale_y_continuous(limits= c(min(log10(df_tot$intensity)), 
-                                        max(log10(df_tot$intensity)) + 
-                                          0.2*(max(log10(df_tot$intensity)) - 
-                                                 min(log10(df_tot$intensity)) )) )
-  
-  if(!is.null(ylims)){
-    if(ylims[1] <= min(log10(df_tot$intensity)) & ylims[2] >= max(log10(df_tot$intensity)) ){
-      p <- p + scale_y_continuous(limits = c(ylims[1], ylims[2]))
+  if(auto_scale){
+    p <- p + scale_y_continuous(limits= c(min(log10(df_tot$intensity)), 
+                                          max(log10(df_tot$intensity)) + 
+                                            0.2*(max(log10(df_tot$intensity)) - 
+                                                   min(log10(df_tot$intensity)) )) )
+  }else{
+    if(!is.null(ylims)){
+      if(ylims[1] <= min(log10(df_tot$intensity)) & ylims[2] >= max(log10(df_tot$intensity)) ){
+        p <- p + scale_y_continuous(limits = c(ylims[1], ylims[2]))
+      }
     }
   }
-  
-  p <- p + facet_grid(facet_y ~ facet_x)
+  p <- p + facet_grid(facet_y ~ facet_x, scales = facet_scales)
   
   return(p)
   

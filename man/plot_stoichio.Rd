@@ -7,12 +7,15 @@
 plot_stoichio(
   res,
   name,
+  yvar = "stoichio_bio",
   conditions = res$conditions,
   ref_condition = conditions[1],
   test = "t.test",
-  test.args = list(paired = TRUE),
+  test.args = list(paired = FALSE),
   map_signif_level = c(`***` = 0.001, `**` = 0.01, `*` = 0.05),
   save_file = NULL,
+  show_violin = TRUE,
+  show_line = TRUE,
   theme_name = "theme_gray"
 )
 }
@@ -20,6 +23,9 @@ plot_stoichio(
 \item{res}{an \code{InteRactome}}
 
 \item{name}{name of the protein to display}
+
+\item{yvar}{name of the y-axis variable. 
+Either "stoichio_bio" or "norm_intensity_bio".}
 
 \item{conditions}{set of conditions to display}
 
@@ -32,6 +38,10 @@ plot_stoichio(
 \item{map_signif_level}{named vector with labels and corresponding significance levels}
 
 \item{save_file}{path of output file (.pdf)}
+
+\item{show_violin}{logical. Display violin boxes?}
+
+\item{show_line}{logical. Dispaly lines?}
 
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 }

@@ -9,6 +9,7 @@ identify_conditions(
   df,
   Column_intensity_pattern = "^Intensity.",
   split = "_",
+  bait_pos = 0,
   bckg_pos = 1,
   bio_pos = 3,
   time_pos = 2,
@@ -22,6 +23,8 @@ identify_conditions(
 \item{Column_intensity_pattern}{Pattern (regular exrpression) used to identfy df's columns containing protein intensity values}
 
 \item{split}{Character used to split column names into substrings}
+
+\item{bait_pos}{Position of the bait name in splitted column names}
 
 \item{bckg_pos}{Position of the sample background in splitted column names}
 

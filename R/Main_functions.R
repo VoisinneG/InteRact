@@ -1,5 +1,5 @@
 
-utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
+utils::globalVariables(c("bait", "bckg", "time", "bio", "idx_match"))
 
 #' Analysis of AP-MS data
 #' @param df A dataframe containing protein intensities. By default, protein intensity column names start by "Intensity." 
@@ -13,6 +13,7 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' with the standard deviation set to the mean SD of ctrl intensities across all proteins.
 #' @param quantile_rep Numeric value between 0 and 1. Quantile of the distribution of mean intensities 
 #' in the control background used to replace missing values.
+#' @param scale_background logical. Scale imputed values according to protein intensities in the control background?
 #' @param pool_background option to use all control background conditions as one control group for all conditions
 #' @param log_test logical, perform t-test on log transform intensities
 #' @param log_stoichio logical, use the geometric mean instead of the arithmetic mean to compute stoichiometries
@@ -56,11 +57,12 @@ utils::globalVariables(c("bckg", "time", "bio", "idx_match"))
 #' sum_tbl <- summary_table(res)
 InteRact <- function(
   df,
-  id = 1,
+  id = NULL,
   updateProgress = NULL,
   N_rep=1,
   method = "default",
   quantile_rep  = 0.05,
+  scale_background = TRUE,
   pool_background = FALSE, 
   log_test = TRUE,
   log_stoichio = TRUE,
@@ -105,10 +107,25 @@ InteRact <- function(
       cat(paste("Nrep=",i,"\n",sep=""));
       
       if(method == "default"){
-        log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- stats::rnorm( n_replace, mean=q, sd=s) 
+        if(scale_background){
+          for(k in 1:dim(log10_I_norm_mean_rep)[1]){
+            median_ctrl <- stats::median(t(log10_I_norm_mean[k , avg$conditions$bckg == avg$bckg_ctrl]), na.rm=TRUE)
+            if(is.na(median_ctrl)){
+              median_ctrl <- q
+            }
+            idx_na <- which(is.na(log10_I_norm_mean[k, ]))
+            if(length(idx_na)>0){
+              log10_I_norm_mean_rep[k, idx_na] <- stats::rnorm(n=length(idx_na), mean=median_ctrl, sd=s)
+            }
+          }
+        }else{
+          log10_I_norm_mean_rep[is.na(log10_I_norm_mean)] <- stats::rnorm(n=n_replace, mean=q, sd=s) 
+        }
+       
+        
       }
       else{
-        imp <- mice::mice(log10_I_norm_mean, printFlag = FALSE, method = method)
+        imp <- mice::mice(log10_I_norm_mean, printFlag = FALSE, method = method, m=1)
         log10_I_norm_mean_rep <- mice::complete(imp)
       }
       
@@ -156,7 +173,12 @@ InteRact <- function(
   
   res_mean <- global_analysis(res_mean)
   
-  res_mean$id <- id
+  if(is.null(id)){
+    res_mean$id <- res_mean$bait
+  }else{
+    res_mean$id <- id
+  }
+  
   
   res_mean$params <- c( list(N_rep=N_rep,
                              method = method,
@@ -308,8 +330,13 @@ preprocess_data <- function(df,
                             ...            
 ){
   
-  if( sum( sapply( grep(Column_intensity_pattern,names(df)), function(x) is.factor( df[, x] ) ) ) >0 ){
-    warning("Some intensity columns are factors, try changing the decimal separator (most likely '.' or ',') used for importing the data")
+  idx_intensity_cols <- grep(Column_intensity_pattern, names(df))
+  is_col_numeric <- sapply( idx_intensity_cols, function(x) !is.numeric( df[[x]] ) )
+  if( sum( is_col_numeric ) >0 ){
+    warning(paste("Intensity columns ", 
+                  paste(names(df)[idx_intensity_cols[is_col_numeric]], collapse = ", ") ,
+                  " are not numeric. Try changing the decimal separator (most likely '.' or ',') used for importing the data", 
+                  sep = ""))
   }
   
   if(! Column_ID %in% names(df)){
@@ -328,10 +355,11 @@ preprocess_data <- function(df,
                                 ...)
     
     
-  } else if( length(setdiff(c("column", "bckg", "bio", "time", "tech"), names(condition))) > 0 ) {
+  } else if( length(setdiff(c("column", "bait", "bckg", "bio", "time", "tech"), names(condition))) > 0 ) {
     stop("incorrect dimensions for data.frame condition")
   } else {
     cond <- dplyr::tibble(column = condition$column,
+                          bait = condition$bait,
                           bckg = condition$bckg,
                           bio = condition$bio,
                           time = condition$time,
@@ -356,7 +384,7 @@ preprocess_data <- function(df,
   # match conditions to samples
   idx_match <- match(cond_filter$column, names(df))
   if( sum(is.na(idx_match)) == length(idx_match) ){
-    stop("Could not match conditions to samples")
+    stop("Could not match all conditions to samples")
   }
   cond_filter <- cond_filter[!is.na(idx_match), ]
   
@@ -433,6 +461,7 @@ preprocess_data <- function(df,
 #' (use parameter \code{Column_intensity_pattern} to change)
 #' @param Column_intensity_pattern Pattern (regular exrpression) used to identfy df's columns containing protein intensity values
 #' @param split Character used to split column names into substrings
+#' @param bait_pos Position of the bait name in splitted column names
 #' @param bckg_pos Position of the sample background in splitted column names
 #' @param bio_pos Position of the sample biological replicate in splitted column names
 #' @param time_pos Position of the sample experimental condition in splitted column names
@@ -452,6 +481,7 @@ preprocess_data <- function(df,
 identify_conditions <- function(df,
                                 Column_intensity_pattern = "^Intensity.",
                                 split = "_",
+                                bait_pos = 0, 
                                 bckg_pos = 1,
                                 bio_pos = 3,
                                 time_pos = 2,
@@ -470,6 +500,7 @@ identify_conditions <- function(df,
   s0 <- sapply(strsplit(col_I, Column_intensity_pattern), function(x){x[2]})
   s <- strsplit(s0, split=split, fixed=TRUE)
   
+  bait<- rep("", length(col_I))
   bckg <- rep("", length(col_I))
   bio <- rep("", length(col_I))
   tech <- rep("", length(col_I))
@@ -478,6 +509,7 @@ identify_conditions <- function(df,
   for (i in 1:length(col_I)){
     n <- length(s[[i]])
     
+    if(bait_pos > 0 & bait_pos <= n){ bait[i] <- s[[i]][bait_pos]}
     if(bckg_pos <= n){ bckg[i] <- s[[i]][bckg_pos]}
     if(bio_pos <= n){ bio[i] <-s[[i]][bio_pos] }
     if(tech_pos <= n){ tech[i] <- s[[i]][tech_pos] }
@@ -485,6 +517,7 @@ identify_conditions <- function(df,
     
   }
   
+  bait[nchar(bait)==0] <- paste("bait", "0", sep=split)
   bckg[nchar(bckg)==0] <- paste("bckg", "0", sep=split)
   bio[nchar(bio)==0] <- paste("bio", "0", sep=split)
   tech[nchar(tech)==0] <- paste("tech", "0", sep=split)
@@ -492,6 +525,7 @@ identify_conditions <- function(df,
   
   
   cond <- dplyr::tibble(column=factor(col_I), 
+                        bait = factor(bait),
                         bckg = factor(bckg), 
                         time = factor(time), 
                         bio = factor(bio), 
@@ -522,14 +556,14 @@ identify_conditions <- function(df,
 average_technical_replicates<-function(df, cond, log = TRUE){
   
   cond$idx_match <- match(cond$column, names(df))
-  cond_group <- dplyr::group_by(cond, bckg, time, bio)
+  cond_group <- dplyr::group_by(cond, bait, bckg, time, bio)
   idx_cond <-  dplyr::summarise(cond_group, idx_tech=list(idx_match))
   
   cond_name <- vector("character", dim(idx_cond)[1])
   df_mean = data.frame( matrix( NA, nrow = dim(df)[1], ncol=dim(idx_cond)[1] ) );
   
   for(j in 1:dim(idx_cond)[1]){
-    cond_name[j] = paste( idx_cond$bckg[j], 't', idx_cond$time[j], 'rep', idx_cond$bio[j], sep="_");
+    cond_name[j] = paste( idx_cond$bait[j], idx_cond$bckg[j], 't', idx_cond$time[j], 'rep', idx_cond$bio[j], sep="_");
     df_mean[[j]] <- row_mean(df[ idx_cond$idx_tech[[j]] ], na.rm=TRUE, log = log);
   }
   colnames(df_mean)=cond_name;
@@ -751,7 +785,7 @@ row_mean <- function(df, na.rm = TRUE, log = FALSE){
   output
 }
 
-#' Perform a t-test comparison between two groups by row
+#' Perform a Welch two-sided t-test comparison between two groups by row
 #' 
 #' @param df a data frame
 #' @param idx_group_1 column indexes corresponding to the first group
@@ -812,7 +846,8 @@ row_stoichio <- function(df,
                          idx_group_1_mean,
                          idx_group_2_mean){
   
-  stoichio <- rep(NaN,dim(df)[1]);
+  stoichio <- rep(NaN,dim(df)[1])
+  intensity <- rep(NaN,dim(df)[1])
   
   if(use_mean_for_bait){
     xbait1<-df[idx_bait, idx_group_1_mean]
@@ -832,6 +867,7 @@ row_stoichio <- function(df,
       } else {
         stoichio[i] <- ( geom_mean(x1) ) / ( geom_mean(xbait1) )*Npep[idx_bait]/Npep[i]
       }
+      intensity[i] <- geom_mean(x1)
       
     } else {
       if (substract_ctrl){
@@ -839,11 +875,13 @@ row_stoichio <- function(df,
       } else {
         stoichio[i] <- ( mean(x1) ) / ( mean(xbait1)  )*Npep[idx_bait]/Npep[i]
       }
-      
+      intensity[i] <- mean(x1)
     }
     
   }
-  stoichio
+  
+  return(list(stoichio = stoichio, intensity = intensity))
+
 }
 
 #' Construct an interactome by comparing bait and control background across experimental conditions
@@ -878,7 +916,7 @@ analyse_interactome <- function(Intensity,
                                 names,
                                 bckg_bait, 
                                 bckg_ctrl,
-                                by_conditions = TRUE, pool_background = TRUE, 
+                                by_conditions = TRUE, pool_background = TRUE,
                                 log_test = TRUE, log_stoichio = TRUE,
                                 substract_ctrl = TRUE,
                                 use_mean_for_bait = TRUE){
@@ -909,19 +947,25 @@ analyse_interactome <- function(Intensity,
   p_val <- vector("list",length(cond))
   fold_change <- vector("list",length(cond))
   stoichio <- vector("list",length(cond))
+  intensity <- vector("list",length(cond))
   
   names(p_val)<-as.character(cond)
   names(fold_change)<-as.character(cond)
   names(stoichio)<-as.character(cond)
+  names(intensity)<-as.character(cond)
   
   replicates <- conditions$bio
   ubio <- unique(replicates)
   stoichio_bio <- vector("list",length(ubio))
+  intensity_bio <- vector("list",length(ubio))
   names(stoichio_bio) <- as.character(ubio)
+  names(intensity_bio) <- as.character(ubio)
   
   for (i_bio in 1:length(ubio)){
     stoichio_bio[[i_bio]] <- vector("list",length(cond))
     names(stoichio_bio[[i_bio]])<-as.character(cond)
+    intensity_bio[[i_bio]] <- vector("list",length(cond))
+    names(intensity_bio[[i_bio]])<-as.character(cond)
   }
   
   for( i in seq_along(cond) ){
@@ -938,7 +982,7 @@ analyse_interactome <- function(Intensity,
     p_val[[i]] <- ttest$p_val;
     fold_change[[i]] <- ttest$fold_change;
     
-    stoichio[[i]] <- row_stoichio(Intensity_na_replaced, 
+    rst <- row_stoichio(Intensity_na_replaced, 
                                   idx_group_1 = which( background==bckg_bait & conds==cond[[i]] ), 
                                   idx_group_2 = idx_ctrl, 
                                   idx_bait = which(names == bait_gene_name),
@@ -949,6 +993,9 @@ analyse_interactome <- function(Intensity,
                                   idx_group_1_mean = which( background == bckg_bait ),
                                   idx_group_2_mean = which( background == bckg_ctrl )
     )
+    stoichio[[i]] <- rst$stoichio
+    intensity[[i]] <- rst$intensity
+    
     for (i_bio in 1:length(ubio)){
       
       idx_ctrl_bio <- which( background == bckg_ctrl & replicates == ubio[i_bio])
@@ -957,7 +1004,7 @@ analyse_interactome <- function(Intensity,
       } 
       
       idx_bait_bio <- which( background==bckg_bait & conds==cond[[i]] & replicates==ubio[i_bio])
-      stoichio_bio[[i_bio]][[i]] <- row_stoichio(Intensity_na_replaced, 
+      rst_bio <- row_stoichio(Intensity_na_replaced, 
                                                  idx_group_1 = idx_bait_bio, 
                                                  idx_group_2 = idx_ctrl_bio, 
                                                  idx_bait = which(names == bait_gene_name),
@@ -968,6 +1015,8 @@ analyse_interactome <- function(Intensity,
                                                  idx_group_1_mean = which( background == bckg_bait ),
                                                  idx_group_2_mean = which( background == bckg_ctrl )
       )
+      stoichio_bio[[i_bio]][[i]] <- rst_bio$stoichio
+      intensity_bio[[i_bio]][[i]] <- rst_bio$intensity
     }
   }
   
@@ -983,6 +1032,8 @@ analyse_interactome <- function(Intensity,
              fold_change=fold_change,
              stoichio=stoichio,
              stoichio_bio = stoichio_bio,
+             norm_intensity=intensity,
+             norm_intensity_bio = intensity_bio,
              data = list(Intensity_na_replaced = Intensity_na_replaced,
                          Intensity = Intensity,
                          conditions = conditions
@@ -1565,29 +1616,30 @@ order_interactome <- function(res, idx = NULL,
   }
   
   res_order<-res;
-  for( var in setdiff( names(res), c("bait", "id", "bckg_bait", "bckg_ctrl","conditions", "interactor", "replicates", "data", "params") ) ){
-    
-    
-    if(length(res[[var]]) == length(res$names)){
-      res_order[[var]] <- res[[var]][idx_order]
-    }
-    else{
-      names_var <- names(res[[var]])
-      if( all(names_var %in% res$conditions) ){
-        for(i in 1:length(names_var) ){
-          res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
-        }
+  for( var in setdiff( names(res), c("bait", "id", "bckg_bait", "bckg_ctrl","conditions", 
+                                     "interactor", "replicates", "data", "params") ) ){
+    if(length(res[[var]]) != 0){
+      if(length(res[[var]]) == length(res$names)){
+        res_order[[var]] <- res[[var]][idx_order]
       }
       else{
-        for(i in 1:length(names_var) ){
-          names_var_2 <- names(res[[var]][[i]]) 
-          for(j in 1:length(names_var_2) ){
-            if(length(res[[var]][[i]][[j]]) == length(res$names)){
-              res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
-            } else if (dim(res[[var]][[i]][[j]])[1] == length(res$names)){
-              res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order, ]
-            } else {
-              warning(paste("Couldn't order ",var, sep=""))
+        names_var <- names(res[[var]])
+        if( all(names_var %in% res$conditions) ){
+          for(i in 1:length(names_var) ){
+            res_order[[var]][[i]] <- res[[var]][[i]][idx_order]
+          }
+        }
+        else{
+          for(i in 1:length(names_var) ){
+            names_var_2 <- names(res[[var]][[i]]) 
+            for(j in 1:length(names_var_2) ){
+              if(length(res[[var]][[i]][[j]]) == length(res$names)){
+                res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order]
+              } else if (dim(res[[var]][[i]][[j]])[1] == length(res$names)){
+                res_order[[var]][[i]][[j]] <- res[[var]][[i]][[j]][idx_order, ]
+              } else {
+                warning(paste("Couldn't order ",var, sep=""))
+              }
             }
           }
         }
@@ -1805,34 +1857,38 @@ summary_table <- function(res, add_columns = names(res) ){
   idx<-c(1,1)
   
   for( var in columns ){
-    print(var)
-    if(length(res[[var]]) == length(res$names)){
-      idx<-c(idx,1)
-      names_df<-c(names_df, var)
-      df<-cbind(df,res[[var]])
-    }
-    else{
-      names_var <- names(res[[var]])
-      if( length(setdiff(names_var, res$conditions))==0 ){
-        for(i in 1:length(names_var) ){
-          idx<-c(idx,NaN)
-          names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
-          df<-cbind(df,res[[var]][[i]])
-        }
+    
+    if(length(res[[var]])!=0){
+      
+      if(length(res[[var]]) == length(res$names)){
+        idx<-c(idx,1)
+        names_df<-c(names_df, var)
+        df<-cbind(df,res[[var]])
       }
       else{
-        for(i in 1:length(names_var) ){
-          names_var_2 <- names(res[[var]][[i]]) 
-          if( length(setdiff(names_var_2, res$conditions)) == 0 ){
-            for(j in 1:length(names_var_2) ){
-              idx<-c(idx,NaN)
-              names_df<-c(names_df, paste(var,"_",names(res[[var]])[i],"_",names_var_2[j],sep=""))
-              df<-cbind(df,res[[var]][[i]][[j]])
+        names_var <- names(res[[var]])
+        if( length(setdiff(names_var, res$conditions))==0 ){
+          for(i in 1:length(names_var) ){
+            idx<-c(idx,NaN)
+            names_df<-c(names_df, paste(var,"_",names_var[i],sep=""))
+            df<-cbind(df,res[[var]][[i]])
+          }
+        }
+        else{
+          for(i in 1:length(names_var) ){
+            names_var_2 <- names(res[[var]][[i]]) 
+            if( length(setdiff(names_var_2, res$conditions)) == 0 ){
+              for(j in 1:length(names_var_2) ){
+                idx<-c(idx,NaN)
+                names_df<-c(names_df, paste(var,"_",names(res[[var]])[i],"_",names_var_2[j],sep=""))
+                df<-cbind(df,res[[var]][[i]][[j]])
+              }
             }
           }
         }
       }
     }
+    
     
   }
   
@@ -1863,8 +1919,10 @@ summary_protein <- function(res, name, idx = NULL){
 
 
 
-#' Compare stoichiometries between two conditions using a t-test
+#' Compare stoichiometries or intensities between conditions using a t-test
 #' @param res an \code{Interactome}
+#' @param var_comp variable used to compare values across conditions. 
+#' Can be either "stoichio_bio" or "norm_intensity_bio"
 #' @param names names selected
 #' @param replicates names of the biogical replicates used to compare stoichiometries
 #' @param ref_condition reference condition
@@ -1874,6 +1932,7 @@ summary_protein <- function(res, name, idx = NULL){
 #' @param ... Additionnal parameters passed to \code{row_ttest()}
 #' @export
 compare_stoichio <- function(res, 
+                             var_comp = "stoichio_bio",
                              names = res$names, 
                              replicates = res$replicates,
                              ref_condition = res$conditions[1], 
@@ -1896,7 +1955,7 @@ compare_stoichio <- function(res,
     df_tot <- NULL
     for ( bio in replicates){
       
-      stoichio <- as.data.frame(do.call(cbind, res$stoichio_bio[[bio]]))[idx_match , conditions]
+      stoichio <- as.data.frame(do.call(cbind, res[[var_comp]][[bio]]))[idx_match , conditions]
       df <- data.frame(stoichio = stoichio)
       if(!is.null(df_tot)){
         df_tot <- cbind(df_tot, df)

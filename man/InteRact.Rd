@@ -6,11 +6,12 @@
 \usage{
 InteRact(
   df,
-  id = 1,
+  id = NULL,
   updateProgress = NULL,
   N_rep = 1,
   method = "default",
   quantile_rep = 0.05,
+  scale_background = TRUE,
   pool_background = FALSE,
   log_test = TRUE,
   log_stoichio = TRUE,
@@ -39,6 +40,8 @@ with the standard deviation set to the mean SD of ctrl intensities across all pr
 
 \item{quantile_rep}{Numeric value between 0 and 1. Quantile of the distribution of mean intensities 
 in the control background used to replace missing values.}
+
+\item{scale_background}{logical. Scale imputed values according to protein intensities in the control background?}
 
 \item{pool_background}{option to use all control background conditions as one control group for all conditions}
 

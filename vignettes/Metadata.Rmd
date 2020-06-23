@@ -60,8 +60,9 @@ Finally, metadata column names must be changed to match those obtained by callin
 
 ```{r message=FALSE, warning=FALSE}
 names(condition_custom) <- c("column", "bckg", "time", "bio", "tech")
+condition_custom$bait <- "Cbl"
 ```
-As documented for `identify_conditions()`, `column` contains intensity column names (as they appear when calling `names()`), `bckg` contains the identity of the cell type, `time` contains the name of the experimental condition, and `bio` and `rep` contain the names of the biological and technical replicate respectively.
+As documented for `identify_conditions()`, `column` contains intensity column names (as they appear when calling `names()`), `bait` is a user-defined name for the bait, `bckg` contains the identity of the cell type, `time` contains the name of the experimental condition, and `bio` and `rep` contain the names of the biological and technical replicate respectively.
 
 This custom metadata can then be passed to `InteRact()`:
 
