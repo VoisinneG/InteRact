@@ -96,6 +96,7 @@ plot_indirect_interactions <- function(score,
 #' @param condition condition selected. If "max", the maximum stoichiometry across conditions will be used.
 #' @param names names of the proteins to display. If not NULL, supersedes \code{N_display} and
 #' \code{only_interactors}
+#' @param idx_rows numeric vector to select proteins to display
 #' @param xlim range of x values
 #' @param ylim range of y values
 #' @param N_display maximum number of protein to display
@@ -125,6 +126,7 @@ plot_indirect_interactions <- function(score,
 plot_2D_stoichio <- function( res, 
                               condition = "max", 
                               names = NULL,
+                              idx_rows=1:30,
                               xlim = NULL, 
                               ylim = NULL,
                               N_display=30,
@@ -185,6 +187,8 @@ plot_2D_stoichio <- function( res,
     
     if(!is.null(names)){
       df <- df[df$names %in% names, ]
+    }else if(!is.null(idx_rows)){
+      df <- df[idx_rows, ]
     }else{
       if(only_interactors){
         df <- df[!is.na(match(df$names, res$interactor)), ]

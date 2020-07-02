@@ -8,6 +8,7 @@ plot_2D_stoichio(
   res,
   condition = "max",
   names = NULL,
+  idx_rows = 1:30,
   xlim = NULL,
   ylim = NULL,
   N_display = 30,
@@ -40,6 +41,8 @@ plot_2D_stoichio(
 
 \item{names}{names of the proteins to display. If not NULL, supersedes \code{N_display} and
 \code{only_interactors}}
+
+\item{idx_rows}{numeric vector to select proteins to display}
 
 \item{xlim}{range of x values}
 
