@@ -4,7 +4,7 @@
 \alias{row_ttest}
 \title{Perform a Welch two-sided t-test comparison between two groups by row}
 \usage{
-row_ttest(df, idx_group_1, idx_group_2, log = TRUE)
+row_ttest(df, idx_group_1, idx_group_2, log = TRUE, ...)
 }
 \arguments{
 \item{df}{a data frame}
@@ -14,6 +14,8 @@ row_ttest(df, idx_group_1, idx_group_2, log = TRUE)
 \item{idx_group_2}{column indexes corresponding to the second group}
 
 \item{log}{option to perform the t-test on log transformed data}
+
+\item{...}{parameters passed to \code{stats::t.test()}}
 }
 \value{
 A data frame with columns 'p_val' and 'fold_change' (group_1 vs group_2)

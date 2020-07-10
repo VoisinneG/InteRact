@@ -791,9 +791,10 @@ row_mean <- function(df, na.rm = TRUE, log = FALSE){
 #' @param idx_group_1 column indexes corresponding to the first group
 #' @param idx_group_2 column indexes corresponding to the second group
 #' @param log option to perform the t-test on log transformed data
+#' @param ... parameters passed to \code{stats::t.test()}
 #' @importFrom stats t.test
 #' @return A data frame with columns 'p_val' and 'fold_change' (group_1 vs group_2)
-row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
+row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE, ...){
   
   p_val <- rep(NaN,dim(df)[1]);
   fold_change <- rep(NaN,dim(df)[1]);
@@ -806,7 +807,7 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE){
   }
   
   for(i in (1:dim(df)[1]) ){
-    res<-try(t.test(df_test[i, idx_group_1], df_test[i, idx_group_2]), silent=TRUE)
+    res<-try(t.test(x = df_test[i, idx_group_1], y = df_test[i, idx_group_2], ...), silent=TRUE)
     if(!inherits(res,"try-error")){
       p_val[i] <- res$p.value;
       if(log){
