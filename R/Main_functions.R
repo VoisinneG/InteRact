@@ -807,16 +807,22 @@ row_ttest <- function(df, idx_group_1, idx_group_2, log = TRUE, ...){
   }
   
   for(i in (1:dim(df)[1]) ){
-    res<-try(t.test(x = df_test[i, idx_group_1], y = df_test[i, idx_group_2], ...), silent=TRUE)
+    x <- as.numeric(df_test[i, idx_group_1])
+    y <- as.numeric(df_test[i, idx_group_2])
+    res<-try(t.test(x = x, y = y, ...), silent=TRUE)
+    
     if(!inherits(res,"try-error")){
       p_val[i] <- res$p.value;
       if(log){
-        fold_change[i] <- 10^(res$estimate[1] - res$estimate[2])
+        fold_change[i] <- 10^(mean(x, na.rm = TRUE) - mean(y, na.rm = TRUE))
+        #fold_change[i] <- 10^(res$estimate[1] - res$estimate[2])
       } else {
-        fold_change[i] <- res$estimate[1] / res$estimate[2]
+        fold_change[i] <- mean(x, na.rm = TRUE) / mean(y, na.rm = TRUE)
+        #fold_change[i] <- res$estimate[1] / res$estimate[2]
       }
     }
   }
+  
   output$p_val <- p_val;
   output$fold_change <- fold_change;
   output
@@ -1944,7 +1950,7 @@ compare_stoichio <- function(res,
   if(!is.null(names)){
     idx_match <- match(names, res$names)
   }
-  
+
   p_val <- vector("list", length(test_conditions))
   fold_change <- vector("list", length(test_conditions))
   names(p_val) <- test_conditions
@@ -1967,7 +1973,7 @@ compare_stoichio <- function(res,
       }
       
     }
-    
+
     test_res <- row_ttest(df_tot,
                           idx_group_1 = which(cond_tot == conditions[1]), 
                           idx_group_2 = which(cond_tot == conditions[2]),
