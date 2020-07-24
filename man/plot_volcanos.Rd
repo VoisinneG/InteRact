@@ -8,7 +8,9 @@ plot_volcanos(
   res = NULL,
   data = NULL,
   names = NULL,
+  idx = NULL,
   labels = NULL,
+  show_all_above_thresh = FALSE,
   N_print = 15,
   conditions = NULL,
   p_val_thresh = 0.05,
@@ -39,7 +41,11 @@ plot_volcanos(
 
 \item{names}{Names of proteins highlighted}
 
+\item{idx}{indices of proteins highlighted (superseeds \code{names})}
+
 \item{labels}{labels for proteins in plot. Must the same length as \code{res$names}}
+
+\item{show_all_above_thresh}{logical. Highlight all proteins above threshold?}
 
 \item{N_print}{maximum of protein labels to display}
 

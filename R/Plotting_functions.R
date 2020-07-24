@@ -317,14 +317,17 @@ plot_2D_stoichio <- function( res,
     
     df$label <- df$names
       
-    if(!is.null(n_character_max)){
+    if(!is.null(n_character_max) ){
       df$label <- unlist(lapply(as.character(df$names), function(x){
         l <- nchar(x)
-        if(l > n_character_max){
-          return(paste(substr(x,1,n_character_max), "...", sep = ""))
-        }else{
-          return(x)
+        if(!is.na(l)){
+          if(l > n_character_max){
+            return(paste(substr(x,1,n_character_max), "...", sep = ""))
+          }else{
+            return(x)
+          }
         }
+        
       }))
     }
     
@@ -403,8 +406,10 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param res an \code{InteRactome}
 #' @param data data.frame with columns 'names', 'p_val' and 'fold_change'
 #' @param names Names of proteins highlighted
+#' @param idx indices of proteins highlighted (superseeds \code{names})
 #' @param N_print maximum of protein labels to display
 #' @param labels labels for proteins in plot. Must the same length as \code{res$names}
+#' @param show_all_above_thresh logical. Highlight all proteins above threshold?
 #' @param conditions conditions to plot
 #' @param p_val_thresh threshold on p-value to display
 #' @param fold_change_thresh threshold on fold-change to display
@@ -435,7 +440,9 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 plot_volcanos <- function( res=NULL,
                            data = NULL,
                            names = NULL,
+                           idx = NULL,
                            labels=NULL, 
+                           show_all_above_thresh = FALSE,
                            N_print=15, 
                            conditions=NULL,
                            p_val_thresh=0.05, 
@@ -468,11 +475,6 @@ plot_volcanos <- function( res=NULL,
     if (is.null(labels)) labels=res_int$names
     if (is.null(conditions)) conditions=res_int$conditions
   }
-  
-  
-  
-  
-  
   
   plist <- vector("list",length(conditions));
   
@@ -564,7 +566,12 @@ plot_volcanos <- function( res=NULL,
       score_print[is_in_frame==0]<-0
       N_show <- min(N_print, sum(score_print>0))
       if( N_show>0 ){
-        idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
+        if(show_all_above_thresh){
+          idx_print <- which(score_print>1)
+        }else{
+          idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
+        }
+        
       }else{
         idx_print <- NULL
       }
@@ -578,7 +585,11 @@ plot_volcanos <- function( res=NULL,
       score_print[is_in_frame==0]<-0
       N_show <- min(N_print, sum(score_print>0))
       if( N_show>0 ){
-        idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
+        if(show_all_above_thresh){
+          idx_print <- which(score_print>1)
+        }else{
+          idx_print <- order(score_print, df$fold_change, decreasing = TRUE)[ 1 : N_show ]
+        }
       }else{
         idx_print <- NULL
       }
@@ -603,7 +614,7 @@ plot_volcanos <- function( res=NULL,
 
     df$label <- unlist(lapply(as.character(df$names), function(x){
       l <- nchar(x)
-      if(!is.null(n_character_max)){
+      if(!is.null(n_character_max) & !is.na(l)){
         if(l > n_character_max){
           return(paste(substr(x,1,n_character_max), "...", sep = ""))
         }else{return(x)}
@@ -673,8 +684,10 @@ plot_volcanos <- function( res=NULL,
                   colour = rgb(1,0,0,0.5), inherit.aes=FALSE)
     }
     
-    
-    if(!is.null(names)){
+    if(!is.null(idx)){
+      idx_print <- idx
+      df$label_color[idx_print] <- "2"
+    }else if(!is.null(names)){
       idx_print <- which(df$names %in% names)
       df$label_color[idx_print] <- "2"
     }
@@ -758,7 +771,7 @@ plot_per_condition <- function( res,
   row.names(M) <- unlist(lapply(res$names, function(x){
     l <- nchar(x)
     
-    if(!is.null(n_character_max)){
+    if(!is.null(n_character_max) & !is.na(l)){
       if(l > n_character_max){
         return(paste(substr(x,1,n_character_max), "...", sep = ""))
       }else{
@@ -1157,6 +1170,7 @@ plot_comparison <- function(res,
                            name = rep(name, length(intensity)))
           
           df_tot <- rbind(df_tot, df)
+          
         }
         
         if(res$params$pool_background){
@@ -1299,12 +1313,14 @@ plot_comparison <- function(res,
 #' Quality check plots for preprocessed AP-MS data
 #' @param data an \code{Interactome} or preprocessed data as obtained using function \code{preprocess_data()}
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
+#' @param bait_name name of the bait
+#' @param na.imputed logical. Use data with imputed missing values?
 #' @return Several QC plots
 #' @import ggplot2
 #' @importFrom stats quantile IQR
 #' @importFrom Hmisc rcorr
 #' @export
-plot_QC <- function(data, theme_name = "theme_gray"){
+plot_QC <- function(data, theme_name = "theme_gray", bait_name = NULL, na.imputed = TRUE){
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -1315,11 +1331,24 @@ plot_QC <- function(data, theme_name = "theme_gray"){
   df <- data
   
   if(class(data) == "InteRactome"){
-    df$Intensity <- df$data$Intensity
+    if(na.imputed){
+      df$Intensity <- df$data$Intensity_na_replaced
+    }else{
+      df$Intensity <- df$data$Intensity
+    }
     df$conditions <- df$data$conditions
   }
   
-  ibait <- which(rownames(df$Intensity) == df$bait)
+  if(!is.null(bait_name)){
+    bait <- bait_name 
+  }else{
+    bait <- df$bait
+  }
+  
+  ibait <- which(rownames(df$Intensity) == bait)
+  if(length(ibait)==0){
+    stop("Coul not find bait in data")
+  }
   
   M <- as.matrix(df$Intensity)
   R <- Hmisc::rcorr(M)

@@ -4,12 +4,16 @@
 \alias{plot_QC}
 \title{Quality check plots for preprocessed AP-MS data}
 \usage{
-plot_QC(data, theme_name = "theme_gray")
+plot_QC(data, theme_name = "theme_gray", bait_name = NULL, na.imputed = TRUE)
 }
 \arguments{
 \item{data}{an \code{Interactome} or preprocessed data as obtained using function \code{preprocess_data()}}
 
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
+
+\item{bait_name}{name of the bait}
+
+\item{na.imputed}{logical. Use data with imputed missing values?}
 }
 \value{
 Several QC plots
