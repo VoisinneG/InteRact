@@ -33,7 +33,7 @@ plot_comparison(
   map_signif_level = c(`***` = 0.001, `**` = 0.01, `*` = 0.05),
   position = "position_jitter",
   position.args = list(width = 0.3, height = 0),
-  theme_name = "theme_gray"
+  theme_name = "theme_bw"
 )
 }
 \arguments{

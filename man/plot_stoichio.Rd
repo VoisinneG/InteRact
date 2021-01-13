@@ -16,7 +16,7 @@ plot_stoichio(
   save_file = NULL,
   show_violin = TRUE,
   show_line = TRUE,
-  theme_name = "theme_gray"
+  theme_name = "theme_bw"
 )
 }
 \arguments{

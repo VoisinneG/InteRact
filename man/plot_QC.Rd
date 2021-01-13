@@ -4,7 +4,7 @@
 \alias{plot_QC}
 \title{Quality check plots for preprocessed AP-MS data}
 \usage{
-plot_QC(data, theme_name = "theme_gray", bait_name = NULL, na.imputed = TRUE)
+plot_QC(data, theme_name = "theme_bw", bait_name = NULL, na.imputed = TRUE)
 }
 \arguments{
 \item{data}{an \code{Interactome} or preprocessed data as obtained using function \code{preprocess_data()}}

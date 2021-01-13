@@ -26,7 +26,7 @@ plot_2D_stoichio(
   label_size_max = 3,
   label_size_scale_factor = 25,
   label_range = NULL,
-  theme_name = "theme_gray",
+  theme_name = "theme_bw",
   show_core = TRUE,
   range_factor = 1.1,
   ratio_strong = 0.3,

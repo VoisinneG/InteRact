@@ -16,7 +16,7 @@ dot_plot(
   color_values = c("red", "purple", "blue", "black"),
   size_label_y = NULL,
   size_label_x = NULL,
-  theme_name = "theme_gray"
+  theme_name = "theme_bw"
 )
 }
 \arguments{

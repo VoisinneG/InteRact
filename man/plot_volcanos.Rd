@@ -20,16 +20,15 @@ plot_volcanos(
   save_file = NULL,
   xlim = NULL,
   ylim = NULL,
-  asinh_transform = TRUE,
   norm = FALSE,
   both_sides = FALSE,
   show_thresholds = TRUE,
   alpha_segment = 0.2,
-  theme_name = "theme_gray",
-  size = 0.3,
-  alpha = 0.1,
-  color = rgb(0.5, 0.5, 0.5, 0.5),
-  label_size = 5,
+  theme_name = "theme_bw",
+  size = 1,
+  alpha = 1,
+  color = rgb(0.75, 0.75, 0.75),
+  label_size = 3,
   n_character_max = 8,
   ...
 )
@@ -66,8 +65,6 @@ Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are 
 \item{xlim}{range of x values}
 
 \item{ylim}{range of y values}
-
-\item{asinh_transform}{logical, display asinh(log10(p-value)) on the y-axis}
 
 \item{norm}{Use normalized fold-changes}
 

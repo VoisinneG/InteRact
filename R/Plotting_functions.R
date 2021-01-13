@@ -1,3 +1,34 @@
+#' Generate axis breaks and labels most suitable 
+#' for log10 transformed variables
+#' @param range range of values (log10 transformed) for which the breaks 
+#' and labels will be generated
+#' @param add_minus_sign logical. Add a minus sign to log10 transformed values 
+#' (useful for volcano plots where p-values appear in decreasing order)
+#' @param minor_ticks set of multiplicative factors used to generate 
+#' minor ticks (set to 2:9 by default)
+#' @return a list with elements
+#' \itemize{
+#' \item{breaks}{numeric vector of breaks}
+#' \item{labels}{vector of labels (as expressions)}  
+#' }
+#' 
+format_axis_log10 <- function(range, add_minus_sign = FALSE, minor_ticks = 2:9){
+  
+  exponents <- seq(floor(min(range)), ceiling(max(range)), 1)
+  
+  ticks <- as.vector(array(c(1, minor_ticks), dim=c(length(minor_ticks)+1, 1)) %*% 
+                       array(10^exponents, dim=c(1, length(exponents))) )
+  if(add_minus_sign){
+    label_exp <- paste("10^{", -log10(ticks),"}", sep="")
+  }else{
+    label_exp <- paste("10^{", log10(ticks),"}", sep="")
+  }
+  
+  label_exp[log10(ticks) %% 1 != 0] <- "{} "
+  labels <- parse(text=label_exp)
+  return(list(breaks = ticks, labels=labels))
+}
+
 #' Plot indirect interactions
 #' @param score output of the \code{identify_indirect_interactions()} function
 #' @param var_threshold Variable of \code{score} on which the threshold will be applied
@@ -148,7 +179,7 @@ plot_2D_stoichio <- function( res,
                               label_size_max = 3,
                               label_size_scale_factor = 25,
                               label_range = NULL,
-                              theme_name = "theme_gray",
+                              theme_name = "theme_bw",
                               show_core = TRUE,
                               range_factor = 1.1,
                               ratio_strong = 0.3,
@@ -290,8 +321,6 @@ plot_2D_stoichio <- function( res,
     }
     
     p<-ggplot(df,aes_string(x='X', y='Y', label='names')) +
-      theme_function() +
-      theme(aspect.ratio=1) +
       ggtitle(title) + 
       geom_polygon(data=data.frame(x=c(ylow, xmax, xmax), 
                                    y=c(ylow, ylow, xmax)), 
@@ -331,11 +360,26 @@ plot_2D_stoichio <- function( res,
       }))
     }
     
+    # set plot theme and format plot axis
+    p <- p +
+      theme_function() +
+      theme(aspect.ratio=1,
+            panel.grid.minor = element_blank(),
+            panel.grid.major = element_line(size = 0.2),
+            axis.text = element_text(size = 12),
+            axis.text.x = element_text(angle = -90, vjust = 0.25)) +
+      scale_x_continuous(breaks = log10(format_axis_log10(c(xmin,xmax))$breaks), 
+                         labels = format_axis_log10(c(xmin,xmax))$labels) +
+      scale_y_continuous(breaks = log10(format_axis_log10(c(ymin,ymax))$breaks), 
+                         labels = format_axis_log10(c(ymin,ymax))$labels) +
+      coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE) +
+      xlab(expression(paste('Interaction Stoichiometry'))) +
+      ylab(expression(paste('Abundance Stoichiometry'))) 
+    
+    
     p <- p + 
       annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5), linetype = "dashed" ) +
       annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
-      xlab(expression(paste('Interaction Stoichiometry (log'[10], ')'))) +
-      ylab(expression(paste('Abundance Stoichiometry (log'[10], ')'))) +
       #ylab(bquote('Abundance Stoichiometry ('~log[10]~')')) +
       geom_point(data = df,
                  mapping=aes_string(x='X', y='Y', color='color', fill = 'color'), 
@@ -345,7 +389,6 @@ plot_2D_stoichio <- function( res,
                  stroke = stroke, 
                  inherit.aes = FALSE, 
                  show.legend = FALSE) +
-      coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE)+
       geom_text_repel(data = df,
                       mapping=aes_string(x='X', y='Y', label='label'),
                       size=df$size_label,
@@ -420,7 +463,6 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param save_file path of output file (.pdf)
 #' @param xlim range of x values
 #' @param ylim range of y values
-#' @param asinh_transform logical, display asinh(log10(p-value)) on the y-axis
 #' @param norm Use normalized fold-changes
 #' @param both_sides logical. Shading on right and left upper graphs.
 #' @param show_thresholds Show thresholds using red lines? 
@@ -452,19 +494,19 @@ plot_volcanos <- function( res=NULL,
                            save_file=NULL,
                            xlim=NULL,
                            ylim=NULL,
-                           asinh_transform = TRUE,
                            norm = FALSE,
                            both_sides = FALSE,
                            show_thresholds = TRUE,
                            alpha_segment = 0.2,
-                           theme_name = "theme_gray",
-                           size = 0.3,
-                           alpha = 0.1,
-                           color = rgb(0.5, 0.5, 0.5, 0.5),
-                           label_size  =5,
+                           theme_name = "theme_bw",
+                           size = 1,
+                           alpha = 1,
+                           color = rgb(0.75, 0.75, 0.75),
+                           label_size  = 3,
                            n_character_max = 8,
                            ...
                            ){
+  
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -498,7 +540,6 @@ plot_volcanos <- function( res=NULL,
   }
   
   ymax <- max(yval[is.finite(yval)])
-  if (asinh_transform) ymax <- asinh(ymax)
   xmax <- max(abs(xval[is.finite(xval)]))
   
   if(!is.null(fold_change_thresh) & !is.null(p_val_thresh)){
@@ -510,8 +551,6 @@ plot_volcanos <- function( res=NULL,
     
     y1 <- -log10(p_val_thresh)
     x2 <- xmax
-    
-    if (asinh_transform) y1 <- asinh(y1)
     y2 <- ymax
   }
   
@@ -554,7 +593,6 @@ plot_volcanos <- function( res=NULL,
       df$X <- log10(df$fold_change)
     }
     
-    if (asinh_transform) df$Y <- asinh(df$Y)
     score_print <- rep(0, dim(df)[1])
     
     if(!is.null(p_val_thresh) & !is.null(fold_change_thresh)){
@@ -603,13 +641,13 @@ plot_volcanos <- function( res=NULL,
     
     df$label_color <- as.factor(score_print)
     if(norm){
-      label_x <- "norm. log(fold_change) [sd units]"
+      label_x <- "norm. fold-change [sd units]"
     }else{
-      label_x <- "log10(fold_change)"
+      label_x <- "fold-change"
     }
     
-    label_y <- "-log10(p_value)"
-    if (asinh_transform) label_y <- "asinh(-log10(p_value))"
+    label_y <- "p-value"
+    
     
 
     df$label <- unlist(lapply(as.character(df$names), function(x){
@@ -623,8 +661,22 @@ plot_volcanos <- function( res=NULL,
       }
     }))
     
+
+    # set plot theme and format plot axis
     
     plist[[i]] <- ggplot( df , aes_string( label='label' ) ) +
+      theme_function() +
+      theme(
+            legend.position="none",
+            panel.grid.minor = element_blank(),
+            panel.grid.major = element_line(size = 0.2),
+            axis.text = element_text(size = 12),
+            axis.text.x = element_text(angle = -90, vjust = 0.25)
+            ) +
+      scale_x_continuous(breaks = log10(format_axis_log10(xrange)$breaks),
+                         labels = format_axis_log10(xrange)$labels) +
+      scale_y_continuous(breaks = log10(format_axis_log10(yrange)$breaks),
+                         labels = format_axis_log10(yrange, add_minus_sign = TRUE)$labels) +
       coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
       xlab(label_x ) + 
       ylab(label_y) +
@@ -647,8 +699,6 @@ plot_volcanos <- function( res=NULL,
                        inherit.aes=FALSE) 
       }
       
-      plist[[i]] <- plist[[i]] + scale_x_continuous(limits = xrange)
-      
       if(show_thresholds){
         plist[[i]] <- plist[[i]] +
           annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0, alpha_segment) ) +
@@ -664,11 +714,6 @@ plot_volcanos <- function( res=NULL,
       
       xpath_left = seq(xrange[1], -x0 - 0.01, by = 0.1)
       ypath_left = -c/( xpath_left + x0)
-      
-      if(asinh_transform){
-        ypath_right <- asinh(ypath_right)
-        ypath_left <- asinh(ypath_left)
-      }
       
       plist[[i]] <- plist[[i]] +
         geom_polygon(data=data.frame(x=c(xpath_right, 
@@ -697,10 +742,9 @@ plot_volcanos <- function( res=NULL,
       geom_point(data=df[idx_print, ],
                  aes_string(x='X', y='Y'), colour = "red", size = size, alpha=0.8) +
       geom_text_repel(data=df[idx_print, ],
-                      aes_string(x='X', y='Y', label = 'label', colour='label_color'), size = label_size, ...) +
-      scale_color_manual(values = c("0" = color, "1" = color, "2" = rgb(1,0,0) ), guide=FALSE) +
-      theme_function() +
-      theme(legend.position="none")
+                      aes_string(x='X', y='Y', label = 'label', colour='label_color'), ...) +
+      scale_color_manual(values = c("0" = color, "1" = color, "2" = rgb(1,0,0) ), guide=FALSE)
+      
       
     
   }
@@ -876,7 +920,7 @@ dot_plot <- function(Dot_Size,
                      color_values = c( "red", "purple",  "blue", "black" ),
                      size_label_y = NULL,
                      size_label_x = NULL,
-                     theme_name = "theme_gray"){
+                     theme_name = "theme_bw"){
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -994,7 +1038,7 @@ plot_stoichio <- function(res,
                           save_file = NULL,
                           show_violin = TRUE,
                           show_line = TRUE,
-                          theme_name = "theme_gray"){
+                          theme_name = "theme_bw"){
   
   if(yvar %in% c("stoichio_bio", "norm_intensity_bio")){
     if(! yvar %in% names(res)){
@@ -1032,14 +1076,20 @@ plot_stoichio <- function(res,
     comparisons[[i]] <- c(ref_condition, cond_test[i])
   }
   
-  df_tot$log10_values <- log10(df_tot$values)
-  label_y <- paste0(gsub("_bio", "", yvar), " (log10)")
+  df_tot$y <- log10(df_tot$values)
+  label_y <- paste0(gsub("_bio", "", yvar))
   
-  p <- ggplot(df_tot, aes_string(x='cond', y='log10_values')) + 
+  p <- ggplot(df_tot, aes_string(x='cond', y='y')) + 
     theme_function() +
-    theme(axis.text.x = element_text(size=10, angle = 90, hjust = 1,vjust=0.5),
-          axis.text.y = element_text(size=10)
+    theme(
+      legend.position="none",
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(size = 0.2),
+      axis.text = element_text(size = 12),
+      axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
     ) +
+    scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y))$breaks),
+                       labels = format_axis_log10(range(df_tot$y))$labels) +
     geom_point(size=0, alpha = 0) +  
     ggtitle(plot_title) + 
     xlab("conditions") +
@@ -1050,7 +1100,7 @@ plot_stoichio <- function(res,
   }
   
   if(show_line){
-    p <- p + geom_line(mapping = aes_string(group='bio', color='bio'), alpha = 0.2)
+    p <- p + geom_line(mapping = aes_string(group='bio', color='bio'), alpha = 0.4)
   }  
     
   p <- p + geom_point(mapping = aes_string(color='bio'), size=3, alpha = 0.8) + 
@@ -1132,7 +1182,7 @@ plot_comparison <- function(res,
                             map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
                             position = "position_jitter",
                             position.args = list(width=0.3, height=0),
-                            theme_name = "theme_gray"){
+                            theme_name = "theme_bw"){
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -1211,20 +1261,27 @@ plot_comparison <- function(res,
   df_tot$missing <- is.na(df_tot[["intensity_na"]])
   df_tot$alpha <- df_tot[[var_alpha]]
   
-  label_y <- "log10(Intensity)"
+  label_y <- "Norm. Intensity"
   
   if(offset_bar){
     df_tot$intensity <- df_tot$intensity / min( c(df_tot$intensity, df_tot$intensity_na), na.rm = TRUE ) 
     df_tot$intensity_na <- df_tot$intensity_na / min( c(df_tot$intensity, df_tot$intensity_na), na.rm = TRUE ) 
-    label_y <- "log10(Intensity Norm.)"
+    label_y <- "Norm. Intensity (with offset)"
   }
   
-  df_tot$log10_intensity <- log10(df_tot$intensity)
+  df_tot$y <- log10(df_tot$intensity)
   
-  p <- ggplot(df_tot, aes_string(x='x', y='log10_intensity'  )) + 
+  # set plot theme and format plot axis
+  p <- ggplot(df_tot, aes_string(x='x', y='y' )) + 
     theme_function() +
-    theme(axis.text = element_text(size=12),
-          axis.text.x = element_text(angle=90, hjust = 1)) +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(size = 0.2),
+      axis.text = element_text(size = 12),
+      axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
+    ) +
+    scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y))$breaks),
+                       labels = format_axis_log10(range(df_tot$y))$labels) +
     geom_point(size=0, alpha = 0) + 
     ggtitle(plot_title) +
     xlab(var_x) +
@@ -1233,14 +1290,14 @@ plot_comparison <- function(res,
   if(show_bar){
     if(mapping == "bar")  {
       p <- p + geom_bar(data = df_tot,
-                        mapping = aes_string(x='x', y='log10_intensity', alpha = 'alpha', fill = 'color',
+                        mapping = aes_string(x='x', y='y', alpha = 'alpha', fill = 'color',
                         stat = "summary", fun.y = "mean") )
       if(!is.null(color_values)){
         p <- p + scale_fill_manual(values = color_values)
       }
     } else {
       p <- p + geom_bar(data = df_tot, 
-                        mapping = aes_string(x='x', y='log10_intensity', stat = "summary", fun.y = "mean"))
+                        mapping = aes_string(x='x', y='y', stat = "summary", fun.y = "mean"))
     }
   }
   
@@ -1250,7 +1307,7 @@ plot_comparison <- function(res,
   
   if(mapping == "point")  {
     p <- p + geom_point( data = df_tot, 
-                         mapping = aes_string(x='x', y='log10_intensity', color='color', alpha = 'alpha'),
+                         mapping = aes_string(x='x', y='y', color='color', alpha = 'alpha'),
                          size=1.5,
                          position = do.call(position, position.args) )
     if(!is.null(color_values)){
@@ -1262,7 +1319,7 @@ plot_comparison <- function(res,
     
   }else{
     p <- p + geom_point( data = df_tot,
-                         mapping = aes_string(x='x', y='log10_intensity'), 
+                         mapping = aes_string(x='x', y='y'), 
                          size=1.5,
                          alpha = 0.8,
                          position = do.call(position, position.args) )
@@ -1275,9 +1332,6 @@ plot_comparison <- function(res,
   if(!is.null(var_alpha)){
     p <- p + guides(alpha=guide_legend(title=var_alpha))
   }   
-  
-  
-  
   
   if(show_error_bar){
     p <- p + geom_errorbar(stat = "summary", fun.data = "mean_sdl", fun.args = list(mult = 1), width = 0.1)
@@ -1293,14 +1347,14 @@ plot_comparison <- function(res,
   }
   
   if(auto_scale){
-    p <- p + scale_y_continuous(limits= c(min(log10(df_tot$intensity)), 
+    p <- p + coord_cartesian(ylim= c(min(log10(df_tot$intensity)), 
                                           max(log10(df_tot$intensity)) + 
                                             0.2*(max(log10(df_tot$intensity)) - 
                                                    min(log10(df_tot$intensity)) )) )
   }else{
     if(!is.null(ylims)){
       if(ylims[1] <= min(log10(df_tot$intensity)) & ylims[2] >= max(log10(df_tot$intensity)) ){
-        p <- p + scale_y_continuous(limits = c(ylims[1], ylims[2]))
+        p <- p + coord_cartesian(ylim = c(ylims[1], ylims[2]))
       }
     }
   }
@@ -1320,7 +1374,7 @@ plot_comparison <- function(res,
 #' @importFrom stats quantile IQR
 #' @importFrom Hmisc rcorr
 #' @export
-plot_QC <- function(data, theme_name = "theme_gray", bait_name = NULL, na.imputed = TRUE){
+plot_QC <- function(data, theme_name = "theme_bw", bait_name = NULL, na.imputed = TRUE){
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -1329,10 +1383,12 @@ plot_QC <- function(data, theme_name = "theme_gray", bait_name = NULL, na.impute
   p_list <- list()
   
   df <- data
+  df$Intensity_na <- df$Intensity
   
   if(class(data) == "InteRactome"){
     if(na.imputed){
       df$Intensity <- df$data$Intensity_na_replaced
+      df$Intensity_na <- df$data$Intensity
     }else{
       df$Intensity <- df$data$Intensity
     }
@@ -1342,7 +1398,11 @@ plot_QC <- function(data, theme_name = "theme_gray", bait_name = NULL, na.impute
   if(!is.null(bait_name)){
     bait <- bait_name 
   }else{
+    if(class(data) == "InteRactome"){
     bait <- df$bait
+    }else{
+      bait <- df$bait_gene_name
+    }
   }
   
   ibait <- which(rownames(df$Intensity) == bait)
@@ -1404,20 +1464,29 @@ plot_QC <- function(data, theme_name = "theme_gray", bait_name = NULL, na.impute
   }
   message_outlier_2 <- paste(message_outlier_2, "(in bait bckg)", sep=" ")
   message_outlier_2 = ""
-  Ibait$log10_Ibait <- log10(Ibait$Ibait)
+  Ibait$y <- log10(Ibait$Ibait)
   
-  p2 <- ggplot(Ibait, aes_string(x='bckg', y='log10_Ibait', col='bio', shape = "time")) + 
+  p2 <- ggplot(Ibait, aes_string(x='bckg', y='y', col='bio', shape = "time")) + 
     theme_function() +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(size = 0.2),
+      axis.text = element_text(size = 12),
+      axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
+    ) +
+    scale_y_continuous(breaks = log10(format_axis_log10(range(Ibait$y, na.rm = TRUE))$breaks),
+                       labels = format_axis_log10(range(Ibait$y, na.rm = TRUE))$labels) +
     ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
-    ylab("norm. Intensity (log10)") +
-    geom_boxplot(data=Ibait, mapping=aes_string(x='bckg', y='log10_Ibait'), inherit.aes = FALSE, outlier.alpha = 0) +
+    ylab("norm. Intensity") +
+    geom_boxplot(data=Ibait, mapping=aes_string(x='bckg', y='y'), inherit.aes = FALSE, outlier.alpha = 0) +
     geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
   
   p_list[[2]] <- p2
   
   nNA <- cbind(df$conditions,
-               nNA = sapply(1:dim(df$Intensity)[2], FUN=function(x){sum(is.na(df$Intensity[,x]))})
+               nNA = sapply(1:dim(df$Intensity_na)[2], FUN=function(x){sum(is.na(df$Intensity_na[,x]))})
   )
+  print(nNA)
   nNA <- nNA[nNA$bckg %in% c(df$bckg_bait, df$bckg_ctrl), ]
   x <- nNA$nNA[nNA$bckg==df$bckg_bait]
   qnt <- stats::quantile(x, probs=c(.25, .75), na.rm = TRUE)
@@ -1431,13 +1500,21 @@ plot_QC <- function(data, theme_name = "theme_gray", bait_name = NULL, na.impute
   }
   message_outlier_3 <- paste(message_outlier_3, "(in bait bckg)", sep=" ")
   message_outlier_3 = ""
-  nNA$log10_nNA <- log10(nNA$nNA)
+  nNA$y <- log10(nNA$nNA)
   
-  p3 <- ggplot(nNA, aes_string(x='bckg', y='log10_nNA', col='bio', shape = "time")) +
+  p3 <- ggplot(nNA, aes_string(x='bckg', y='y', col='bio', shape = "time")) +
     theme_function() +
+    theme(
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(size = 0.2),
+      axis.text = element_text(size = 12),
+      axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
+    ) +
+    scale_y_continuous(breaks = log10(format_axis_log10(range(nNA$y))$breaks),
+                       labels = format_axis_log10(range(nNA$y))$labels) +
     ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
-    ylab("NA counts (log10)") +
-    geom_boxplot(data=nNA, mapping=aes_string(x='bckg', y='log10_nNA'), inherit.aes = FALSE, outlier.alpha = 0) +
+    ylab("NA counts") +
+    geom_boxplot(data=nNA, mapping=aes_string(x='bckg', y='y'), inherit.aes = FALSE, outlier.alpha = 0) +
     geom_point( size = 3, position=position_jitter(width=0.25), alpha = 0.8)
   
   p_list[[3]] <- p3
@@ -1448,7 +1525,7 @@ plot_QC <- function(data, theme_name = "theme_gray", bait_name = NULL, na.impute
   
 }
 
-#' Plot an interactive correlation network with communities highlighted
+  #' Plot an interactive correlation network with communities highlighted
 #' @param res an \code{InteRactome}
 #' @param idx indexes of the set of proteins in \code{res} for which correlations will be computed.
 #' @param df_corr a data.frame with columns 'r_corr' and 'p_corr'. Has priority over parameters \code{res}.
