@@ -4,7 +4,13 @@
 \alias{plot_QC}
 \title{Quality check plots for preprocessed AP-MS data}
 \usage{
-plot_QC(data, theme_name = "theme_bw", bait_name = NULL, na.imputed = TRUE)
+plot_QC(
+  data,
+  theme_name = "theme_bw",
+  bait_name = NULL,
+  na.imputed = TRUE,
+  n_labels_skip = 0
+)
 }
 \arguments{
 \item{data}{an \code{Interactome} or preprocessed data as obtained using function \code{preprocess_data()}}
@@ -14,6 +20,8 @@ plot_QC(data, theme_name = "theme_bw", bait_name = NULL, na.imputed = TRUE)
 \item{bait_name}{name of the bait}
 
 \item{na.imputed}{logical. Use data with imputed missing values?}
+
+\item{n_labels_skip}{Number of labels skipped between two displayed labels on y axis.}
 }
 \value{
 Several QC plots

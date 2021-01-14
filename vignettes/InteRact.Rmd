@@ -111,7 +111,9 @@ head(sum_tbl[, 1:10])
 Generate volcano plots :
 ```{r message=TRUE, warning=FALSE}
 
-plot_volcanos(res, conditions = "030", p_val_thresh = 0.005, fold_change_thresh = 3, asinh_transform = FALSE)
+plot_volcanos(res, 
+              conditions = "030", 
+              p_val_thresh = 0.005, fold_change_thresh = 3)
 
 ```
 

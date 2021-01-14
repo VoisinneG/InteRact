@@ -6,13 +6,17 @@
 #' (useful for volcano plots where p-values appear in decreasing order)
 #' @param minor_ticks set of multiplicative factors used to generate 
 #' minor ticks (set to 2:9 by default)
+#' @param n_labels_skip Number of labels skipped between two displayed labels.
 #' @return a list with elements
 #' \itemize{
 #' \item{breaks}{numeric vector of breaks}
 #' \item{labels}{vector of labels (as expressions)}  
 #' }
 #' 
-format_axis_log10 <- function(range, add_minus_sign = FALSE, minor_ticks = 2:9){
+format_axis_log10 <- function(range, 
+                              add_minus_sign = FALSE, 
+                              minor_ticks = 2:9, 
+                              n_labels_skip = 0){
   
   exponents <- seq(floor(min(range)), ceiling(max(range)), 1)
   
@@ -25,6 +29,15 @@ format_axis_log10 <- function(range, add_minus_sign = FALSE, minor_ticks = 2:9){
   }
   
   label_exp[log10(ticks) %% 1 != 0] <- "{} "
+  if(n_labels_skip>0){
+    idx_labels <- which(log10(ticks) %% 1 == 0)
+    n <- length(idx_labels)
+    idx_skip <- setdiff(1:n, seq(1, n, n_labels_skip+1))
+    if(length(idx_skip) > 0){
+      label_exp[idx_labels[idx_skip]] <- "{} "
+    }
+  }
+  
   labels <- parse(text=label_exp)
   return(list(breaks = ticks, labels=labels))
 }
@@ -98,7 +111,7 @@ plot_indirect_interactions <- function(score,
           theme(axis.text.x = element_text(angle=90, hjust = 1),
                 title = element_text(size = 6) ) +
           ggtitle(paste(score$bait_A,"<",score$bait_B,"<", name_interactor," (", signif(score_display, 3), ")", sep="")) +
-          geom_point(show.legend = FALSE) +
+          geom_point(pch=16, show.legend = FALSE) +
           geom_line(show.legend = show_legend) +
           coord_cartesian(ylim = c(ymin, ymax))
           
@@ -149,6 +162,7 @@ plot_indirect_interactions <- function(score,
 #' @param range_factor numeric factor to expand plot range
 #' @param ratio_strong ratio of available proteins bound to bait usd to define gray-shaded area 
 #' @param n_character_max max number of label characters (ignored if NULL)
+#' @param n_labels_skip Number of labels skipped between two displayed labels on x and y axis.
 #' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @import ggplot2
@@ -184,6 +198,7 @@ plot_2D_stoichio <- function( res,
                               range_factor = 1.1,
                               ratio_strong = 0.3,
                               n_character_max = 8,
+                              n_labels_skip =0,
                               ...
                               
 ){
@@ -369,9 +384,11 @@ plot_2D_stoichio <- function( res,
             axis.text = element_text(size = 12),
             axis.text.x = element_text(angle = -90, vjust = 0.25)) +
       scale_x_continuous(breaks = log10(format_axis_log10(c(xmin,xmax))$breaks), 
-                         labels = format_axis_log10(c(xmin,xmax))$labels) +
+                         labels = format_axis_log10(c(xmin,xmax), 
+                                                    n_labels_skip =  n_labels_skip)$labels) +
       scale_y_continuous(breaks = log10(format_axis_log10(c(ymin,ymax))$breaks), 
-                         labels = format_axis_log10(c(ymin,ymax))$labels) +
+                         labels = format_axis_log10(c(ymin,ymax),
+                                                    n_labels_skip =  n_labels_skip)$labels) +
       coord_cartesian(xlim = c(xmin,xmax), ylim = c(ymin,ymax), expand = FALSE) +
       xlab(expression(paste('Interaction Stoichiometry'))) +
       ylab(expression(paste('Abundance Stoichiometry'))) 
@@ -382,7 +399,8 @@ plot_2D_stoichio <- function( res,
       annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
       #ylab(bquote('Abundance Stoichiometry ('~log[10]~')')) +
       geom_point(data = df,
-                 mapping=aes_string(x='X', y='Y', color='color', fill = 'color'), 
+                 mapping=aes_string(x='X', y='Y', color='color', fill = 'color'),
+                 pch=16,
                  size=df$size_prey, 
                  alpha=0.2,
                  shape = shape,
@@ -473,6 +491,8 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param color dot color
 #' @param label_size size of labels (5 by default)
 #' @param n_character_max max number of label characters
+#' @param n_labels_skip_x Number of labels skipped between two displayed labels on x axis.
+#' @param n_labels_skip_y Number of labels skipped between two displayed labels on y axis.
 #' @param ... parameters passed to \code{geom_text_repel()}
 #' @return a plot
 #' @importFrom grDevices dev.off pdf rgb
@@ -504,6 +524,8 @@ plot_volcanos <- function( res=NULL,
                            color = rgb(0.75, 0.75, 0.75),
                            label_size  = 3,
                            n_character_max = 8,
+                           n_labels_skip_x =0,
+                           n_labels_skip_y=1,
                            ...
                            ){
   
@@ -674,9 +696,12 @@ plot_volcanos <- function( res=NULL,
             axis.text.x = element_text(angle = -90, vjust = 0.25)
             ) +
       scale_x_continuous(breaks = log10(format_axis_log10(xrange)$breaks),
-                         labels = format_axis_log10(xrange)$labels) +
-      scale_y_continuous(breaks = log10(format_axis_log10(yrange)$breaks),
-                         labels = format_axis_log10(yrange, add_minus_sign = TRUE)$labels) +
+                         labels = format_axis_log10(xrange, 
+                                                    n_labels_skip = n_labels_skip_x)$labels) +
+      scale_y_continuous(breaks = log10(format_axis_log10(c(0, max(yrange)))$breaks),
+                         labels = format_axis_log10(c(0, max(yrange)), 
+                                                    add_minus_sign = TRUE, 
+                                                    n_labels_skip = n_labels_skip_y)$labels) +
       coord_cartesian(xlim = xrange, ylim = yrange, expand = FALSE) +
       xlab(label_x ) + 
       ylab(label_y) +
@@ -701,9 +726,12 @@ plot_volcanos <- function( res=NULL,
       
       if(show_thresholds){
         plist[[i]] <- plist[[i]] +
-          annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0, alpha_segment) ) +
-          annotate("segment", x = -x1, xend = -x1, y = 0, yend = yrange[2], colour = rgb(1,0,0, alpha_segment) ) +
-          annotate("segment", x = x1, xend = x1, y = 0, yend = yrange[2], colour = rgb(1,0,0, alpha_segment) )
+          geom_hline(yintercept = y1, colour = rgb(1,0,0, alpha_segment)) +
+          geom_vline(xintercept = x1, colour = rgb(1,0,0, alpha_segment)) +
+          geom_vline(xintercept = -x1, colour = rgb(1,0,0, alpha_segment))
+          #annotate("segment", x = xrange[1], xend = xrange[2], y = y1, yend = y1, colour = rgb(1,0,0, alpha_segment) ) +
+          #annotate("segment", x = -x1, xend = -x1, y = 0, yend = yrange[2], colour = rgb(1,0,0, alpha_segment) ) +
+          #annotate("segment", x = x1, xend = x1, y = 0, yend = yrange[2], colour = rgb(1,0,0, alpha_segment) )
       }
      
     }
@@ -738,9 +766,9 @@ plot_volcanos <- function( res=NULL,
     }
     
     plist[[i]] <- plist[[i]] + 
-      geom_point(data=df, mapping=aes_string(x='X', y='Y'), size = size, alpha = alpha, color = color) +
+      geom_point(data=df, mapping=aes_string(x='X', y='Y'), pch=16, size = size, alpha = alpha, color = color) +
       geom_point(data=df[idx_print, ],
-                 aes_string(x='X', y='Y'), colour = "red", size = size, alpha=0.8) +
+                 aes_string(x='X', y='Y'), pch =16, colour = "red", size = size, alpha=0.8) +
       geom_text_repel(data=df[idx_print, ],
                       aes_string(x='X', y='Y', label = 'label', colour='label_color'), ...) +
       scale_color_manual(values = c("0" = color, "1" = color, "2" = rgb(1,0,0) ), guide=FALSE)
@@ -801,7 +829,7 @@ plot_per_condition <- function( res,
                                 plot_width=2.5 + length(res$conditions)/5,
                                 plot_height=2 + length(idx_rows)/5,
                                 clustering = FALSE,
-                                theme_name = "theme_gray",
+                                theme_name = "theme_bw",
                                 n_character_max = 8,
                                 ...){
   
@@ -982,7 +1010,7 @@ dot_plot <- function(Dot_Size,
   
   p <- ggplot(df, aes_string(x='xpos', y='ypos', size='size', col='color' ) ) +
     theme_function()+
-    theme(
+    theme(panel.grid.minor = element_blank(),
       plot.title = element_text(size=12),
       axis.text.y= element_text(size=size_label_y), 
       axis.text.x = element_text(size=size_label_x, angle = 90, hjust = 1,vjust=0.5) ) +
@@ -996,7 +1024,7 @@ dot_plot <- function(Dot_Size,
     scale_y_continuous(breaks=pos,
                        limits= -c(dim(M)[1]+0.75, 0.25 ),
                        labels=ylabels) +
-    geom_point(alpha=0.5, show.legend = TRUE)
+    geom_point(pch=16, alpha=0.5, show.legend = TRUE)
   
   if(!is.null(size_breaks)){
     p <- p + scale_radius(limits = size_limits, range = size_range, name=size_var, breaks = size_breaks)
@@ -1022,6 +1050,7 @@ dot_plot <- function(Dot_Size,
 #' @param show_violin logical. Display violin boxes?
 #' @param show_line logical. Dispaly lines?
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
+#' @param n_labels_skip Number of labels skipped between two displayed labels on y axis.
 #' @return a plot
 #' @import ggplot2
 #' @import ggsignif
@@ -1038,7 +1067,8 @@ plot_stoichio <- function(res,
                           save_file = NULL,
                           show_violin = TRUE,
                           show_line = TRUE,
-                          theme_name = "theme_bw"){
+                          theme_name = "theme_bw",
+                          n_labels_skip =0){
   
   if(yvar %in% c("stoichio_bio", "norm_intensity_bio")){
     if(! yvar %in% names(res)){
@@ -1089,7 +1119,9 @@ plot_stoichio <- function(res,
       axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
     ) +
     scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y, na.rm = TRUE))$breaks),
-                       labels = format_axis_log10(range(df_tot$y, na.rm = TRUE))$labels) +
+                       labels = format_axis_log10(range(df_tot$y, na.rm = TRUE), 
+                                                  n_labels_skip =  n_labels_skip)$labels
+                       ) +
     geom_point(size=0, alpha = 0) +  
     ggtitle(plot_title) + 
     xlab("conditions") +
@@ -1103,7 +1135,7 @@ plot_stoichio <- function(res,
     p <- p + geom_line(mapping = aes_string(group='bio', color='bio'), alpha = 0.4)
   }  
     
-  p <- p + geom_point(mapping = aes_string(color='bio'), size=3, alpha = 0.8) + 
+  p <- p + geom_point(mapping = aes_string(color='bio'), pch=16, size=3, alpha = 0.8) + 
     geom_signif(comparisons = comparisons, 
                 step_increase = 0.1,
                 test = test,
@@ -1150,6 +1182,7 @@ plot_stoichio <- function(res,
 #' @param position name of the function used to position data points 
 #' @param position.args arguments passed to function \code{position()}
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
+#' @param n_labels_skip Number of labels skipped between two displayed labels on y axis.
 #' @return a plot
 #' @import ggplot2
 #' @import ggsignif
@@ -1182,7 +1215,8 @@ plot_comparison <- function(res,
                             map_signif_level = c("***"=0.001, "**"=0.01, "*"=0.05),
                             position = "position_jitter",
                             position.args = list(width=0.3, height=0),
-                            theme_name = "theme_bw"){
+                            theme_name = "theme_bw",
+                            n_labels_skip =0){
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -1281,8 +1315,10 @@ plot_comparison <- function(res,
       axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
     ) +
     scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y, na.rm = TRUE))$breaks),
-                       labels = format_axis_log10(range(df_tot$y, na.rm = TRUE))$labels) +
-    geom_point(size=0, alpha = 0) + 
+                       labels = format_axis_log10(range(df_tot$y, na.rm = TRUE), 
+                                                  n_labels_skip =  n_labels_skip)$labels
+                       ) +
+    geom_point(pch=16, size=0, alpha = 0) + 
     ggtitle(plot_title) +
     xlab(var_x) +
     ylab(label_y)
@@ -1308,7 +1344,7 @@ plot_comparison <- function(res,
   if(mapping == "point")  {
     p <- p + geom_point( data = df_tot, 
                          mapping = aes_string(x='x', y='y', color='color', alpha = 'alpha'),
-                         size=1.5,
+                         pch=16, size=1.5,
                          position = do.call(position, position.args) )
     if(!is.null(color_values)){
       p <- p + scale_color_manual(values = color_values)
@@ -1320,7 +1356,7 @@ plot_comparison <- function(res,
   }else{
     p <- p + geom_point( data = df_tot,
                          mapping = aes_string(x='x', y='y'), 
-                         size=1.5,
+                         pch=16, size=1.5,
                          alpha = 0.8,
                          position = do.call(position, position.args) )
   }
@@ -1369,12 +1405,17 @@ plot_comparison <- function(res,
 #' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
 #' @param bait_name name of the bait
 #' @param na.imputed logical. Use data with imputed missing values?
+#' @param n_labels_skip Number of labels skipped between two displayed labels on y axis.
 #' @return Several QC plots
 #' @import ggplot2
 #' @importFrom stats quantile IQR
 #' @importFrom Hmisc rcorr
 #' @export
-plot_QC <- function(data, theme_name = "theme_bw", bait_name = NULL, na.imputed = TRUE){
+plot_QC <- function(data, 
+                    theme_name = "theme_bw", 
+                    bait_name = NULL, 
+                    na.imputed = TRUE,
+                    n_labels_skip =0){
   
   theme_function <- function(...){
     do.call(theme_name, list(...))
@@ -1475,7 +1516,7 @@ plot_QC <- function(data, theme_name = "theme_bw", bait_name = NULL, na.imputed 
       axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
     ) +
     scale_y_continuous(breaks = log10(format_axis_log10(range(Ibait$y, na.rm = TRUE))$breaks),
-                       labels = format_axis_log10(range(Ibait$y, na.rm = TRUE))$labels) +
+                       labels = format_axis_log10(range(Ibait$y, na.rm = TRUE), n_labels_skip =  n_labels_skip)$labels) +
     ggtitle("QC: Bait Purification", subtitle = message_outlier_2) +
     ylab("norm. Intensity") +
     geom_boxplot(data=Ibait, mapping=aes_string(x='bckg', y='y'), inherit.aes = FALSE, outlier.alpha = 0) +
@@ -1511,7 +1552,7 @@ plot_QC <- function(data, theme_name = "theme_bw", bait_name = NULL, na.imputed 
       axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
     ) +
     scale_y_continuous(breaks = log10(format_axis_log10(range(nNA$y))$breaks),
-                       labels = format_axis_log10(range(nNA$y))$labels) +
+                       labels = format_axis_log10(range(nNA$y), n_labels_skip =  n_labels_skip)$labels) +
     ggtitle("QC: Missing Values", subtitle = message_outlier_3) +
     ylab("NA counts") +
     geom_boxplot(data=nNA, mapping=aes_string(x='bckg', y='y'), inherit.aes = FALSE, outlier.alpha = 0) +
@@ -1647,7 +1688,7 @@ plot_density <- function(df, var_x = names(df)[1], var_y = names(df)[2], theme_n
     stat_density2d(aes_string(alpha='..level..', fill='..level..'), size=2, geom="polygon", bins=20) + 
     scale_fill_gradient(low = "yellow", high = "red") +
     scale_alpha(range = c(0.00, 0.5), guide = FALSE) +
-    geom_point(alpha=0.2, size=1.5)+
+    geom_point(pch=16, alpha=0.2, size=1.5)+
     xlab(var_x) +
     ylab(var_y) +
     ggtitle(paste('Pearson R=',signif(Pcorr$r[1,2],5),", n=",dim(df)[1],sep="") )

@@ -33,7 +33,8 @@ plot_comparison(
   map_signif_level = c(`***` = 0.001, `**` = 0.01, `*` = 0.05),
   position = "position_jitter",
   position.args = list(width = 0.3, height = 0),
-  theme_name = "theme_bw"
+  theme_name = "theme_bw",
+  n_labels_skip = 0
 )
 }
 \arguments{
@@ -94,6 +95,8 @@ plot_comparison(
 \item{position.args}{arguments passed to function \code{position()}}
 
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
+
+\item{n_labels_skip}{Number of labels skipped between two displayed labels on y axis.}
 }
 \value{
 a plot

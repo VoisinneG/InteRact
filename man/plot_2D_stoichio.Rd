@@ -31,6 +31,7 @@ plot_2D_stoichio(
   range_factor = 1.1,
   ratio_strong = 0.3,
   n_character_max = 8,
+  n_labels_skip = 0,
   ...
 )
 }
@@ -84,6 +85,8 @@ plot_2D_stoichio(
 \item{ratio_strong}{ratio of available proteins bound to bait usd to define gray-shaded area}
 
 \item{n_character_max}{max number of label characters (ignored if NULL)}
+
+\item{n_labels_skip}{Number of labels skipped between two displayed labels on x and y axis.}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }

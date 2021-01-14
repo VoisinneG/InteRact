@@ -30,6 +30,8 @@ plot_volcanos(
   color = rgb(0.75, 0.75, 0.75),
   label_size = 3,
   n_character_max = 8,
+  n_labels_skip_x = 0,
+  n_labels_skip_y = 1,
   ...
 )
 }
@@ -85,6 +87,10 @@ Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are 
 \item{label_size}{size of labels (5 by default)}
 
 \item{n_character_max}{max number of label characters}
+
+\item{n_labels_skip_x}{Number of labels skipped between two displayed labels on x axis.}
+
+\item{n_labels_skip_y}{Number of labels skipped between two displayed labels on y axis.}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }

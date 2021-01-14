@@ -20,7 +20,7 @@ plot_per_condition(
   plot_width = 2.5 + length(res$conditions)/5,
   plot_height = 2 + length(idx_rows)/5,
   clustering = FALSE,
-  theme_name = "theme_gray",
+  theme_name = "theme_bw",
   n_character_max = 8,
   ...
 )

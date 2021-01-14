@@ -5,7 +5,12 @@
 \title{Generate axis breaks and labels most suitable 
 for log10 transformed variables}
 \usage{
-format_axis_log10(range, add_minus_sign = FALSE, minor_ticks = 2:9)
+format_axis_log10(
+  range,
+  add_minus_sign = FALSE,
+  minor_ticks = 2:9,
+  n_labels_skip = 0
+)
 }
 \arguments{
 \item{range}{range of values (log10 transformed) for which the breaks 
@@ -16,6 +21,8 @@ and labels will be generated}
 
 \item{minor_ticks}{set of multiplicative factors used to generate 
 minor ticks (set to 2:9 by default)}
+
+\item{n_labels_skip}{Number of labels skipped between two displayed labels.}
 }
 \value{
 a list with elements
