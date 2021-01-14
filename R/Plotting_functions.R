@@ -1088,8 +1088,8 @@ plot_stoichio <- function(res,
       axis.text = element_text(size = 12),
       axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
     ) +
-    scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y))$breaks),
-                       labels = format_axis_log10(range(df_tot$y))$labels) +
+    scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y, na.rm = TRUE))$breaks),
+                       labels = format_axis_log10(range(df_tot$y, na.rm = TRUE))$labels) +
     geom_point(size=0, alpha = 0) +  
     ggtitle(plot_title) + 
     xlab("conditions") +
@@ -1280,8 +1280,8 @@ plot_comparison <- function(res,
       axis.text = element_text(size = 12),
       axis.text.x = element_text(angle = -90, hjust = 0, vjust=0.5)
     ) +
-    scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y))$breaks),
-                       labels = format_axis_log10(range(df_tot$y))$labels) +
+    scale_y_continuous(breaks = log10(format_axis_log10(range(df_tot$y, na.rm = TRUE))$breaks),
+                       labels = format_axis_log10(range(df_tot$y, na.rm = TRUE))$labels) +
     geom_point(size=0, alpha = 0) + 
     ggtitle(plot_title) +
     xlab(var_x) +
