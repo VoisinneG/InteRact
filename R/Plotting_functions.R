@@ -45,13 +45,16 @@ format_axis_log10 <- function(range,
 #' Plot indirect interactions
 #' @param score output of the \code{identify_indirect_interactions()} function
 #' @param var_threshold Variable of \code{score} on which the threshold will be applied
-#' @param threshold maximum difference between observed and predicted stoichiometries (in log10)
-#' @param min_range Minimum range (in log10 scale) displayed on the y-axis (centered on the mean)
+#' @param threshold maximum difference between observed and predicted 
+#' stoichiometries (in log10)
+#' @param min_range Minimum range (in log10 scale) displayed on the y-axis 
+#' (centered on the mean)
 #' @param save_dir path to the directory where the plot will be saved
 #' @param plot_width set plot width
 #' @param plot_height set plot height
 #' @param show_legend logical, shows plot legend
-#' @param theme_name name of the ggplot2 theme function to use ('theme_gray' by default)
+#' @param theme_name name of the ggplot2 theme function to use 
+#' ('theme_gray' by default)
 #' @export
 plot_indirect_interactions <- function(score,
                                        var_threshold = "max_delta_stoichio_log",
@@ -84,11 +87,13 @@ plot_indirect_interactions <- function(score,
         s_indirect <- score$stoichio_indirect[idx_plot[i], ]
         df_stoichio <- data.frame(type = c( rep("direct", length(s_direct)),
                                             rep("reciprocal", length(s_indirect))),
-                                  stoichio = c(as.numeric(s_direct), as.numeric(s_indirect)),
+                                  stoichio = c(as.numeric(s_direct), 
+                                               as.numeric(s_indirect)),
                                   conditions = c(names(s_direct), names(s_indirect)))
         
         
-          log10_stoichio <- log10(df_stoichio$stoichio[df_stoichio$stoichio>0 & !is.na(df_stoichio$stoichio)])
+          log10_stoichio <- log10(df_stoichio$stoichio[df_stoichio$stoichio>0 & 
+                                                         !is.na(df_stoichio$stoichio)])
           datarange <- range( log10_stoichio )
           
           if(!is.null(min_range)){
@@ -106,7 +111,11 @@ plot_indirect_interactions <- function(score,
           
         df_stoichio$log10_stoichio <- log10(df_stoichio$stoichio)
         
-        plist[[i]] <- ggplot(df_stoichio, aes_string(x='conditions', y='log10_stoichio', color='type', group='type')) +
+        plist[[i]] <- ggplot(df_stoichio, 
+                             aes_string(x='conditions',
+                                        y='log10_stoichio',  
+                                        color='type', 
+                                        group='type')) +
           theme_function() +
           theme(axis.text.x = element_text(angle=90, hjust = 1),
                 title = element_text(size = 6) ) +
@@ -147,7 +156,6 @@ plot_indirect_interactions <- function(score,
 #' @param only_interactors display only interactors 
 #' (identified using the function \code{identify_interactors()})
 #' @param color_values color vector passed to \code{scale_color_manual()}
-#' @param fill_values color vector passed to \code{scale_fill_manual()}
 #' @param shape Point shape aesthetics passed to \code{geom_point()}
 #' @param stroke Point stroke aesthetics passed to \code{geom_point()}
 #' @param p_val_thresh Threshold on p-value used to identify regulated interactions
@@ -176,14 +184,10 @@ plot_2D_stoichio <- function( res,
                               ylim = NULL,
                               N_display=30,
                               only_interactors = FALSE,
-                              fill_values = c("not_regulated" = "black",
-                                              "induced" = "red",
-                                              "repressed" = "blue",
-                                              "bait" = "yellow"),
                               color_values = c("not_regulated" = "black",
                                                "induced" = "red",
                                                "repressed" = "blue",
-                                               "bait" = "black"),
+                                               "bait" = "yellow"),
                               shape = 21,
                               stroke = 1,
                               p_val_thresh = 0.05,
@@ -258,7 +262,8 @@ plot_2D_stoichio <- function( res,
    
     
     if(is.null(xlim) & is.null(ylim)){
-      max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  max(df$Y,na.rm=TRUE)-min(df$Y,na.rm=TRUE))
+      max_range <- max( max(df$X,na.rm=TRUE)-min(df$X,na.rm=TRUE),  
+                        max(df$Y,na.rm=TRUE)-min(df$Y,na.rm=TRUE))
       center_x <- ( max(df$X,na.rm=TRUE)+min(df$X,na.rm=TRUE) )/2
       center_y <- (max(df$Y,na.rm=TRUE) + min(df$Y,na.rm=TRUE))/2
     }else{
@@ -297,7 +302,8 @@ plot_2D_stoichio <- function( res,
       test <- compare_stoichio(res, 
                                names = df$names, 
                                ref_condition = ref_condition, 
-                               test_conditions = setdiff(res$conditions, ref_condition))
+                               test_conditions = setdiff(res$conditions, 
+                                                         ref_condition))
       
       M_p_val <- do.call(cbind, test$p_val)
       M_fold_change <- do.call(cbind, test$fold_change)
@@ -318,13 +324,17 @@ plot_2D_stoichio <- function( res,
       df$color[df$names == res$bait] <- "bait"
       
     }else if(cond %in% res$conditions){
-      test <- compare_stoichio(res, names = df$names, ref_condition = ref_condition, test_conditions = cond)
+      test <- compare_stoichio(res, names = df$names, 
+                               ref_condition = ref_condition, 
+                               test_conditions = cond)
       df$p_val <- test$p_val[[cond]]
       df$fold_change <- test$fold_change[[cond]]
       
       df$color <- rep("not_regulated", dim(df)[1])
-      df$color[df$p_val <= p_val_thresh & df$fold_change >= fold_change_thresh] <- "induced"
-      df$color[df$p_val <= p_val_thresh & df$fold_change <= 1/fold_change_thresh] <- "repressed"
+      df$color[df$p_val <= p_val_thresh & 
+                 df$fold_change >= fold_change_thresh] <- "induced"
+      df$color[df$p_val <= p_val_thresh & 
+                 df$fold_change <= 1/fold_change_thresh] <- "repressed"
       df$color[df$names == res$bait] <- "bait"
     }
     
@@ -397,7 +407,6 @@ plot_2D_stoichio <- function( res,
     p <- p + 
       annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5), linetype = "dashed" ) +
       annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
-      #ylab(bquote('Abundance Stoichiometry ('~log[10]~')')) +
       geom_point(data = df,
                  mapping=aes_string(x='X', y='Y', color='color', fill = 'color'),
                  pch=16,
@@ -411,18 +420,10 @@ plot_2D_stoichio <- function( res,
                       mapping=aes_string(x='X', y='Y', label='label'),
                       size=df$size_label,
                       ...
-                      #inherit.aes = FALSE, 
-                      #show.legend = FALSE,
-                      #force=force, 
-                      #segment.size = segment.size,
-                      #min.segment.length = unit(0.15, "lines"), 
-                      #point.padding = NA,
-                      #max.iter = 100000
                       )
     
     if(!is.null(color_values)) {
-      p <- p + scale_color_manual( values = color_values) +
-        scale_fill_manual( values = fill_values)
+      p <- p + scale_color_manual( values = color_values)
     }
     
     plist[[icond]] <- p

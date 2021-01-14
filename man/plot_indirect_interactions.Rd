@@ -21,9 +21,11 @@ plot_indirect_interactions(
 
 \item{var_threshold}{Variable of \code{score} on which the threshold will be applied}
 
-\item{threshold}{maximum difference between observed and predicted stoichiometries (in log10)}
+\item{threshold}{maximum difference between observed and predicted 
+stoichiometries (in log10)}
 
-\item{min_range}{Minimum range (in log10 scale) displayed on the y-axis (centered on the mean)}
+\item{min_range}{Minimum range (in log10 scale) displayed on the y-axis 
+(centered on the mean)}
 
 \item{save_dir}{path to the directory where the plot will be saved}
 
@@ -33,7 +35,8 @@ plot_indirect_interactions(
 
 \item{show_legend}{logical, shows plot legend}
 
-\item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
+\item{theme_name}{name of the ggplot2 theme function to use 
+('theme_gray' by default)}
 }
 \description{
 Plot indirect interactions
