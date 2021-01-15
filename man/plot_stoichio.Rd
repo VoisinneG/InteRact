@@ -17,7 +17,8 @@ plot_stoichio(
   show_violin = TRUE,
   show_line = TRUE,
   theme_name = "theme_bw",
-  n_labels_skip = 0
+  n_labels_skip = 0,
+  minor_ticks = 2:9
 )
 }
 \arguments{
@@ -47,6 +48,9 @@ Either "stoichio_bio" or "norm_intensity_bio".}
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 
 \item{n_labels_skip}{Number of labels skipped between two displayed labels on y axis.}
+
+\item{minor_ticks}{set of multiplicative factors used to generate 
+minor ticks (set to 2:9 by default). Ignored if NULL.}
 }
 \value{
 a plot

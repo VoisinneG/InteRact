@@ -32,6 +32,7 @@ plot_volcanos(
   n_character_max = 8,
   n_labels_skip_x = 0,
   n_labels_skip_y = 1,
+  minor_ticks = 2:9,
   ...
 )
 }
@@ -91,6 +92,9 @@ Ignored unless parameters \code{p_val_thresh} and \code{fold_change_thresh} are 
 \item{n_labels_skip_x}{Number of labels skipped between two displayed labels on x axis.}
 
 \item{n_labels_skip_y}{Number of labels skipped between two displayed labels on y axis.}
+
+\item{minor_ticks}{set of multiplicative factors used to generate 
+minor ticks (set to 2:9 by default). Ignored if NULL.}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }

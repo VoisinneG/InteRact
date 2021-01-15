@@ -9,7 +9,8 @@ plot_QC(
   theme_name = "theme_bw",
   bait_name = NULL,
   na.imputed = TRUE,
-  n_labels_skip = 0
+  n_labels_skip = 0,
+  minor_ticks = 2:9
 )
 }
 \arguments{
@@ -22,6 +23,9 @@ plot_QC(
 \item{na.imputed}{logical. Use data with imputed missing values?}
 
 \item{n_labels_skip}{Number of labels skipped between two displayed labels on y axis.}
+
+\item{minor_ticks}{set of multiplicative factors used to generate 
+minor ticks (set to 2:9 by default). Ignored if NULL.}
 }
 \value{
 Several QC plots

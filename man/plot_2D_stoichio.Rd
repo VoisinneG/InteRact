@@ -30,6 +30,7 @@ plot_2D_stoichio(
   ratio_strong = 0.3,
   n_character_max = 8,
   n_labels_skip = 0,
+  minor_ticks = 2:9,
   ...
 )
 }
@@ -83,6 +84,9 @@ plot_2D_stoichio(
 \item{n_character_max}{max number of label characters (ignored if NULL)}
 
 \item{n_labels_skip}{Number of labels skipped between two displayed labels on x and y axis.}
+
+\item{minor_ticks}{set of multiplicative factors used to generate 
+minor ticks (set to 2:9 by default). Ignored if NULL.}
 
 \item{...}{parameters passed to \code{geom_text_repel()}}
 }

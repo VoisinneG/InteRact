@@ -20,7 +20,7 @@ and labels will be generated}
 (useful for volcano plots where p-values appear in decreasing order)}
 
 \item{minor_ticks}{set of multiplicative factors used to generate 
-minor ticks (set to 2:9 by default)}
+minor ticks (set to 2:9 by default). Ignored if NULL.}
 
 \item{n_labels_skip}{Number of labels skipped between two displayed labels.}
 }

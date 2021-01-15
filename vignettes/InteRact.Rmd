@@ -110,7 +110,6 @@ head(sum_tbl[, 1:10])
 
 Generate volcano plots :
 ```{r message=TRUE, warning=FALSE}
-
 plot_volcanos(res, 
               conditions = "030", 
               p_val_thresh = 0.005, fold_change_thresh = 3)
@@ -122,7 +121,7 @@ plot_volcanos(res,
 
 Plot kinetics of recruitment:
 ```{r message=TRUE, warning=FALSE, fig.width=3.5, fig.height=6 }
-plot_per_condition(res)$plot
+plot_per_condition(res)
 ```
 
 

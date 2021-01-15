@@ -34,7 +34,8 @@ plot_comparison(
   position = "position_jitter",
   position.args = list(width = 0.3, height = 0),
   theme_name = "theme_bw",
-  n_labels_skip = 0
+  n_labels_skip = 0,
+  minor_ticks = 2:9
 )
 }
 \arguments{
@@ -97,6 +98,9 @@ plot_comparison(
 \item{theme_name}{name of the ggplot2 theme function to use ('theme_gray' by default)}
 
 \item{n_labels_skip}{Number of labels skipped between two displayed labels on y axis.}
+
+\item{minor_ticks}{set of multiplicative factors used to generate 
+minor ticks (set to 2:9 by default). Ignored if NULL.}
 }
 \value{
 a plot
