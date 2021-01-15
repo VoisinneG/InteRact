@@ -156,6 +156,7 @@ plot_indirect_interactions <- function(score,
 #' @param only_interactors display only interactors 
 #' (identified using the function \code{identify_interactors()})
 #' @param color_values color vector passed to \code{scale_color_manual()}
+#' @param fill_values color vector passed to \code{scale_fill_manual()}
 #' @param shape Point shape aesthetics passed to \code{geom_point()}
 #' @param stroke Point stroke aesthetics passed to \code{geom_point()}
 #' @param p_val_thresh Threshold on p-value used to identify regulated interactions
@@ -186,11 +187,14 @@ plot_2D_stoichio <- function( res,
                               ylim = NULL,
                               N_display=30,
                               only_interactors = FALSE,
-                              color_values = c("not_regulated" = "black",
-                                               "induced" = "red",
-                                               "repressed" = "blue",
-                                               "bait" = "yellow"),
-                              
+                              fill_values = c("not_regulated" = "black",
+                                              "induced" = "red",
+                                              "repressed" = "blue",
+                                              "bait" = "yellow"),
+                              color_values = c("not_regulated" = "",
+                                               "induced" = "",
+                                               "repressed" = "",
+                                               "bait" = "black"),
                               shape = 21,
                               stroke = 1,
                               p_val_thresh = 0.05,
@@ -416,9 +420,10 @@ plot_2D_stoichio <- function( res,
     p <- p + 
       annotate("segment", x = ylow, xend = xmax, y = ylow, yend = xmax, colour = rgb(0,0,0,0.5), linetype = "dashed" ) +
       annotate("segment", x = xmin, xend = xmax, y = ylow, yend = ylow, colour = rgb(0,0,0,0.5) ) +
+      #ylab(bquote('Abundance Stoichiometry ('~log[10]~')')) +
       geom_point(data = df,
                  mapping=aes_string(x='X', y='Y', color='color', fill = 'color'),
-                 pch=16,
+                 pch=21,
                  size=df$size_prey, 
                  alpha=0.2,
                  shape = shape,
@@ -429,10 +434,18 @@ plot_2D_stoichio <- function( res,
                       mapping=aes_string(x='X', y='Y', label='label'),
                       size=df$size_label,
                       ...
+                      #inherit.aes = FALSE, 
+                      #show.legend = FALSE,
+                      #force=force, 
+                      #segment.size = segment.size,
+                      #min.segment.length = unit(0.15, "lines"), 
+                      #point.padding = NA,
+                      #max.iter = 100000
                       )
     
     if(!is.null(color_values)) {
-      p <- p + scale_color_manual( values = color_values)
+      p <- p + scale_color_manual( values = color_values) +
+        scale_fill_manual( values = fill_values)
     }
     
     plist[[icond]] <- p

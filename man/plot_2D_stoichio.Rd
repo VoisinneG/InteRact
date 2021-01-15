@@ -13,8 +13,9 @@ plot_2D_stoichio(
   ylim = NULL,
   N_display = 30,
   only_interactors = FALSE,
-  color_values = c(not_regulated = "black", induced = "red", repressed = "blue", bait =
+  fill_values = c(not_regulated = "black", induced = "red", repressed = "blue", bait =
     "yellow"),
+  color_values = c(not_regulated = "", induced = "", repressed = "", bait = "black"),
   shape = 21,
   stroke = 1,
   p_val_thresh = 0.05,
@@ -52,6 +53,8 @@ plot_2D_stoichio(
 
 \item{only_interactors}{display only interactors 
 (identified using the function \code{identify_interactors()})}
+
+\item{fill_values}{color vector passed to \code{scale_fill_manual()}}
 
 \item{color_values}{color vector passed to \code{scale_color_manual()}}
 
