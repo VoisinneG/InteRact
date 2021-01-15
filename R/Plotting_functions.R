@@ -718,6 +718,7 @@ plot_volcanos <- function( res=NULL,
     
     y_axis <- format_axis_log10(range = c(0, max(yrange)), 
                                 minor_ticks = minor_ticks,
+                                add_minus_sign = TRUE,
                                 n_labels_skip =  n_labels_skip_y)
     
     plist[[i]] <- ggplot( df , aes_string( label='label' ) ) +
