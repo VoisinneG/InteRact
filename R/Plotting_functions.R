@@ -800,7 +800,7 @@ plot_volcanos <- function( res=NULL,
       geom_point(data=df[idx_print, ],
                  aes_string(x='X', y='Y'), pch =16, colour = "red", size = size, alpha=0.8) +
       geom_text_repel(data=df[idx_print, ],
-                      aes_string(x='X', y='Y', label = 'label', colour='label_color'), ...) +
+                      aes_string(x='X', y='Y', label = 'label', colour='label_color'), size = label_size, ...) +
       scale_color_manual(values = c("0" = color, "1" = color, "2" = rgb(1,0,0) ), guide=FALSE)
       
       
