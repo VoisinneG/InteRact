@@ -851,7 +851,7 @@ plot_per_condition <- function( res,
                                 size_var="norm_stoichio",
                                 size_range=c(0, 5.5),
                                 size_limits=c(0, 1),
-                                color_var=NULL, 
+                                color_var=NULL,
                                 color_breaks=NULL,
                                 color_values = c( "black", "blue", "purple", "red"),
                                 color_default = 1,
@@ -862,8 +862,6 @@ plot_per_condition <- function( res,
                                 theme_name = "theme_bw",
                                 n_character_max = 8,
                                 ...){
-  
-  # test ssh
   
   if(is.null(color_breaks)){
     if(!is.null(res$params$p_val_thresh)){

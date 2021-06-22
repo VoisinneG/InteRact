@@ -9,7 +9,8 @@ append_FDR(res, df)
 \arguments{
 \item{res}{an \code{InteRactome}}
 
-\item{df}{a data.frame containing (at least) columns 'id', names', 'FDR' and 'conditions'}
+\item{df}{a data.frame containing (at least) columns 'id', 'bait', 
+'names', 'FDR' and 'conditions'}
 }
 \value{
 an \code{InteRactome}

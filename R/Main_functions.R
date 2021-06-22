@@ -1155,9 +1155,12 @@ merge_conditions <- function( res,  selected_conditions = NULL){
         }
         
         res_int <- normalize_interactome(res[[i]])
-        
+        if(! "id" %in% names(res_int)){
+          res_int$id <- res_int$bait
+        }
         for (cond in conditions){
           names <- res_int$names
+          
           df <- data.frame(
             id = rep(res_int$id, length(names)),
             bait = rep(res_int$bait, length(names)),
@@ -1184,10 +1187,14 @@ merge_conditions <- function( res,  selected_conditions = NULL){
       }
       
       res_int <- normalize_interactome(res)
+      if(! "id" %in% names(res_int)){
+        res_int$id <- res_int$bait
+      }
       
       for (cond in conditions){
         names <- res_int$names
         df <- data.frame(
+          id = rep(res_int$id, length(names)),
           bait = rep(res_int$bait, length(names)),
           names = names,
           Protein.IDs = res_int$Protein.IDs,
@@ -1325,7 +1332,8 @@ compute_FDR_from_asymmetry <- function( df = NULL,
 
 #' Append a FDR column to an \code{InteRactome}
 #' @param res an \code{InteRactome}
-#' @param df a data.frame containing (at least) columns 'id', names', 'FDR' and 'conditions'
+#' @param df a data.frame containing (at least) columns 'id', 'bait', 
+#' 'names', 'FDR' and 'conditions'
 #' @return an \code{InteRactome}
 #' @export
 #' @examples
@@ -1343,7 +1351,13 @@ append_FDR <- function(res, df){
   res_int <- res
   df_int <- df
   
-  df_int <- df_int[which(df_int$id == res$id), ]
+  if("id" %in% names(df_int) & "id" %in% names(res)){
+    df_int <- df_int[which(df_int$id == res$id), ]
+  } else if ("bait" %in% names(df_int) & "bait" %in% names(res)){
+    df_int <- df_int[which(df_int$bait == res$bait), ]
+  } else {
+    stop("Could not identify InteRactome using 'id' or 'bait' in input data.frame")
+  }
   
   FDR <- list()
   
@@ -1856,6 +1870,10 @@ summary_table <- function(res, add_columns = names(res) ){
                                 "data", 
                                 "params"
   ))
+  
+  if(! "id" %in% names(res) ){
+    res$id <- res$bait
+  }
   
   df<-data.frame( id=rep(res$id, length(res$names)),
                   bait=rep(res$bait, length(res$names)) )
