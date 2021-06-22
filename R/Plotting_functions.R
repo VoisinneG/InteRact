@@ -863,6 +863,8 @@ plot_per_condition <- function( res,
                                 n_character_max = 8,
                                 ...){
   
+  # test ssh
+  
   if(is.null(color_breaks)){
     if(!is.null(res$params$p_val_thresh)){
       color_breaks <- c(1, c(4, 2, 1)*res$params$p_val_thresh)
