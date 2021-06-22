@@ -847,12 +847,12 @@ plot_volcanos <- function( res=NULL,
 plot_per_condition <- function( res,
                                 names = NULL,
                                 idx_cols = 1:length(res$conditions),
-                                idx_rows=1:20,
+                                idx_rows=NULL,
                                 size_var="norm_stoichio",
                                 size_range=c(0, 5.5),
                                 size_limits=c(0, 1),
-                                color_var="p_val", 
-                                color_breaks=c(1,0.1,0.05,0.01),
+                                color_var=NULL, 
+                                color_breaks=NULL,
                                 color_values = c( "black", "blue", "purple", "red"),
                                 color_default = 1,
                                 save_file=NULL,
@@ -863,7 +863,35 @@ plot_per_condition <- function( res,
                                 n_character_max = 8,
                                 ...){
   
-  if(length(idx_rows)==1){
+  if(is.null(color_breaks)){
+    if(!is.null(res$params$p_val_thresh)){
+      color_breaks <- c(1, c(4, 2, 1)*res$params$p_val_thresh)
+      color_values <- color_values[which(color_breaks<=1)]
+      color_breaks <- color_breaks[which(color_breaks<=1)]
+    }else {
+      color_breaks <- c(1, 0.1, 0.05, 0.01)
+      message("Using default color scale.")
+    }
+  }
+  
+  if(is.null(color_var)){
+    if(!is.null(res$params$var_p_val)){
+      color_var <- res$params$var_p_val
+    } else {
+      color_var <- "p_val"
+      message("Using p_val as default color variable.")
+    }
+  }
+  
+  if(is.null(idx_rows)){
+    idx_interactors <- which(res$is_interactor>0)
+    if(length(idx_interactors)>0){
+      idx_rows <- idx_interactors
+    }else{
+      message("No interactors found. Displaying first 20 preys")
+      idx_rows <- 1:20
+    }
+  } else if (length(idx_rows)==1){
     idx_rows<-1:idx_rows
   }
   
@@ -894,7 +922,7 @@ plot_per_condition <- function( res,
     names(color_values) <- as.character(color_breaks)
     idx_order_col <- order(color_breaks, decreasing = TRUE);
     for(i in seq_along(color_breaks)){
-      Mcol[M1<color_breaks[idx_order_col[i]]]<-color_breaks[idx_order_col[i]]
+      Mcol[M1<=color_breaks[idx_order_col[i]]]<-color_breaks[idx_order_col[i]]
     }
   }
   
