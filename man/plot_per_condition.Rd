@@ -16,6 +16,7 @@ plot_per_condition(
   color_breaks = NULL,
   color_values = c("black", "blue", "purple", "red"),
   color_default = 1,
+  color_max = NULL,
   save_file = NULL,
   plot_width = 2.5 + length(res$conditions)/5,
   plot_height = 2 + length(idx_rows)/5,
@@ -47,6 +48,8 @@ plot_per_condition(
 \item{color_values}{values parameter passed to \code{scale_color_manual()}}
 
 \item{color_default}{value corresponding to the default color}
+
+\item{color_max}{If not NULL, Hide dots with a color parameter above this threshold.}
 
 \item{save_file}{path of output file (.pdf)}
 

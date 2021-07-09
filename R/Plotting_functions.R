@@ -828,6 +828,7 @@ plot_volcanos <- function( res=NULL,
 #' @param color_breaks vector used to discretize colors
 #' @param color_values values parameter passed to \code{scale_color_manual()}
 #' @param color_default value corresponding to the default color
+#' @param color_max If not NULL, Hide dots with a color parameter above this threshold.
 #' @param save_file path of output file (.pdf)
 #' @param plot_width width of the output .pdf file
 #' @param plot_height height of the output .pdf file
@@ -855,6 +856,7 @@ plot_per_condition <- function( res,
                                 color_breaks=NULL,
                                 color_values = c( "black", "blue", "purple", "red"),
                                 color_default = 1,
+                                color_max = NULL,
                                 save_file=NULL,
                                 plot_width=2.5 + length(res$conditions)/5,
                                 plot_height=2 + length(idx_rows)/5,
@@ -898,6 +900,11 @@ plot_per_condition <- function( res,
   M<-do.call(cbind, res[[size_var]])
   M1<-do.call(cbind, res[[color_var]])
   
+  # Hide (set size to NA) for dots with a color value above color_max 
+  if(!is.null(color_max)){
+    M[M1 > color_max] <- NA
+  }
+  
   row.names(M) <- unlist(lapply(res$names, function(x){
     l <- nchar(x)
     
@@ -940,6 +947,7 @@ plot_per_condition <- function( res,
   
   M <- M[idx_rows, idx_cols]
   Mcol <- Mcol[idx_rows, idx_cols]
+  
   M[is.na(M)]<-0
   
   idx_order <- 1:length(idx_rows)
