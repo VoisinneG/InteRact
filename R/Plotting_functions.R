@@ -146,6 +146,7 @@ plot_indirect_interactions <- function(score,
 
 #' Plot abundance versus interaction stoichiometries
 #' @param res an \code{InteRactome}
+#' @param labels labels for proteins in plot. Must the same length as \code{res$names}
 #' @param condition condition selected. If "max", the maximum stoichiometry across conditions will be used.
 #' @param names names of the proteins to display. If not NULL, supersedes \code{N_display} and
 #' \code{only_interactors}
@@ -180,6 +181,7 @@ plot_indirect_interactions <- function(score,
 #' @import ggrepel
 #' @export
 plot_2D_stoichio <- function( res, 
+                              labels = NULL,
                               condition = "max", 
                               names = NULL,
                               idx_rows=1:30,
@@ -353,7 +355,7 @@ plot_2D_stoichio <- function( res,
       title <- paste(res$id, title, sep = ", ")
     }
     
-    p<-ggplot(df,aes_string(x='X', y='Y', label='names')) +
+    p<-ggplot(df,aes_string(x='X', y='Y')) +
       ggtitle(title) + 
       geom_polygon(data=data.frame(x=c(ylow, xmax, xmax), 
                                    y=c(ylow, ylow, xmax)), 
@@ -377,10 +379,15 @@ plot_2D_stoichio <- function( res,
                         y=yc+rc*sin(seq(0,2*pi,length.out=100)), color=rgb(0,0,0,0.5) )
     }
     
-    df$label <- df$names
-      
+    if(!is.null(labels)){
+      df$label <- labels[match(df$names, res$names)]
+    }else{
+      df$label <- df$names
+    }
+    
+    
     if(!is.null(n_character_max) ){
-      df$label <- unlist(lapply(as.character(df$names), function(x){
+      df$label <- unlist(lapply(as.character(df$label), function(x){
         l <- nchar(x)
         if(!is.na(l)){
           if(l > n_character_max){
@@ -697,8 +704,9 @@ plot_volcanos <- function( res=NULL,
     label_y <- "p-value"
     
     
-
-    df$label <- unlist(lapply(as.character(df$names), function(x){
+    df$label <- df$names
+    
+    df$label <- unlist(lapply(as.character(df$label), function(x){
       l <- nchar(x)
       if(!is.null(n_character_max) & !is.na(l)){
         if(l > n_character_max){
@@ -818,7 +826,8 @@ plot_volcanos <- function( res=NULL,
 
 #' Dot plot representation of interaction as a function of experimental conditions
 #' @param res an \code{InteRactome}
-#' @param names vector of names to be displayed
+#' @param labels labels for proteins in plot. Must the same length as \code{res$names}
+#' @param names Deprecated. Same as parameter \code{labels}.
 #' @param idx_cols numeric vector to select and order conditions to be displayed
 #' @param idx_rows numeric vector to select proteins to display
 #' @param size_var name of the variable corresponding to dot size
@@ -846,6 +855,7 @@ plot_volcanos <- function( res=NULL,
 #' @importFrom stats dist hclust
 #' @export
 plot_per_condition <- function( res,
+                                labels = NULL,
                                 names = NULL,
                                 idx_cols = 1:length(res$conditions),
                                 idx_rows=NULL,
@@ -885,6 +895,8 @@ plot_per_condition <- function( res,
     }
   }
   
+  
+  
   if(is.null(idx_rows)){
     idx_interactors <- which(res$is_interactor>0)
     if(length(idx_interactors)>0){
@@ -920,6 +932,10 @@ plot_per_condition <- function( res,
   
   if(!is.null(names)){
     row.names(M) <- names
+  }  
+  
+  if(!is.null(labels)){
+    row.names(M) <- labels
   }  
   
   Mcol<-M
