@@ -244,7 +244,7 @@
 library(InteRact)
 library(readxl)
 
-proteinGroups_Cbl <- read.csv("~/Documents/Data/BMMlab/CBL-CBLB_paper/C-CBL/data/ProteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=",")
+proteinGroups_Cbl <- read.csv("~/extra/ProteinGroups_Cbl.txt", sep="\t", nrows=-1, fill=TRUE, na.strings="", dec=",")
 
 conditions <- identify_conditions(proteinGroups_Cbl)
 conditions$bckg <- gsub("Cbl", "CBL-OST", conditions$bckg)
@@ -252,13 +252,19 @@ conditions$bckg <- gsub("WT", "Wild-type", conditions$bckg)
 conditions$time <- paste("t=", conditions$time, "s", sep = "")
 conditions$bio <- gsub("Ech", "Sample ", conditions$bio)
 conditions$tech <- gsub("R", "Injection  ", conditions$tech)
-names(conditions) <- c("name", "Cell.type",  "Stim.time", "Bio.rep", "Tech.rep")
+names(conditions) <- c("name", "bait", "Cell.type",  "Stim.time", "Bio.rep", "Tech.rep")
 
 dir.create("./inst/")
 dir.create("./inst/extdata/")
 write.csv(conditions, file = "./inst/extdata/proteinGroups_Cbl_metadata.csv", row.names = FALSE, quote = FALSE)
 
+
+res <- InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")
+res <- identify_interactors(res, p_val_thresh = 0.05, fold_change_thresh = 2)
+Interactome_Cbl <- res
+
 usethis::use_data(proteinGroups_Cbl,
+                  Interactome_Cbl,
                    # proteome_CD4,
                    # proteome_CD4_expanded,
                    # proteome_Jurkat,

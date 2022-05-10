@@ -64,3 +64,8 @@ experimental condition ("tine) and technical replicate ("tech).}
 \description{
 Preprocessing of raw data
 }
+\examples{
+#load data :
+data("proteinGroups_Cbl")
+df <- preprocess_data(proteinGroups_Cbl, bait_gene_name = "Cbl")
+}

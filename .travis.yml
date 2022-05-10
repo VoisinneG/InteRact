@@ -1,4 +1,3 @@
 language: r
-Remotes: VoisinneG/pannot
 use_bioc: true
 cache: packages

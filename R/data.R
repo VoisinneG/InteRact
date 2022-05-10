@@ -15,3 +15,9 @@
 #' 
 "proteinGroups_Cbl"
 
+
+#' An example Interactome computed from the 'proteinGroups_Cbl' file. 
+#' This interactome was created using the following code :
+#' \code{InteRact(proteinGroups_Cbl, bait_gene_name = "Cbl")}
+#' @format An InteRactome
+"Interactome_Cbl"

@@ -311,6 +311,10 @@ identify_indirect_interactions <- function(resA, resB, conditions = NULL){
 #' @param filter_gene_name logical, filter out proteins withy empty gene name
 #' @param ... Additional parameters passed to function \code{identify_conditions}
 #' @export
+#' @examples
+#' #load data :
+#' data("proteinGroups_Cbl")
+#' df <- preprocess_data(proteinGroups_Cbl, bait_gene_name = "Cbl")
 preprocess_data <- function(df,
                             Column_gene_name = "Gene.names",
                             Column_score = "Score",
@@ -595,7 +599,7 @@ filter_Proteins <- function( df,
   
   idx_row = 1:dim(df)[1]
   if( nchar(Column_score)>0 & Column_score %in% colnames(df)){
-    if(class(df[[Column_score]]) == "numeric"){
+    if(inherits(df[[Column_score]], "numeric")){
       idx_row = which( df[[Column_score]] > min_score )
       df<-df[idx_row, ]
       cat("Data Filtered based on portein identification score\n")
@@ -1144,10 +1148,10 @@ merge_conditions <- function( res,  selected_conditions = NULL){
   
   df_merge <- NULL
   
-  if (class(res) == "list"){
+  if (inherits(res, "list")){
     
     for (i in 1:length(res)){
-      if(class(res[[i]]) == "InteRactome"){
+      if(inherits(res[[i]], "InteRactome")){
         if(is.null(selected_conditions)){
           conditions <- res[[i]]$conditions
         } else {
@@ -1179,7 +1183,7 @@ merge_conditions <- function( res,  selected_conditions = NULL){
       }
     }
   } else{
-    if(class(res) == "InteRactome"){
+    if(inherits(res, "InteRactome")){
       if(is.null(selected_conditions)){
         conditions <- res$conditions
       } else {
@@ -1696,7 +1700,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, n_edges_max = NUL
 
   
   # build matrix on which correlations will be computed
-  if(class(res) == "InteRactome"){
+  if(inherits(res, "InteRactome")){
     idx_selected <- 1:length(res$names)
     if (!is.null(idx)) {
       idx_selected <- idx
@@ -1770,7 +1774,7 @@ compute_correlations <- function(res, idx = NULL, log = FALSE, n_edges_max = NUL
                         r_corr = r_corr, 
                         p_corr = p_corr,
                         n_corr = n_corr)
-  if(class(res) == "InteRactome"){
+  if(inherits(res, "InteRactome")){
     df_corr$bait <- res$bait
   }
 

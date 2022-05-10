@@ -1,7 +1,7 @@
 Package: InteRact
 Title: Analysis of affinity purification/tandem MS data
-Version: 0.1.0
-Date: 2018-02-21
+Version: 0.1.1
+Date: 2022-05-10
 Authors@R:
   person("Guillaume", "Voisinne",
   email = "voisinne@ciml.univ-mrs.fr",
@@ -9,16 +9,15 @@ Authors@R:
   comment = c(ORCID = "0000-0003-3922-2121"))
 Maintainer: Guillaume Voisinne <voisinne@ciml.univ-mrs.fr>
 Description: The InteRact package provides tools to analyze affinity purification/tandem MS data.
+Encoding: UTF-8
 Imports:
 	dplyr,
 	ggplot2,
 	ggrepel,
-	stringr,
 	Hmisc,
 	igraph,
 	networkD3,
 	ggsignif,
-	reshape2,
 	pannot,
 	proteinRuler
 Remotes: 
@@ -27,7 +26,7 @@ Remotes:
 biocViews:
 LazyData: TRUE
 License: file LICENSE
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 Depends:
   mice (>= 2.46),
   R (>= 2.10)
@@ -36,5 +35,6 @@ BugReports: https://github.com/VoisinneG/InteRact/issues
 Suggests: 
     knitr,
     rmarkdown,
+    markdown,
     gridExtra
 VignetteBuilder: knitr

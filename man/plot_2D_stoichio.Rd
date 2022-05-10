@@ -6,6 +6,7 @@
 \usage{
 plot_2D_stoichio(
   res,
+  labels = NULL,
   condition = "max",
   names = NULL,
   idx_rows = 1:30,
@@ -37,6 +38,8 @@ plot_2D_stoichio(
 }
 \arguments{
 \item{res}{an \code{InteRactome}}
+
+\item{labels}{labels for proteins in plot. Must the same length as \code{res$names}}
 
 \item{condition}{condition selected. If "max", the maximum stoichiometry across conditions will be used.}
 

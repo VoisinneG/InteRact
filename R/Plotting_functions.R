@@ -499,7 +499,8 @@ plot_Intensity_histogram <- function( I, I_rep, breaks=20, save_file=NULL){
 #' @param names Names of proteins highlighted
 #' @param idx indices of proteins highlighted (superseeds \code{names})
 #' @param N_print maximum of protein labels to display
-#' @param labels labels for proteins in plot. Must the same length as \code{res$names}
+#' @param labels labels for proteins in plot. Must the same length as 
+#' \code{res$names} or \code{data$names}
 #' @param show_all_above_thresh logical. Highlight all proteins above threshold?
 #' @param conditions conditions to plot
 #' @param p_val_thresh threshold on p-value to display
@@ -643,7 +644,11 @@ plot_volcanos <- function( res=NULL,
       }
     }else{
       df <- data
-      df$names <- as.character(data$names)
+      if(!is.null(labels)){
+        df$names <- labels
+      }else{
+        df$names <- as.character(data$names)
+      }
       df$Y <- -log10(data$p_val)
       df$X <- log10(df$fold_change)
     }
@@ -1522,7 +1527,7 @@ plot_QC <- function(data,
   df <- data
   df$Intensity_na <- df$Intensity
   
-  if(class(data) == "InteRactome"){
+  if(inherits(data, "InteRactome")){
     if(na.imputed){
       df$Intensity <- df$data$Intensity_na_replaced
       df$Intensity_na <- df$data$Intensity
@@ -1535,7 +1540,7 @@ plot_QC <- function(data,
   if(!is.null(bait_name)){
     bait <- bait_name 
   }else{
-    if(class(data) == "InteRactome"){
+    if(inherits(data, "InteRactome")){
     bait <- df$bait
     }else{
       bait <- df$bait_gene_name

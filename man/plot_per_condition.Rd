@@ -6,6 +6,7 @@
 \usage{
 plot_per_condition(
   res,
+  labels = NULL,
   names = NULL,
   idx_cols = 1:length(res$conditions),
   idx_rows = NULL,
@@ -29,7 +30,9 @@ plot_per_condition(
 \arguments{
 \item{res}{an \code{InteRactome}}
 
-\item{names}{vector of names to be displayed}
+\item{labels}{labels for proteins in plot. Must the same length as \code{res$names}}
+
+\item{names}{Deprecated. Same as parameter \code{labels}.}
 
 \item{idx_cols}{numeric vector to select and order conditions to be displayed}
 

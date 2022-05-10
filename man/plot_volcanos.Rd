@@ -45,7 +45,8 @@ plot_volcanos(
 
 \item{idx}{indices of proteins highlighted (superseeds \code{names})}
 
-\item{labels}{labels for proteins in plot. Must the same length as \code{res$names}}
+\item{labels}{labels for proteins in plot. Must the same length as 
+\code{res$names} or \code{data$names}}
 
 \item{show_all_above_thresh}{logical. Highlight all proteins above threshold?}
 
